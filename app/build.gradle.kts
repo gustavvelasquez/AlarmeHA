@@ -149,6 +149,9 @@ dependencies {
     implementation(libs.autofittextview)
     implementation(libs.eventbus)
     implementation(libs.kotlinx.serialization.json)
+    // AlarmeHA: webhook com novas tentativas e leitura do QR de pareamento
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.zxing.android.embedded)
 
     implementation(libs.bundles.room)
     ksp(libs.androidx.room.compiler)

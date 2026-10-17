@@ -81,6 +81,7 @@ class SettingsActivity : SimpleActivity() {
         setupTopAppBar(binding.settingsAppbar, NavigationIcon.Arrow)
 
         setupCustomizeColors()
+        setupHomeAssistant() // AlarmeHA
         setupUseEnglish()
         setupLanguage()
         setupHourFormat()
@@ -98,6 +99,7 @@ class SettingsActivity : SimpleActivity() {
         updateTextColors(binding.settingsHolder)
 
         arrayOf(
+            binding.settingsHomeAssistantSectionLabel, // AlarmeHA
             binding.settingsColorCustomizationSectionLabel,
             binding.settingsGeneralSettingsLabel,
             binding.settingsAlarmTabLabel,
@@ -105,6 +107,13 @@ class SettingsActivity : SimpleActivity() {
             binding.settingsMigratingLabel
         ).forEach {
             it.setTextColor(getProperPrimaryColor())
+        }
+    }
+
+    // AlarmeHA: abre a tela de pareamento com o Home Assistant
+    private fun setupHomeAssistant() {
+        binding.settingsHomeAssistantHolder.setOnClickListener {
+            startActivity(android.content.Intent(this, org.fossify.clock.ha.HaPairingActivity::class.java))
         }
     }
 

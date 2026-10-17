@@ -8,6 +8,7 @@ import org.fossify.clock.extensions.dbHelper
 import org.fossify.clock.extensions.setupAlarmClock
 import org.fossify.clock.extensions.showRemainingTimeMessage
 import org.fossify.clock.extensions.updateWidgets
+import org.fossify.clock.ha.HaEvents
 import org.fossify.clock.models.Alarm
 import org.fossify.clock.models.AlarmEvent
 import org.fossify.clock.services.AlarmService
@@ -109,6 +110,7 @@ class AlarmController(
         }
 
         sendIntentToService(AlarmService.ACTION_START_ALARM, alarmId)
+        HaEvents.onRingEvent(context, "tocou", alarmId) // AlarmeHA
     }
 
     /**
@@ -130,6 +132,7 @@ class AlarmController(
     fun stopAlarm(alarmId: Int) {
         sendIntentToService(AlarmService.ACTION_STOP_ALARM, alarmId)
         bus.post(AlarmEvent.Stopped(alarmId))
+        HaEvents.onRingEvent(context, "desligado", alarmId) // AlarmeHA
 
         ensureBackgroundThread {
             val alarm = db.getAlarmWithId(alarmId)
@@ -157,6 +160,7 @@ class AlarmController(
     fun snoozeAlarm(alarmId: Int, snoozeMinutes: Int) {
         sendIntentToService(AlarmService.ACTION_STOP_ALARM, alarmId)
         bus.post(AlarmEvent.Stopped(alarmId))
+        HaEvents.onRingEvent(context, "soneca", alarmId) { put("minutos", snoozeMinutes) } // AlarmeHA
 
         ensureBackgroundThread {
             val alarm = db.getAlarmWithId(alarmId)
