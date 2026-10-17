@@ -19,11 +19,14 @@ if ! command -v firebase >/dev/null 2>&1; then
   echo "ERRO: firebase-tools não encontrado" >&2
   exit 1
 fi
-if [[ ! -f "$FIREBASE_SA_KEY" ]]; then
-  echo "ERRO: chave da conta de serviço ausente: $FIREBASE_SA_KEY" >&2
-  exit 1
+# Com FIREBASE_SA_KEY vazio, usa o login do firebase-tools (firebase login).
+if [[ -n "${FIREBASE_SA_KEY:-}" ]]; then
+  if [[ ! -f "$FIREBASE_SA_KEY" ]]; then
+    echo "ERRO: chave da conta de serviço ausente: $FIREBASE_SA_KEY" >&2
+    exit 1
+  fi
+  export GOOGLE_APPLICATION_CREDENTIALS="$FIREBASE_SA_KEY"
 fi
-export GOOGLE_APPLICATION_CREDENTIALS="$FIREBASE_SA_KEY"
 
 PROPS="$REPO_DIR/gradle.properties"
 version_name="$(grep -m 1 -E '^VERSION_NAME=' "$PROPS" | cut -d= -f2)"
