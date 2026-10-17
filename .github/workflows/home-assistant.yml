@@ -27,8 +27,8 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # issues/topics: configurações do repositório no GitHub (ver docs); brands: só para integrações oficiais
-          ignore: brands issues topics
+          # brands: só para integrações oficiais
+          ignore: brands
 
   testes:
     runs-on: ubuntu-latest
