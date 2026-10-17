@@ -1,0 +1,2 @@
+pytest-homeassistant-custom-component
+segno==1.6.6

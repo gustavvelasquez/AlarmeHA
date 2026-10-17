@@ -9,7 +9,63 @@ O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app
 - **Som:** sempre o padrão do app.
 - **Webhook:** um por pessoa (ex.: um para o Usuario e outro para a Segunda pessoa).
 
-## 1. Preparar o HA (uma vez por pessoa)
+## 0. Jeito recomendado: integração HACS "AlarmeHA"
+
+Este repositório também traz uma integração para o Home Assistant (`custom_components/alarmeha`). Ela faz pelo HA o que as seções 1 a 4 fazem à mão: webhook, QR de pareamento, comandos com novas tentativas e sensores.
+
+### Instalar
+1. HACS → menu ⋮ → **Repositórios personalizados** → URL `https://github.com/gustavvelasquez/AlarmeHA`, tipo **Integração** → Adicionar.
+2. Procure **AlarmeHA** no HACS → Baixar → reinicie o Home Assistant.
+3. Configurações → Dispositivos e serviços → **Adicionar integração** → **AlarmeHA**. Faça isso uma vez por pessoa/celular.
+   - **Pessoa**: ex.: Usuario.
+   - **Serviço de notificação**: `notify.mobile_app_<celular>` (app Companion).
+   - **Pacote**: `br.casa.alarmeha` ou `br.casa.alarmeha.debug` (versão de teste do Firebase).
+   - **URL externa do HA**: já vem preenchida com a URL externa configurada no HA.
+4. A próxima tela mostra o **QR code** e o texto de pareamento. No celular, abra o AlarmeHA (Configurações → Home Assistant → Pareamento e token → **Ler QR code**, ou **Colar configuração**). Copie o token que o app mostra e cole no campo **Token**.
+5. Para trocar o token depois de **Gerar novo token** no app: na integração, **Configurar** → cole o novo token.
+
+O webhook é criado pela própria integração, com id aleatório. O token fica guardado na entrada da integração e não aparece nos logs; não é preciso `secrets.yaml`.
+
+### Entidades (por celular)
+| Entidade | O que mostra |
+|---|---|
+| `sensor.alarmeha_<pessoa>_proximo_alarme` | horário do próximo alarme ativo (timestamp) |
+| `sensor.alarmeha_<pessoa>_ultimo_evento` | último evento recebido (`tocou`, `soneca`, `desligado`, `lista`...); atributos com os detalhes |
+| `sensor.alarmeha_<pessoa>_alarmes` | quantidade de alarmes; atributo `alarmes` com a lista completa |
+| `binary_sensor.alarmeha_<pessoa>_conectado` | ligado se o celular mandou algum evento nas últimas 26 h |
+
+Os nomes dos ids seguem o idioma do HA; em inglês, por exemplo, `..._next_alarm`.
+
+A integração pede a lista de alarmes 30 s depois de iniciar, a cada 12 h e depois de cada alarme desligado. Isso mantém os sensores atualizados e funciona como "batimento".
+
+Todo evento do celular também vira o evento `alarmeha_evento` no barramento do HA, com `config_entry_id`, `pessoa` e os campos da seção 4.
+
+### Ações (serviços)
+`alarmeha.criar`, `alarmeha.editar`, `alarmeha.ligar`, `alarmeha.desligar`, `alarmeha.apagar` e `alarmeha.listar`.
+
+- O celular é escolhido por `config_entry_id` ou `device_id`. Se houver um só celular, pode omitir.
+- Cada ação espera a confirmação com o mesmo `pedido` (padrão: 45 s, campo `timeout`) e reenvia até 3 vezes.
+- Se o celular responder `erro`, ou não confirmar, a ação falha com a mensagem.
+- Com `response_variable`, a ação devolve o evento de confirmação (em `listar`, a lista completa).
+
+```yaml
+- action: alarmeha.criar
+  data:
+    device_id: 0123456789abcdef      # ou config_entry_id
+    ref: usuario_aula
+    hora: 6
+    minuto: 30
+    dias: 31                          # seg a sex
+    rotulo: "Aula 07:45"
+- action: alarmeha.desligar
+  data: { ref: usuario_aula }
+- action: alarmeha.listar
+  response_variable: lista
+```
+
+As seções abaixo descrevem o protocolo e o jeito **sem a integração** (só automações YAML).
+
+## 1. Sem a integração: preparar o HA (uma vez por pessoa)
 
 ### 1.1 Criar o id do webhook
 O id do webhook é um segredo. Gere um aleatório em qualquer computador:

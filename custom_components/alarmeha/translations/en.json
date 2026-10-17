@@ -1,0 +1,252 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "AlarmeHA",
+        "description": "One entry per person/phone. Pick the Companion app notify service of that phone.",
+        "data": {
+          "pessoa": "Person",
+          "notify_service": "Notify service (Companion)",
+          "package": "App package",
+          "ha_url": "External Home Assistant URL"
+        }
+      },
+      "pair": {
+        "title": "Pair the phone",
+        "description": "1. On the phone, open AlarmeHA: Settings → Home Assistant → Pairing and token → **Scan QR code**.\n\n{qr}\n\nNo camera? Copy the text below to the phone and use **Paste configuration**:\n\n`{pairing}`\n\n2. The app shows the token only once: tap **Copy token** and paste it below.",
+        "data": {
+          "token": "AlarmeHA token"
+        }
+      }
+    },
+    "error": {
+      "invalid_url": "Invalid URL (use https://...)",
+      "invalid_token": "Invalid token: copy it from the AlarmeHA app"
+    },
+    "abort": {
+      "already_configured": "This phone is already configured",
+      "no_mobile_app": "No notify.mobile_app_* service found. Install and set up the Companion app on the phone."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "AlarmeHA",
+        "description": "To change the token (after **Generate new token** in the app), paste the new one below. To pair again, scan this QR in the app:\n\n{qr}\n\n`{pairing}`",
+        "data": {
+          "token": "New token (leave empty to keep)",
+          "package": "App package",
+          "ha_url": "External Home Assistant URL"
+        }
+      }
+    },
+    "error": {
+      "invalid_url": "Invalid URL (use https://...)",
+      "invalid_token": "Invalid token: copy it from the AlarmeHA app"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "proximo_alarme": {
+        "name": "Next alarm"
+      },
+      "ultimo_evento": {
+        "name": "Last event"
+      },
+      "alarmes": {
+        "name": "Alarms"
+      }
+    },
+    "binary_sensor": {
+      "conectado": {
+        "name": "Connected"
+      }
+    }
+  },
+  "services": {
+    "criar": {
+      "name": "Create alarm",
+      "description": "Creates (or updates, if the ref exists) an alarm on the phone.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Phone",
+          "description": "AlarmeHA entry (person/phone). Optional if there is only one."
+        },
+        "device_id": {
+          "name": "Device",
+          "description": "AlarmeHA device, alternative to the phone above."
+        },
+        "timeout": {
+          "name": "Timeout",
+          "description": "Seconds to wait for confirmation before resending (up to 3 attempts)."
+        },
+        "ref": {
+          "name": "Ref",
+          "description": "Alarm identifier in HA (a-z, 0-9, _ and -). For turn on/off/delete, * = all created by HA."
+        },
+        "hora": {
+          "name": "Hour",
+          "description": "0 to 23."
+        },
+        "minuto": {
+          "name": "Minute",
+          "description": "0 to 59."
+        },
+        "dias": {
+          "name": "Days",
+          "description": "Sum: Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32, Sun=64; -1 = today, -2 = tomorrow."
+        },
+        "rotulo": {
+          "name": "Label",
+          "description": "Alarm name (up to 64 characters)."
+        },
+        "ativo": {
+          "name": "Enabled",
+          "description": "Alarm enabled."
+        },
+        "vibrar": {
+          "name": "Vibrate",
+          "description": "Vibrate when ringing."
+        },
+        "unico": {
+          "name": "One-shot",
+          "description": "Delete after ringing (non-repeating only)."
+        }
+      }
+    },
+    "editar": {
+      "name": "Edit alarm",
+      "description": "Changes an alarm created by HA.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Phone",
+          "description": "AlarmeHA entry (person/phone). Optional if there is only one."
+        },
+        "device_id": {
+          "name": "Device",
+          "description": "AlarmeHA device, alternative to the phone above."
+        },
+        "timeout": {
+          "name": "Timeout",
+          "description": "Seconds to wait for confirmation before resending (up to 3 attempts)."
+        },
+        "ref": {
+          "name": "Ref",
+          "description": "Alarm identifier in HA (a-z, 0-9, _ and -). For turn on/off/delete, * = all created by HA."
+        },
+        "hora": {
+          "name": "Hour",
+          "description": "0 to 23."
+        },
+        "minuto": {
+          "name": "Minute",
+          "description": "0 to 59."
+        },
+        "dias": {
+          "name": "Days",
+          "description": "Sum: Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32, Sun=64; -1 = today, -2 = tomorrow."
+        },
+        "rotulo": {
+          "name": "Label",
+          "description": "Alarm name (up to 64 characters)."
+        },
+        "ativo": {
+          "name": "Enabled",
+          "description": "Alarm enabled."
+        },
+        "vibrar": {
+          "name": "Vibrate",
+          "description": "Vibrate when ringing."
+        },
+        "unico": {
+          "name": "One-shot",
+          "description": "Delete after ringing (non-repeating only)."
+        }
+      }
+    },
+    "ligar": {
+      "name": "Turn alarm on",
+      "description": "Enables an alarm created by HA.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Phone",
+          "description": "AlarmeHA entry (person/phone). Optional if there is only one."
+        },
+        "device_id": {
+          "name": "Device",
+          "description": "AlarmeHA device, alternative to the phone above."
+        },
+        "timeout": {
+          "name": "Timeout",
+          "description": "Seconds to wait for confirmation before resending (up to 3 attempts)."
+        },
+        "ref": {
+          "name": "Ref",
+          "description": "Alarm identifier in HA (a-z, 0-9, _ and -). For turn on/off/delete, * = all created by HA."
+        }
+      }
+    },
+    "desligar": {
+      "name": "Turn alarm off",
+      "description": "Disables an alarm created by HA.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Phone",
+          "description": "AlarmeHA entry (person/phone). Optional if there is only one."
+        },
+        "device_id": {
+          "name": "Device",
+          "description": "AlarmeHA device, alternative to the phone above."
+        },
+        "timeout": {
+          "name": "Timeout",
+          "description": "Seconds to wait for confirmation before resending (up to 3 attempts)."
+        },
+        "ref": {
+          "name": "Ref",
+          "description": "Alarm identifier in HA (a-z, 0-9, _ and -). For turn on/off/delete, * = all created by HA."
+        }
+      }
+    },
+    "apagar": {
+      "name": "Delete alarm",
+      "description": "Deletes an alarm created by HA.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Phone",
+          "description": "AlarmeHA entry (person/phone). Optional if there is only one."
+        },
+        "device_id": {
+          "name": "Device",
+          "description": "AlarmeHA device, alternative to the phone above."
+        },
+        "timeout": {
+          "name": "Timeout",
+          "description": "Seconds to wait for confirmation before resending (up to 3 attempts)."
+        },
+        "ref": {
+          "name": "Ref",
+          "description": "Alarm identifier in HA (a-z, 0-9, _ and -). For turn on/off/delete, * = all created by HA."
+        }
+      }
+    },
+    "listar": {
+      "name": "List alarms",
+      "description": "Asks the phone for its alarm list (updates the sensors).",
+      "fields": {
+        "config_entry_id": {
+          "name": "Phone",
+          "description": "AlarmeHA entry (person/phone). Optional if there is only one."
+        },
+        "device_id": {
+          "name": "Device",
+          "description": "AlarmeHA device, alternative to the phone above."
+        },
+        "timeout": {
+          "name": "Timeout",
+          "description": "Seconds to wait for confirmation before resending (up to 3 attempts)."
+        }
+      }
+    }
+  }
+}

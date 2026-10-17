@@ -1,0 +1,40 @@
+name: Home Assistant (integração AlarmeHA)
+
+on:
+  push:
+    paths:
+      - "custom_components/**"
+      - "ha-tests/**"
+      - "hacs.json"
+      - ".github/workflows/home-assistant.yml"
+  pull_request:
+    paths:
+      - "custom_components/**"
+      - "ha-tests/**"
+      - "hacs.json"
+  workflow_dispatch:
+
+jobs:
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hacs/action@main
+        with:
+          category: integration
+          ignore: brands
+
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r ha-tests/requirements.txt
+      - run: cd ha-tests && ln -s ../custom_components custom_components && python -m pytest -q

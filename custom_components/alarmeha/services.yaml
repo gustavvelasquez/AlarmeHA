@@ -1,0 +1,221 @@
+criar:
+  fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: alarmeha
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: alarmeha
+    timeout:
+      required: false
+      default: 45
+      selector:
+        number:
+          min: 10
+          max: 300
+          unit_of_measurement: s
+    ref:
+      required: true
+      example: usuario_aula
+      selector:
+        text:
+    hora:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 23
+          mode: box
+    minuto:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 59
+          mode: box
+    dias:
+      required: true
+      example: 31
+      selector:
+        number:
+          min: -2
+          max: 127
+          mode: box
+    rotulo:
+      required: false
+      selector:
+        text:
+    ativo:
+      required: false
+      selector:
+        boolean:
+    vibrar:
+      required: false
+      selector:
+        boolean:
+    unico:
+      required: false
+      selector:
+        boolean:
+editar:
+  fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: alarmeha
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: alarmeha
+    timeout:
+      required: false
+      default: 45
+      selector:
+        number:
+          min: 10
+          max: 300
+          unit_of_measurement: s
+    ref:
+      required: true
+      example: usuario_aula
+      selector:
+        text:
+    hora:
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 23
+          mode: box
+    minuto:
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 59
+          mode: box
+    dias:
+      required: false
+      example: 31
+      selector:
+        number:
+          min: -2
+          max: 127
+          mode: box
+    rotulo:
+      required: false
+      selector:
+        text:
+    ativo:
+      required: false
+      selector:
+        boolean:
+    vibrar:
+      required: false
+      selector:
+        boolean:
+    unico:
+      required: false
+      selector:
+        boolean:
+ligar:
+  fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: alarmeha
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: alarmeha
+    timeout:
+      required: false
+      default: 45
+      selector:
+        number:
+          min: 10
+          max: 300
+          unit_of_measurement: s
+    ref:
+      required: true
+      example: usuario_aula
+      selector:
+        text:
+desligar:
+  fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: alarmeha
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: alarmeha
+    timeout:
+      required: false
+      default: 45
+      selector:
+        number:
+          min: 10
+          max: 300
+          unit_of_measurement: s
+    ref:
+      required: true
+      example: usuario_aula
+      selector:
+        text:
+apagar:
+  fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: alarmeha
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: alarmeha
+    timeout:
+      required: false
+      default: 45
+      selector:
+        number:
+          min: 10
+          max: 300
+          unit_of_measurement: s
+    ref:
+      required: true
+      example: usuario_aula
+      selector:
+        text:
+listar:
+  fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: alarmeha
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: alarmeha
+    timeout:
+      required: false
+      default: 45
+      selector:
+        number:
+          min: 10
+          max: 300
+          unit_of_measurement: s

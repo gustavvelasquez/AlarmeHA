@@ -1,0 +1,14 @@
+{
+  "domain": "alarmeha",
+  "name": "AlarmeHA",
+  "codeowners": ["@gustavvelasquez"],
+  "config_flow": true,
+  "dependencies": ["webhook"],
+  "after_dependencies": ["mobile_app"],
+  "documentation": "https://github.com/gustavvelasquez/AlarmeHA/blob/main/docs/integracao-home-assistant.md",
+  "integration_type": "device",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/gustavvelasquez/AlarmeHA/issues",
+  "requirements": ["segno==1.6.6"],
+  "version": "0.1.0"
+}
