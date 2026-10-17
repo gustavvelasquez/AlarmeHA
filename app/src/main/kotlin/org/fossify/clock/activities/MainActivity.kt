@@ -179,7 +179,7 @@ class MainActivity : SimpleActivity() {
 
                 R.id.more_apps_from_us -> launchMoreAppsFromUsIntent()
                 R.id.settings -> launchSettings()
-                R.id.about -> launchAbout()
+                R.id.about -> showAlarmeHaAbout()
                 else -> return@setOnMenuItemClickListener false
             }
             return@setOnMenuItemClickListener true
@@ -190,8 +190,8 @@ class MainActivity : SimpleActivity() {
         binding.mainToolbar.menu.apply {
             findItem(R.id.sort).isVisible = binding.viewPager.currentItem == getTabIndex(TAB_ALARM)
                     || binding.viewPager.currentItem == getTabIndex(TAB_TIMER)
-            findItem(R.id.more_apps_from_us).isVisible =
-                !resources.getBoolean(org.fossify.commons.R.bool.hide_google_relations)
+            // AlarmeHA: sem link para outros apps do Fossify
+            findItem(R.id.more_apps_from_us).isVisible = false
         }
     }
 
@@ -352,6 +352,20 @@ class MainActivity : SimpleActivity() {
         startActivity(Intent(applicationContext, SettingsActivity::class.java))
     }
 
+    // AlarmeHA: "Sobre" simples, sem links externos; mantém o crédito exigido pela GPL-3.0.
+    private fun showAlarmeHaAbout() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.app_name)
+            .setMessage(
+                "Versão ${BuildConfig.VERSION_NAME}\n\n" +
+                    "Baseado no Fossify Clock 1.6.0 (GPL-3.0).\n" +
+                    "Este app é software livre, distribuído sob a licença GNU GPL-3.0."
+            )
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    @Suppress("UnusedPrivateMember")
     private fun launchAbout() {
         val licenses =
             LICENSE_NUMBER_PICKER or LICENSE_RTL or LICENSE_AUTOFITTEXTVIEW

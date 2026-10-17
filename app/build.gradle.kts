@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.detekt)
+    id("alarmeha.remove-fake-version-check")
 }
 
 val keystorePropertiesFile: File = rootProject.file("keystore.properties")
@@ -153,3 +154,4 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     detektPlugins(libs.compose.detekt)
 }
+
