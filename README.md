@@ -1,3 +1,22 @@
+# AlarmeHA
+
+> **AlarmeHA** é um fork do [Fossify Clock](https://github.com/FossifyOrg/Clock), baseado na release [1.6.0](https://github.com/FossifyOrg/Clock/releases/tag/1.6.0).
+
+**Objetivo:** ser o mesmo app de relógio do Fossify, com integração ao Home Assistant:
+
+- controle externo de alarmes (criar, ligar, desligar) protegido por token;
+- webhooks para o Home Assistant (alarme disparou, soneca, confirmação etc.).
+
+**Status:** em desenvolvimento.
+
+**Atualizações do upstream:** as mudanças do Fossify Clock só são trazidas para cá por decisão deliberada, nunca de forma automática.
+
+**Instalação:** a definir (distribuição pelo Firebase App Distribution e instruções de build serão documentadas aqui).
+
+**Créditos e licença:** todo o mérito do app original é do projeto [Fossify](https://github.com/FossifyOrg). Este fork mantém a licença GPL-3.0 (veja `LICENSE`). O texto original do Fossify Clock segue abaixo.
+
+---
+
 # Fossify Clock
 <img alt="Logo" src="graphics/icon.webp" width="120" />
 
