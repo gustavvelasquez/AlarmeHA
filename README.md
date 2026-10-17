@@ -11,7 +11,7 @@
 
 **Status:** em desenvolvimento.
 
-**Integração com o Home Assistant (HACS):** este repositório também contém a integração `custom_components/alarmeha`. Para instalar: HACS → ⋮ → Repositórios personalizados → `https://github.com/gustavvelasquez/AlarmeHA` (tipo Integração) → baixar **AlarmeHA** → reiniciar o HA → Adicionar integração **AlarmeHA** (uma por pessoa/celular). Guia completo: [docs/integracao-home-assistant.md](docs/integracao-home-assistant.md).
+**Integração com o Home Assistant (HACS):** este repositório também contém a integração `custom_components/alarmeha`. Para instalar: HACS → ⋮ → Repositórios personalizados → `https://github.com/gustavvelasquez/AlarmeHA` (tipo Integração) → baixar **AlarmeHA** → reiniciar o HA → Adicionar integração **AlarmeHA** (uma por pessoa/celular). Guia completo: [docs/integracao-home-assistant.md](docs/integracao-home-assistant.md). A versão da integração (`custom_components/alarmeha/manifest.json`) acompanha as tags de release do GitHub (ex.: release `v0.2.1` = integração 0.2.1); a versão do app Android fica em `gradle.properties` e pode ser diferente.
 
 **Atualizações do upstream:** as mudanças do Fossify Clock só são trazidas para cá por decisão deliberada, nunca de forma automática.
 
