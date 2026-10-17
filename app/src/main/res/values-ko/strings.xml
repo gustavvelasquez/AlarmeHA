@@ -32,7 +32,7 @@
     <string name="increase_volume_gradually">음량 점점 크게 울리기</string>
     <string name="show_seconds">초 단위 표시하기</string>
     <string name="faq_1_title">스톱워치 탭에서 구간 기록 정렬을 바꾸려면 어떻게 해야하나요?</string>
-    <string name="app_launcher_name">시계</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="vibrate">진동</string>
     <string name="stopwatch">스톱워치</string>
     <string name="no_days_selected">선택된 날짜가 없습니다</string>

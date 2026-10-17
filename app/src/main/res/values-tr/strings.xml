@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">Saat</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">Saat dilimi</string>
     <string name="vibrate">Titret</string>
     <string name="no_days_selected">Hiçbir gün seçilmedi</string>

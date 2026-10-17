@@ -1,6 +1,8 @@
 # AlarmeHA
 
-> **AlarmeHA** é um fork do [Fossify Clock](https://github.com/FossifyOrg/Clock), baseado na release [1.6.0](https://github.com/FossifyOrg/Clock/releases/tag/1.6.0).
+> **AlarmeHA** é um fork do [Fossify Clock](https://github.com/FossifyOrg/Clock), baseado no Fossify Clock 1.6.0 (release [1.6.0](https://github.com/FossifyOrg/Clock/releases/tag/1.6.0)).
+>
+> Identidade própria: versão 0.1.0 (versionCode 100, esquema X*10000+Y*100+Z), applicationId `br.casa.alarmeha` (o pacote Kotlin `org.fossify.clock` foi mantido para facilitar merges do upstream).
 
 **Objetivo:** ser o mesmo app de relógio do Fossify, com integração ao Home Assistant:
 

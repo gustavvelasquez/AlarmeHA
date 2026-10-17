@@ -18,7 +18,7 @@
         <item quantity="many">Tá %d amadóir ag rith</item>
         <item quantity="other">Tá %d amadóir ag rith</item>
     </plurals>
-    <string name="app_launcher_name">Clog</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">Crios ama</string>
     <string name="vibrate">Creathadh</string>
     <string name="no_days_selected">Níl aon lá roghnaithe</string>

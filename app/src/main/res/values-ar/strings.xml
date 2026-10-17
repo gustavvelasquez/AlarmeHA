@@ -42,7 +42,7 @@
     <string name="increase_volume_gradually">زيادة الصوت تدريجيا</string>
     <string name="faq_1_title">كيف يمكنني تغيير فرز اللفات في علامة التبويب ساعة التوقيت؟</string>
     <string name="faq_1_text">ما عليك سوى النقر فوق أي من الأعمدة ، مما يجعل الدورات مرتبة حسب العمود المحدد. بنقرات إضافية ، يمكنك التبديل بين الفرز التصاعدي والتنازلي.</string>
-    <string name="app_launcher_name">الساعة</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="clock">الساعة</string>
     <string name="timer">المؤقت</string>
     <string name="add_alarm">أضف منبهًا</string>

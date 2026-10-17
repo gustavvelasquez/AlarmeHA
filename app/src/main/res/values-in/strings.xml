@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">Jam</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">Zona waktu</string>
     <string name="vibrate">Getar</string>
     <string name="no_days_selected">Tidak ada hari yang dipilih</string>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="no_days_selected">Cap de jorn pas seleccionat</string>
-    <string name="app_launcher_name">Relòtge</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">Zòna orària</string>
     <string name="vibrate">Vibrar</string>
     <string name="clock">Relòtge</string>

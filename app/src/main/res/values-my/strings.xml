@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">နာရီ</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">အချိန် ဇုန်</string>
     <string name="vibrate">တုန်ခါမှု</string>
     <string name="no_days_selected">ရက်မ​ရွေးထားပါ</string>

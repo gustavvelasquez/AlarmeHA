@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">Horloĝo</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="vibrate">Vibri</string>
     <string name="time_zone">Horzono</string>
     <string name="timer">Tempomezurilo</string>

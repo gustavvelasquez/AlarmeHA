@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">Óra</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">Időzóna</string>
     <string name="vibrate">Rezgés</string>
     <string name="no_days_selected">Nincs nap kiválasztva</string>

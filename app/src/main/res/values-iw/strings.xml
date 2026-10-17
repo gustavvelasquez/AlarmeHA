@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">שעון</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">אזור זמן</string>
     <string name="vibrate">רטט</string>
     <string name="no_days_selected">נא לבחור ימים ולבצע שוב</string>

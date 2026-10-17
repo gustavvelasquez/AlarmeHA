@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">ക്ലോക്ക്</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">സമയ മേഖല</string>
     <string name="vibrate">വൈബ്രേറ്റുചെയ്യുക</string>
     <string name="no_days_selected">ദിവസങ്ങളൊന്നും തിരഞ്ഞെടുത്തിട്ടില്ല</string>

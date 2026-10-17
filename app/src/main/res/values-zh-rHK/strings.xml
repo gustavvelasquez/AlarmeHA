@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">時鐘</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">時區</string>
     <string name="vibrate">震動</string>
     <string name="no_days_selected">未選擇任何一天</string>

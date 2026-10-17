@@ -11,3 +11,7 @@ keystore.properties
 fastlane/fastlane.json
 fastlane/report.xml
 .kotlin/
+
+# Configuração local do Firebase (não versionar)
+scripts/firebase.env
+*-firebase-sa*.json

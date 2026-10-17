@@ -2,7 +2,7 @@
 <resources>
     <string name="clock">گھڑی</string>
     <string name="new_timer">نواں سماں والا</string>
-    <string name="app_launcher_name">گھڑی</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">سماں کھیتر</string>
     <string name="no_days_selected">کوئی دن نہیں چݨے اے</string>
     <string name="timer">سماں والا</string>

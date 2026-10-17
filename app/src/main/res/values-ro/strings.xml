@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">Ceas</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">Fus Orar</string>
     <string name="vibrate">Vibrare</string>
     <string name="no_days_selected">Nicio zi selectată</string>

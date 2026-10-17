@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">Reloxo</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">Franxa horaria</string>
     <string name="vibrate">Vibrar</string>
     <string name="no_days_selected">Ningún día seleccionado</string>

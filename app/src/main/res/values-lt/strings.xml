@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">Laikrodis</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">Laiko juosta</string>
     <string name="vibrate">Vibruoti</string>
     <string name="no_days_selected">Nepasirinkta nė vienos dienos</string>

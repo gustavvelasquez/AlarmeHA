@@ -6,7 +6,7 @@
     <string name="sort_by_timer_duration">Duração do temporizador</string>
     <string name="select_alarm_to_dismiss">Selecione o alarme para descartar</string>
     <string name="new_timer">Novo temporizador</string>
-    <string name="app_launcher_name">Clock</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">Fuso horário</string>
     <string name="vibrate">Vibrar</string>
     <string name="no_days_selected">Nenhum dia selecionado</string>

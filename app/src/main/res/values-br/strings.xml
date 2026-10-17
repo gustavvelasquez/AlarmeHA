@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">Horolaj</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="vibrate">Froumal</string>
     <string name="no_days_selected">Deiziad ebet diuzet</string>
     <string name="clock">Horolaj</string>

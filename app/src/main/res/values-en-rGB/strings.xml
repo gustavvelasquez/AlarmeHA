@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">Clock</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">Time zone</string>
     <string name="vibrate">Vibrate</string>
     <string name="add_alarm">Add alarm</string>

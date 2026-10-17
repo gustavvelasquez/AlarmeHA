@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_launcher_name">Uhr</string>
+    <string name="app_launcher_name">AlarmeHA</string>
     <string name="time_zone">Zeitzone</string>
     <string name="vibrate">Vibration</string>
     <string name="no_days_selected">Keine Tage ausgewählt</string>
