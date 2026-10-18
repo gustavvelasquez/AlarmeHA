@@ -72,7 +72,13 @@ object HaActivation {
         }
 
         val config = HaConfig(context)
+        // A URL usada agora funcionou: fica como primeira. As do HA (externa, interna) são reserva.
+        val serverUrls = data.optJSONArray("urls")?.let { arr -> List(arr.length()) { arr.optString(it) } }.orEmpty() +
+            listOf(data.optString("url_externa"), data.optString("url_interna"))
         config.haUrl = request.url
+        config.urls = (listOf(request.url) + serverUrls.map { it.trim().trimEnd('/') })
+            .filter { it.matches(URL_REGEX) }
+            .distinct()
         config.webhookId = webhook
         config.personName = data.optString("nome").trim().take(40)
         config.setServerToken(token)

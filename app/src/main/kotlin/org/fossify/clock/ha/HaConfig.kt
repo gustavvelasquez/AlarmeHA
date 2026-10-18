@@ -2,6 +2,7 @@ package org.fossify.clock.ha
 
 import android.content.Context
 import android.util.Base64
+import org.json.JSONArray
 import java.security.MessageDigest
 import java.security.SecureRandom
 
@@ -13,6 +14,20 @@ class HaConfig(context: Context) {
     var haUrl: String
         get() = prefs.getString(KEY_URL, "") ?: ""
         set(value) = prefs.edit().putString(KEY_URL, value.trimEnd('/')).apply()
+
+    /** Todas as URLs conhecidas do HA (origem da ativação, externa, interna). [haUrl] é a última que funcionou. */
+    var urls: List<String>
+        get() = runCatching {
+            val array = JSONArray(prefs.getString(KEY_URLS, "[]"))
+            List(array.length()) { array.getString(it) }
+        }.getOrDefault(emptyList())
+        set(value) = prefs.edit().putString(KEY_URLS, JSONArray(value.map { it.trimEnd('/') }.distinct()).toString()).apply()
+
+    /** Ordem de tentativa do webhook: a última URL que funcionou primeiro, depois as demais. */
+    val candidateUrls: List<String>
+        get() = (listOf(haUrl) + urls).filter { it.isNotEmpty() }.distinct()
+
+    fun webhookUrlFor(base: String) = "$base/api/webhook/$webhookId"
 
     var webhookId: String
         get() = prefs.getString(KEY_WEBHOOK, "") ?: ""
@@ -70,6 +85,7 @@ class HaConfig(context: Context) {
         private const val PREFS = "alarmeha_home_assistant"
         private const val KEY_URL = "ha_url"
         private const val KEY_WEBHOOK = "webhook_id"
+        private const val KEY_URLS = "ha_urls"
         private const val KEY_NAME = "person_name"
         private const val KEY_TOKEN_HASH = "token_sha256"
         private const val KEY_REJECTED = "rejected_commands"

@@ -72,21 +72,11 @@ object HaWebhook {
                 return@withContext Result.success()
             }
 
-            val ok = try {
-                val connection = (URL(config.webhookUrl).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    connectTimeout = 15_000
-                    readTimeout = 15_000
-                    doOutput = true
-                    setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                }
-                connection.outputStream.use { it.write(file.readBytes()) }
-                val code = connection.responseCode
-                connection.disconnect()
-                code in 200..299
-            } catch (e: Exception) {
-                false
-            }
+            // Como o Companion: tenta a última URL que funcionou e depois as outras (externa, interna...).
+            val body = file.readBytes()
+            val worked = config.candidateUrls.firstOrNull { base -> post(config.webhookUrlFor(base), body) }
+            if (worked != null && worked != config.haUrl) config.haUrl = worked
+            val ok = worked != null
 
             when {
                 ok -> {
@@ -100,6 +90,23 @@ object HaWebhook {
                 else -> Result.retry()
             }
         }
+
+        private fun post(url: String, body: ByteArray): Boolean =
+            try {
+                val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 15_000
+                    readTimeout = 15_000
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                }
+                connection.outputStream.use { it.write(body) }
+                val code = connection.responseCode
+                connection.disconnect()
+                code in 200..299
+            } catch (e: Exception) {
+                false
+            }
     }
 
     private const val MAX_ATTEMPTS = 8
