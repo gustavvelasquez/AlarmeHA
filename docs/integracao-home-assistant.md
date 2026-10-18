@@ -20,6 +20,8 @@ Este repositório também traz uma integração para o Home Assistant (`custom_c
 4. **Baixar e instalar:** toque em **Baixar e instalar**. O próprio HA entrega o APK (`/api/alarmeha/apk`, link assinado de curta duração), que ele baixa da última release do GitHub e guarda em cache. Se o Play Protect avisar, toque em **Instalar mesmo assim**. Se o download falhar, o painel tem o link para a página da release.
 5. **Abra o app AlarmeHA e toque em Ativar.** O app abre o painel no Companion (`homeassistant://navigate/despertador?ativar=1`). Só nesse caso o painel mostra o cartão **Ativar este celular**: ele gera o código sozinho e mostra o botão grande **Confirmar ativação**. O AlarmeHA pergunta **"Ativar com o HA da casa?"** → Ativar.
    - O código é de **uso único** e vale 10 minutos. O app troca o código, em `POST /api/alarmeha/ativar`, pelo webhook e pelo token gerados no HA. O app guarda só o hash do token.
+   - O link de ativação usa o endereço pelo qual você está acessando o HA agora (Nabu Casa, IP local, proxy reverso...). A URL externa configurada na integração é só reserva.
+   - Na ativação o HA manda ao app todas as URLs que conhece: a usada na ativação, a externa e a interna. Como o Companion, o app envia cada evento tentando primeiro a última URL que funcionou e depois as outras.
    - O HA acha o celular do Companion pelo usuário logado e cria o dispositivo **AlarmeHA &lt;pessoa&gt;** sozinho.
    - Se não voltar para o app: no AlarmeHA, Configurações → Home Assistant → Avançado → **Colar configuração** com o texto `{"v":2,...}` que o cartão mostra.
    - **Ativar com o Home Assistant** também fica no menu ⋮ do app e em Configurações → Home Assistant. Sem o app Home Assistant instalado, o AlarmeHA avisa e oferece a Play Store.
