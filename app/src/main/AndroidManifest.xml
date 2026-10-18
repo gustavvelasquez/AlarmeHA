@@ -170,6 +170,11 @@
 
         <!-- AlarmeHA: integração com o Home Assistant -->
         <activity
+            android:name=".ha.HaActivationRequiredActivity"
+            android:exported="false"
+            android:label="AlarmeHA" />
+
+        <activity
             android:name=".ha.HaPairingActivity"
             android:exported="true"
             android:label="Home Assistant"

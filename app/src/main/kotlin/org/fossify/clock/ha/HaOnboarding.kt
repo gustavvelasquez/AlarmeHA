@@ -10,25 +10,16 @@ import android.text.format.DateFormat
 import androidx.appcompat.app.AlertDialog
 import java.util.Date
 
-/** Primeira abertura: convida a ativar pelo Home Assistant e lembra do despertador antigo. */
+/** Ativação obrigatória na primeira vez, abertura do painel e dica do despertador antigo. */
 object HaOnboarding {
     private const val COMPANION_PLAY_URL = "https://play.google.com/store/apps/details?id=io.homeassistant.companion.android"
 
-    fun maybeShow(activity: Activity) {
-        val config = HaConfig(activity)
-        if (config.isPaired || config.onboardingDismissed) return
-        AlertDialog.Builder(activity)
-            .setTitle("Bem-vindo ao AlarmeHA")
-            .setMessage(
-                "Toque em Ativar: o app Home Assistant abre o painel Despertador já na ativação; " +
-                    "lá, toque em Confirmar ativação.\n\n" + oldAlarmHint(activity)
-            )
-            .setPositiveButton("Ativar") { _, _ -> openPanel(activity) }
-            .setNegativeButton("Agora não") { _, _ -> config.onboardingDismissed = true }
-            .setNeutralButton("Avançado") { _, _ ->
-                activity.startActivity(Intent(activity, HaPairingActivity::class.java))
-            }
-            .show()
+    /** Enquanto o app nunca foi ativado, troca a tela atual pela ativação obrigatória. Retorna true se trocou. */
+    fun redirectIfNeverActivated(activity: Activity): Boolean {
+        if (HaConfig(activity).everActivated) return false
+        activity.startActivity(Intent(activity, HaActivationRequiredActivity::class.java))
+        activity.finish()
+        return true
     }
 
     /** Próximo alarme do sistema (de outro app), para o usuário recriar aqui e desligar o antigo. */

@@ -80,7 +80,8 @@ class HaPairingActivity : SimpleActivity() {
                     AlertDialog.Builder(this)
                         .setTitle("Celular ativado")
                         .setMessage("Pronto! Gerencie os alarmes pelo painel Despertador.\n\n" + HaOnboarding.oldAlarmHint(this))
-                        .setPositiveButton(android.R.string.ok, null)
+                        .setPositiveButton(android.R.string.ok) { _, _ -> openAlarms() }
+                        .setOnCancelListener { openAlarms() }
                         .show()
                 } else {
                     AlertDialog.Builder(this)
@@ -161,6 +162,15 @@ class HaPairingActivity : SimpleActivity() {
         return scroll
     }
 
+    /** Depois de ativar, vai para os alarmes (saindo da tela de ativação obrigatória, se ela estiver aberta). */
+    private fun openAlarms() {
+        startActivity(
+            Intent(this, org.fossify.clock.activities.MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        )
+        finish()
+    }
+
     private fun refresh() {
         status.text = buildString {
             append(if (config.isPaired) "Status: ativado" else "Status: não ativado")
@@ -217,6 +227,7 @@ class HaPairingActivity : SimpleActivity() {
         config.haUrl = url
         config.webhookId = webhook
         config.personName = data?.optString("nome").orEmpty().trim().take(40)
+        config.markActivated()
         if (!config.hasToken) {
             shownToken = config.generateToken()
         }

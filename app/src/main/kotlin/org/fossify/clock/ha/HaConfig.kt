@@ -64,9 +64,14 @@ class HaConfig(context: Context) {
         tokenHash = sha256(token)
     }
 
-    var onboardingDismissed: Boolean
-        get() = prefs.getBoolean(KEY_ONBOARDING_DISMISSED, false)
-        set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_DISMISSED, value).apply()
+    /** Já foi ativado alguma vez. A tela de ativação obrigatória só aparece enquanto isso for falso:
+     * depois de ativado, o app e os alarmes funcionam sempre, mesmo sem HA, internet ou token válido. */
+    val everActivated: Boolean
+        get() = prefs.getBoolean(KEY_EVER_ACTIVATED, false) || isPaired
+
+    fun markActivated() {
+        prefs.edit().putBoolean(KEY_EVER_ACTIVATED, true).apply()
+    }
 
     fun isValidToken(token: String?): Boolean {
         val stored = tokenHash
@@ -78,7 +83,8 @@ class HaConfig(context: Context) {
     }
 
     fun unpair() {
-        prefs.edit().clear().putBoolean(KEY_ONBOARDING_DISMISSED, true).apply()
+        val activated = everActivated
+        prefs.edit().clear().putBoolean(KEY_EVER_ACTIVATED, activated).apply()
     }
 
     companion object {
@@ -89,7 +95,7 @@ class HaConfig(context: Context) {
         private const val KEY_NAME = "person_name"
         private const val KEY_TOKEN_HASH = "token_sha256"
         private const val KEY_REJECTED = "rejected_commands"
-        private const val KEY_ONBOARDING_DISMISSED = "onboarding_dismissed"
+        private const val KEY_EVER_ACTIVATED = "ever_activated"
 
         fun sha256(text: String): String =
             MessageDigest.getInstance("SHA-256").digest(text.toByteArray(Charsets.UTF_8))

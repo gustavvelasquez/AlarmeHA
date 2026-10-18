@@ -67,6 +67,7 @@ class MainActivity : SimpleActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (HaOnboarding.redirectIfNeverActivated(this)) return
         setContentView(binding.root)
         appLaunched(BuildConfig.APPLICATION_ID)
         setupOptionsMenu()
@@ -79,7 +80,6 @@ class MainActivity : SimpleActivity() {
         setupTabs()
         updateWidgets()
         migrateFirstDayOfWeek()
-        HaOnboarding.maybeShow(this)
         ensureBackgroundThread {
             alarmController.rescheduleEnabledAlarms()
         }

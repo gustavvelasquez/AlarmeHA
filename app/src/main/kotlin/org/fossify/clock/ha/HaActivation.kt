@@ -83,7 +83,7 @@ object HaActivation {
         config.personName = data.optString("nome").trim().take(40)
         config.setServerToken(token)
         config.rejectedCommands = 0
-        config.onboardingDismissed = true
+        config.markActivated()
         HaWebhook.send(context, "pareado", JSONObject().apply {
             put("pedido", JSONObject.NULL)
             put("token_definido", true)
