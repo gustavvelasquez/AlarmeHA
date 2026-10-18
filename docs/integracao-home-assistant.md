@@ -17,18 +17,19 @@ Este repositório também traz uma integração para o Home Assistant (`custom_c
 1. **Admin, uma vez:** HACS → menu ⋮ → **Repositórios personalizados** → URL `https://github.com/gustavvelasquez/AlarmeHA`, tipo **Integração** → Adicionar. Procure **AlarmeHA** → Baixar → reinicie o HA.
 2. **Admin, uma vez:** Configurações → Dispositivos e serviços → **Adicionar integração** → **AlarmeHA**. Confirme a **URL externa do HA** (a que os celulares usam, também fora de casa). Só existe uma entrada para a casa toda.
 3. **Cada pessoa, no próprio celular:** entre no app **Home Assistant (Companion)** com a sua conta e abra o painel **Despertador** na barra lateral.
-4. **1. Baixe o app:** toque em **Baixar AlarmeHA.apk** e instale (a última release do GitHub).
-5. **2. Ative:** toque em **Ativar** e depois em **Abrir o AlarmeHA e ativar**. O AlarmeHA pergunta **"Ativar com o HA da casa?"** → Ativar.
-   - O link leva um **código de uso único** que vale 10 minutos. O app troca o código, em `POST /api/alarmeha/ativar`, pelo webhook e pelo token gerados no HA. O app guarda só o hash do token.
+4. **Baixar e instalar:** toque em **Baixar e instalar**. O próprio HA entrega o APK (`/api/alarmeha/apk`, link assinado de curta duração), que ele baixa da última release do GitHub e guarda em cache. Se o Play Protect avisar, toque em **Instalar mesmo assim**. Se o download falhar, o painel tem o link para a página da release.
+5. **Abra o app AlarmeHA e toque em Ativar.** O app abre o painel no Companion (`homeassistant://navigate/despertador?ativar=1`). Só nesse caso o painel mostra o cartão **Ativar este celular**: ele gera o código sozinho e mostra o botão grande **Confirmar ativação**. O AlarmeHA pergunta **"Ativar com o HA da casa?"** → Ativar.
+   - O código é de **uso único** e vale 10 minutos. O app troca o código, em `POST /api/alarmeha/ativar`, pelo webhook e pelo token gerados no HA. O app guarda só o hash do token.
    - O HA acha o celular do Companion pelo usuário logado e cria o dispositivo **AlarmeHA &lt;pessoa&gt;** sozinho.
-   - Se o link não abrir o app: no AlarmeHA, Configurações → Home Assistant → Avançado → **Colar configuração** com o texto `{"v":2,...}` que o painel mostra em "Não abriu?".
+   - Se não voltar para o app: no AlarmeHA, Configurações → Home Assistant → Avançado → **Colar configuração** com o texto `{"v":2,...}` que o cartão mostra.
+   - **Ativar com o Home Assistant** também fica no menu ⋮ do app e em Configurações → Home Assistant. Sem o app Home Assistant instalado, o AlarmeHA avisa e oferece a Play Store.
 6. Pronto: o painel lista os alarmes desse celular e permite criar, editar, ligar/desligar e apagar.
 
-Na primeira abertura, o AlarmeHA oferece **Ativar pelo Home Assistant**, que abre o painel no Companion (`homeassistant://navigate/despertador`). O app também mostra o próximo alarme do sistema, para você recriá-lo no AlarmeHA e **desativar os alarmes do relógio antigo**.
+Na primeira abertura, o AlarmeHA oferece **Ativar**, que abre o painel no Companion. O app também mostra o próximo alarme do sistema, para você recriá-lo no AlarmeHA e **desativar os alarmes do relógio antigo**.
 
 **Quem vê o quê:** usuários comuns só veem e controlam o próprio celular, no painel e nas ações. Admins veem todos. Automações (sem usuário) podem mirar qualquer celular.
 
-**Ativar de novo** (troca de celular, reinstalação ou token perdido): repita o passo 5. O mesmo dispositivo é reaproveitado e o webhook e o token antigos deixam de valer. No painel, **Desvincular** remove o celular do HA.
+**Ativar de novo** (troca de celular, reinstalação ou token perdido): repita o passo 5 a partir do app. O mesmo dispositivo é reaproveitado e o webhook e o token antigos deixam de valer. No painel, **Desvincular** remove o celular do HA.
 
 ### Vindo da 0.2.x (uma entrada por celular)
 - A **primeira** entrada antiga vira a entrada única e mantém o celular dela, com o mesmo webhook, token, dispositivo e entidades. Esse celular aparece só para admins (não tem usuário). Para ligá-lo à pessoa, ative de novo pelo painel e depois desvincule o celular antigo duplicado, se aparecer.
