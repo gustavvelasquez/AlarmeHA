@@ -171,8 +171,16 @@
         <!-- AlarmeHA: integração com o Home Assistant -->
         <activity
             android:name=".ha.HaPairingActivity"
-            android:exported="false"
-            android:label="Home Assistant" />
+            android:exported="true"
+            android:label="Home Assistant"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="alarmeha" android:host="ativar" />
+            </intent-filter>
+        </activity>
 
         <receiver
             android:name=".ha.HaCommandReceiver"

@@ -5,8 +5,8 @@ import android.util.Base64
 import java.security.MessageDigest
 import java.security.SecureRandom
 
-/** Configuração do pareamento com o Home Assistant (AlarmeHA). O token nunca é guardado, só o hash SHA-256;
- * ele é mostrado uma única vez, logo após ser gerado. */
+/** Configuração do pareamento com o Home Assistant (AlarmeHA). O token nunca é guardado, só o hash SHA-256.
+ * Na ativação pelo painel o token vem do HA; no modo avançado (QR v1) ele é gerado aqui e mostrado uma vez. */
 class HaConfig(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -44,6 +44,15 @@ class HaConfig(context: Context) {
         return token
     }
 
+    /** Guarda o token gerado pelo Home Assistant na ativação (só o hash). */
+    fun setServerToken(token: String) {
+        tokenHash = sha256(token)
+    }
+
+    var onboardingDismissed: Boolean
+        get() = prefs.getBoolean(KEY_ONBOARDING_DISMISSED, false)
+        set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_DISMISSED, value).apply()
+
     fun isValidToken(token: String?): Boolean {
         val stored = tokenHash
         if (token.isNullOrEmpty() || stored.isEmpty()) return false
@@ -54,7 +63,7 @@ class HaConfig(context: Context) {
     }
 
     fun unpair() {
-        prefs.edit().clear().apply()
+        prefs.edit().clear().putBoolean(KEY_ONBOARDING_DISMISSED, true).apply()
     }
 
     companion object {
@@ -64,6 +73,7 @@ class HaConfig(context: Context) {
         private const val KEY_NAME = "person_name"
         private const val KEY_TOKEN_HASH = "token_sha256"
         private const val KEY_REJECTED = "rejected_commands"
+        private const val KEY_ONBOARDING_DISMISSED = "onboarding_dismissed"
 
         fun sha256(text: String): String =
             MessageDigest.getInstance("SHA-256").digest(text.toByteArray(Charsets.UTF_8))

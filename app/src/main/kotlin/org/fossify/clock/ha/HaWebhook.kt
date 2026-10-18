@@ -58,7 +58,7 @@ object HaWebhook {
         WorkManager.getInstance(context).enqueue(request)
     }
 
-    private fun deviceName(context: Context): String =
+    fun deviceName(context: Context): String =
         Settings.Global.getString(context.contentResolver, Settings.Global.DEVICE_NAME)
             ?: "${Build.MANUFACTURER} ${Build.MODEL}"
 

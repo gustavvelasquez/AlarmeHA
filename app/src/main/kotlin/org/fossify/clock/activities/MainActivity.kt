@@ -13,6 +13,7 @@ import org.fossify.clock.BuildConfig
 import org.fossify.clock.R
 import org.fossify.clock.adapters.ViewPagerAdapter
 import org.fossify.clock.databinding.ActivityMainBinding
+import org.fossify.clock.ha.HaOnboarding
 import org.fossify.clock.extensions.alarmController
 import org.fossify.clock.extensions.config
 import org.fossify.clock.extensions.getEnabledAlarms
@@ -78,6 +79,7 @@ class MainActivity : SimpleActivity() {
         setupTabs()
         updateWidgets()
         migrateFirstDayOfWeek()
+        HaOnboarding.maybeShow(this)
         ensureBackgroundThread {
             alarmController.rescheduleEnabledAlarms()
         }

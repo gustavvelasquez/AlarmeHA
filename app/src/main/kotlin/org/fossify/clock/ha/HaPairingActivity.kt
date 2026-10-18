@@ -2,6 +2,7 @@ package org.fossify.clock.ha
 
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.method.LinkMovementMethod
@@ -20,9 +21,11 @@ import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.extensions.toast
+import org.fossify.commons.helpers.ensureBackgroundThread
 import org.json.JSONObject
 
-/** Tela de pareamento com o Home Assistant: ler QR, gerar/copiar token, testar e desparear. */
+/** Tela do Home Assistant: ativar pelo painel Despertador (caminho principal), receber o link
+ * alarmeha://ativar e, no modo avançado, ler QR / colar configuração. */
 class HaPairingActivity : SimpleActivity() {
     private lateinit var config: HaConfig
     private lateinit var status: TextView
@@ -39,6 +42,55 @@ class HaPairingActivity : SimpleActivity() {
         config = HaConfig(this)
         setContentView(buildLayout())
         refresh()
+        handleActivationIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleActivationIntent(intent)
+    }
+
+    private fun handleActivationIntent(intent: Intent?) {
+        val request = HaActivation.parse(intent?.data) ?: return
+        intent?.data = null
+        confirmActivation(request)
+    }
+
+    private fun confirmActivation(request: HaActivation.Request) {
+        AlertDialog.Builder(this)
+            .setTitle("Ativar com o HA da casa?")
+            .setMessage(
+                "Este celular passará a receber comandos de alarme de:\n${request.url}" +
+                    (if (config.isPaired) "\n\nA ativação atual será substituída." else "")
+            )
+            .setPositiveButton("Ativar") { _, _ -> activate(request) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun activate(request: HaActivation.Request) {
+        status.text = "Ativando…"
+        ensureBackgroundThread {
+            val error = HaActivation.redeem(this, request)
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                shownToken = null
+                refresh()
+                if (error == null) {
+                    AlertDialog.Builder(this)
+                        .setTitle("Celular ativado")
+                        .setMessage("Pronto! Gerencie os alarmes pelo painel Despertador.\n\n" + HaOnboarding.oldAlarmHint(this))
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                } else {
+                    AlertDialog.Builder(this)
+                        .setTitle("Não foi possível ativar")
+                        .setMessage(error)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                }
+            }
+        }
     }
 
     private fun buildLayout(): View {
@@ -66,29 +118,36 @@ class HaPairingActivity : SimpleActivity() {
         text("Home Assistant", 22f, bold = true).setTextColor(getProperPrimaryColor())
         status = text()
         text(
-            "1. No Home Assistant, mostre o QR code de pareamento (veja docs/integracao-home-assistant.md).\n" +
-                "2. Toque em \"Ler QR code\".\n" +
-                "3. Copie o token e cole no secrets.yaml do Home Assistant.",
+            "Abra o painel Despertador no app Home Assistant e toque em Ativar. " +
+                "O botão abaixo abre o painel direto.",
             14f
         )
-        button("Ler QR code do Home Assistant") { startScan() }
-        button("Colar configuração (texto do QR)") { pasteConfig() }
+        button("Ativar pelo Home Assistant") { HaOnboarding.openPanel(this) }
+        button("Testar: enviar lista de alarmes ao HA") {
+            if (config.hasWebhook) {
+                HaEvents.sendList(this, "teste")
+                toast("Lista enviada (pedido \"teste\")")
+            } else {
+                toast("Ative o celular primeiro")
+            }
+        }
+        button("Desativar") { confirmUnpair() }
+
+        text("Avançado", 18f, bold = true).setTextColor(getProperPrimaryColor())
+        text(
+            "Se o link do painel não abrir este app: leia o QR code ou copie o texto de pareamento do painel " +
+                "e use Colar configuração. Configurações manuais antigas (v1) geram um token para colar no HA.",
+            14f
+        )
+        button("Ler QR code") { startScan() }
+        button("Colar configuração") { pasteConfig() }
         tokenView = text(size = 15f).apply {
             setTextIsSelectable(true)
             typeface = Typeface.MONOSPACE
             movementMethod = LinkMovementMethod.getInstance()
         }
         copyToken = button("Copiar token") { shownToken?.let { copy(it) } }
-        button("Gerar novo token") { confirmRegenerate() }
-        button("Testar: enviar lista de alarmes ao HA") {
-            if (config.hasWebhook) {
-                HaEvents.sendList(this, "teste")
-                toast("Lista enviada (pedido \"teste\")")
-            } else {
-                toast("Leia o QR code primeiro")
-            }
-        }
-        button("Desparear") { confirmUnpair() }
+        button("Gerar novo token (configuração manual)") { confirmRegenerate() }
 
         val scroll = ScrollView(this).apply {
             setBackgroundColor(getProperBackgroundColor())
@@ -104,12 +163,11 @@ class HaPairingActivity : SimpleActivity() {
 
     private fun refresh() {
         status.text = buildString {
-            append(if (config.isPaired) "Status: pareado" else "Status: não pareado")
+            append(if (config.isPaired) "Status: ativado" else "Status: não ativado")
             if (config.hasWebhook) {
                 append("\nHA: ${config.haUrl}")
                 if (config.personName.isNotEmpty()) append("\nPessoa: ${config.personName}")
             }
-            append("\nToken: ").append(if (config.hasToken) "definido" else "não gerado")
             if (config.rejectedCommands > 0) append("\nComandos recusados (token errado): ${config.rejectedCommands}")
         }
         val token = shownToken
@@ -144,10 +202,15 @@ class HaPairingActivity : SimpleActivity() {
 
     private fun applyPairingData(raw: String) {
         val data = runCatching { JSONObject(raw.trim()) }.getOrNull()
+        val v2 = data?.let { HaActivation.parse(it) }
+        if (v2 != null) {
+            confirmActivation(v2)
+            return
+        }
         val url = data?.optString("url").orEmpty().trim().trimEnd('/')
         val webhook = data?.optString("webhook").orEmpty().trim()
         if (!url.matches(Regex("^https?://[^\\s/]+(/[^\\s]*)?$")) || !webhook.matches(Regex("^[A-Za-z0-9_-]{8,128}$"))) {
-            toast("QR code inválido: esperado {\"v\":1,\"url\":...,\"webhook\":...}")
+            toast("Configuração inválida: copie o texto de pareamento do painel Despertador")
             return
         }
 
@@ -171,7 +234,7 @@ class HaPairingActivity : SimpleActivity() {
 
     private fun confirmRegenerate() {
         AlertDialog.Builder(this)
-            .setMessage("Gerar um novo token? O token antigo deixa de funcionar e você terá de atualizar o secrets.yaml do Home Assistant.")
+            .setMessage("Gerar um novo token? Só para configuração manual: o token atual deixa de funcionar. Se você ativou pelo painel, prefira ativar de novo.")
             .setPositiveButton("Gerar") { _, _ ->
                 shownToken = config.generateToken()
                 if (config.hasWebhook) sendPaired()
@@ -183,8 +246,8 @@ class HaPairingActivity : SimpleActivity() {
 
     private fun confirmUnpair() {
         AlertDialog.Builder(this)
-            .setMessage("Desparear do Home Assistant? O app apaga a URL, o webhook e o token. Os alarmes continuam no relógio.")
-            .setPositiveButton("Desparear") { _, _ ->
+            .setMessage("Desativar o Home Assistant neste celular? O app apaga a URL, o webhook e o token. Os alarmes continuam no relógio.")
+            .setPositiveButton("Desativar") { _, _ ->
                 config.unpair()
                 shownToken = null
                 refresh()
