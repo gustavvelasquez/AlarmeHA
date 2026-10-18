@@ -27,7 +27,7 @@ Este repositório também traz uma integração para o Home Assistant (`custom_c
    - **Ativar com o Home Assistant** também fica no menu ⋮ do app e em Configurações → Home Assistant. Sem o app Home Assistant instalado, o AlarmeHA avisa e oferece a Play Store.
 6. Pronto: o painel lista os alarmes desse celular e permite criar, editar, ligar/desligar e apagar.
 
-Na primeira abertura, o AlarmeHA oferece **Ativar**, que abre o painel no Companion. O app também mostra o próximo alarme do sistema, para você recriá-lo no AlarmeHA e **desativar os alarmes do relógio antigo**.
+Enquanto o celular nunca foi ativado, o AlarmeHA mostra só a tela **Ativar o AlarmeHA**, sem acesso aos alarmes. O botão **Ativar** abre o painel no Companion; **Não abriu? Ativar manualmente** leva ao QR / Colar configuração; Voltar fecha o app. Depois da primeira ativação essa tela nunca mais aparece: o app e os alarmes funcionam normalmente mesmo sem HA, internet ou token válido. O app também mostra o próximo alarme do sistema, para você recriá-lo no AlarmeHA e **desativar os alarmes do relógio antigo**.
 
 **Quem vê o quê:** usuários comuns só veem e controlam o próprio celular, no painel e nas ações. Admins veem todos. Automações (sem usuário) podem mirar qualquer celular.
 

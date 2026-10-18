@@ -17,7 +17,7 @@
 3. toca em **Baixar e instalar** (o próprio HA entrega o APK da última release);
 4. abre o app AlarmeHA, toca em **Ativar**, confirma no painel (**Confirmar ativação**) e depois no app. Não há token para copiar.
 
-Guia completo: [docs/integracao-home-assistant.md](docs/integracao-home-assistant.md). A versão da integração (`custom_components/alarmeha/manifest.json`) acompanha as tags de release do GitHub (ex.: release `v0.3.2` = integração 0.3.2); a versão do app Android fica em `gradle.properties` e pode ser diferente.
+Guia completo: [docs/integracao-home-assistant.md](docs/integracao-home-assistant.md). A versão da integração (`custom_components/alarmeha/manifest.json`) acompanha as tags de release do GitHub (ex.: release `v0.3.3` = integração 0.3.3); a versão do app Android fica em `gradle.properties` e pode ser diferente.
 
 **Atualizações do upstream:** as mudanças do Fossify Clock só são trazidas para cá por decisão deliberada, nunca de forma automática.
 
