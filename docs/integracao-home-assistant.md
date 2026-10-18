@@ -4,27 +4,36 @@ O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app
 
 - **Ida:** o HA pede para criar, editar, ligar, desligar, apagar ou listar alarmes.
 - **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca ou foi desligado, confirma as mudanças e manda a lista de alarmes.
-- **Segurança:** todo comando leva um **token** gerado pelo app. Comando sem o token certo é ignorado em silêncio.
+- **Segurança:** todo comando leva um **token** (gerado pelo HA na ativação pelo painel, ou pelo app no modo manual). Comando sem o token certo é ignorado em silêncio.
 - **Regra:** o HA só edita ou apaga alarmes que ele mesmo criou (com `ref`). Alarmes criados à mão no celular aparecem só na lista.
 - **Som:** sempre o padrão do app.
 - **Webhook:** um por pessoa (ex.: um para o Usuario e outro para a Segunda pessoa).
 
-## 0. Jeito recomendado: integração HACS "AlarmeHA"
+## 0. Jeito recomendado: integração HACS "AlarmeHA" + painel Despertador
 
-Este repositório também traz uma integração para o Home Assistant (`custom_components/alarmeha`). Ela faz pelo HA o que as seções 1 a 4 fazem à mão: webhook, QR de pareamento, comandos com novas tentativas e sensores.
+Este repositório também traz uma integração para o Home Assistant (`custom_components/alarmeha`). Ela faz pelo HA o que as seções 1 a 4 fazem à mão: webhook, token, comandos com novas tentativas e sensores. Desde a versão 0.3.0 ninguém copia token: cada pessoa ativa o próprio celular pelo painel **Despertador**.
 
-### Instalar
-1. HACS → menu ⋮ → **Repositórios personalizados** → URL `https://github.com/gustavvelasquez/AlarmeHA`, tipo **Integração** → Adicionar.
-2. Procure **AlarmeHA** no HACS → Baixar → reinicie o Home Assistant.
-3. Configurações → Dispositivos e serviços → **Adicionar integração** → **AlarmeHA**. Faça isso uma vez por pessoa/celular.
-   - **Pessoa**: ex.: Usuario.
-   - **Serviço de notificação**: `notify.mobile_app_<celular>` (app Companion).
-   - **Pacote**: `br.casa.alarmeha` ou `br.casa.alarmeha.debug` (versão de teste do Firebase).
-   - **URL externa do HA**: já vem preenchida com a URL externa configurada no HA.
-4. A próxima tela mostra o **QR code** e o texto de pareamento. No celular, abra o AlarmeHA (Configurações → Home Assistant → Pareamento e token → **Ler QR code**, ou **Colar configuração**). Copie o token que o app mostra e cole no campo **Token**.
-5. Para trocar o token depois de **Gerar novo token** no app: na integração, **Configurar** → cole o novo token.
+### Passo a passo
+1. **Admin, uma vez:** HACS → menu ⋮ → **Repositórios personalizados** → URL `https://github.com/gustavvelasquez/AlarmeHA`, tipo **Integração** → Adicionar. Procure **AlarmeHA** → Baixar → reinicie o HA.
+2. **Admin, uma vez:** Configurações → Dispositivos e serviços → **Adicionar integração** → **AlarmeHA**. Confirme a **URL externa do HA** (a que os celulares usam, também fora de casa). Só existe uma entrada para a casa toda.
+3. **Cada pessoa, no próprio celular:** entre no app **Home Assistant (Companion)** com a sua conta e abra o painel **Despertador** na barra lateral.
+4. **1. Baixe o app:** toque em **Baixar AlarmeHA.apk** e instale (a última release do GitHub).
+5. **2. Ative:** toque em **Ativar** e depois em **Abrir o AlarmeHA e ativar**. O AlarmeHA pergunta **"Ativar com o HA da casa?"** → Ativar.
+   - O link leva um **código de uso único** que vale 10 minutos. O app troca o código, em `POST /api/alarmeha/ativar`, pelo webhook e pelo token gerados no HA. O app guarda só o hash do token.
+   - O HA acha o celular do Companion pelo usuário logado e cria o dispositivo **AlarmeHA &lt;pessoa&gt;** sozinho.
+   - Se o link não abrir o app: no AlarmeHA, Configurações → Home Assistant → Avançado → **Colar configuração** com o texto `{"v":2,...}` que o painel mostra em "Não abriu?".
+6. Pronto: o painel lista os alarmes desse celular e permite criar, editar, ligar/desligar e apagar.
 
-O webhook é criado pela própria integração, com id aleatório. O token fica guardado na entrada da integração e não aparece nos logs; não é preciso `secrets.yaml`.
+Na primeira abertura, o AlarmeHA oferece **Ativar pelo Home Assistant**, que abre o painel no Companion (`homeassistant://navigate/despertador`). O app também mostra o próximo alarme do sistema, para você recriá-lo no AlarmeHA e **desativar os alarmes do relógio antigo**.
+
+**Quem vê o quê:** usuários comuns só veem e controlam o próprio celular, no painel e nas ações. Admins veem todos. Automações (sem usuário) podem mirar qualquer celular.
+
+**Ativar de novo** (troca de celular, reinstalação ou token perdido): repita o passo 5. O mesmo dispositivo é reaproveitado e o webhook e o token antigos deixam de valer. No painel, **Desvincular** remove o celular do HA.
+
+### Vindo da 0.2.x (uma entrada por celular)
+- A **primeira** entrada antiga vira a entrada única e mantém o celular dela, com o mesmo webhook, token, dispositivo e entidades. Esse celular aparece só para admins (não tem usuário). Para ligá-lo à pessoa, ative de novo pelo painel e depois desvincule o celular antigo duplicado, se aparecer.
+- As **outras** entradas antigas ficam com erro de migração e uma notificação pede para removê-las. Depois de remover, cada pessoa ativa o próprio celular pelo painel (passos 3 a 5).
+- Nas automações, troque `config_entry_id` por `device_id`.
 
 ### Entidades (por celular)
 | Entidade | O que mostra |
@@ -38,12 +47,12 @@ Os nomes dos ids seguem o idioma do HA; em inglês, por exemplo, `..._next_alarm
 
 A integração pede a lista de alarmes 30 s depois de iniciar, a cada 12 h e depois de cada alarme desligado. Isso mantém os sensores atualizados e funciona como "batimento".
 
-Todo evento do celular também vira o evento `alarmeha_evento` no barramento do HA, com `config_entry_id`, `pessoa` e os campos da seção 4.
+Todo evento do celular também vira o evento `alarmeha_evento` no barramento do HA, com `phone_id`, `user_id`, `pessoa` e os campos da seção 4.
 
 ### Ações (serviços)
 `alarmeha.criar`, `alarmeha.editar`, `alarmeha.ligar`, `alarmeha.desligar`, `alarmeha.apagar` e `alarmeha.listar`.
 
-- O celular é escolhido por `config_entry_id` ou `device_id`. Se houver um só celular, pode omitir.
+- O celular é escolhido por `device_id` (dispositivo AlarmeHA). Se houver um só celular, pode omitir.
 - Cada ação espera a confirmação com o mesmo `pedido` (padrão: 45 s, campo `timeout`) e reenvia até 3 vezes.
 - Se o celular responder `erro`, ou não confirmar, a ação falha com a mensagem.
 - Com `response_variable`, a ação devolve o evento de confirmação (em `listar`, a lista completa).
@@ -51,14 +60,14 @@ Todo evento do celular também vira o evento `alarmeha_evento` no barramento do 
 ```yaml
 - action: alarmeha.criar
   data:
-    device_id: 0123456789abcdef      # ou config_entry_id
+    device_id: 0123456789abcdef
     ref: usuario_aula
     hora: 6
     minuto: 30
     dias: 31                          # seg a sex
     rotulo: "Aula 07:45"
 - action: alarmeha.desligar
-  data: { ref: usuario_aula }
+  data: { device_id: 0123456789abcdef, ref: usuario_aula }
 - action: alarmeha.listar
   response_variable: lista
 ```
@@ -126,13 +135,13 @@ automation:
    # ou, para uma imagem:  qrencode -o pareamento.png '...'
    ```
    Alternativa sem QR: mande o texto para o celular, copie e use **"Colar configuração"** no app.
-4. No AlarmeHA, vá em **Configurações → Home Assistant → Pareamento e token → "Ler QR code do Home Assistant"**.
+4. No AlarmeHA, vá em **Configurações → Home Assistant → Avançado → "Ler QR code"**.
 5. O app gera e mostra o **token uma única vez**. Toque em **"Copiar token"** e cole em `alarmeha_token_usuario` no `secrets.yaml`. Depois recarregue a configuração YAML do HA (ou reinicie o HA).
 6. O app manda o evento `pareado`. Use **"Testar: enviar lista de alarmes ao HA"** para conferir que o HA recebe os eventos.
 
 Botões do app:
 - "Gerar novo token": invalida o token antigo; atualize o `secrets.yaml`.
-- "Desparear": apaga a URL, o webhook e o token. Os alarmes continuam no relógio.
+- "Desativar": apaga a URL, o webhook e o token. Os alarmes continuam no relógio.
 - O status mostra quantos comandos foram recusados por token errado.
 
 ## 3. Comandos (HA → AlarmeHA)

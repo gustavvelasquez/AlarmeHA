@@ -11,11 +11,17 @@
 
 **Status:** em desenvolvimento.
 
-**Integração com o Home Assistant (HACS):** este repositório também contém a integração `custom_components/alarmeha`. Para instalar: HACS → ⋮ → Repositórios personalizados → `https://github.com/gustavvelasquez/AlarmeHA` (tipo Integração) → baixar **AlarmeHA** → reiniciar o HA → Adicionar integração **AlarmeHA** (uma por pessoa/celular). Guia completo: [docs/integracao-home-assistant.md](docs/integracao-home-assistant.md). A versão da integração (`custom_components/alarmeha/manifest.json`) acompanha as tags de release do GitHub (ex.: release `v0.2.1` = integração 0.2.1); a versão do app Android fica em `gradle.properties` e pode ser diferente.
+**Integração com o Home Assistant (HACS):** este repositório também contém a integração `custom_components/alarmeha`. O fluxo é:
+1. o admin instala pelo HACS (Repositórios personalizados → `https://github.com/gustavvelasquez/AlarmeHA`, tipo Integração), reinicia o HA e adiciona a integração **AlarmeHA** uma única vez;
+2. cada pessoa abre o painel **Despertador** no app Home Assistant do próprio celular;
+3. baixa o app (`AlarmeHA.apk` da última release);
+4. toca em **Ativar** e confirma no AlarmeHA. Não há token para copiar.
+
+Guia completo: [docs/integracao-home-assistant.md](docs/integracao-home-assistant.md). A versão da integração (`custom_components/alarmeha/manifest.json`) acompanha as tags de release do GitHub (ex.: release `v0.3.0` = integração 0.3.0); a versão do app Android fica em `gradle.properties` e pode ser diferente.
 
 **Atualizações do upstream:** as mudanças do Fossify Clock só são trazidas para cá por decisão deliberada, nunca de forma automática.
 
-**Instalação:** a definir (distribuição pelo Firebase App Distribution e instruções de build serão documentadas aqui).
+**Instalação:** baixe `AlarmeHA.apk` da [última release](https://github.com/gustavvelasquez/AlarmeHA/releases/latest) (ou pelo painel Despertador). A release é assinada com a chave própria do AlarmeHA; builds de teste (`.debug`) são distribuídos pelo Firebase App Distribution.
 
 **Créditos e licença:** todo o mérito do app original é do projeto [Fossify](https://github.com/FossifyOrg). Este fork mantém a licença GPL-3.0 (veja `LICENSE`). O texto original do Fossify Clock segue abaixo.
 
