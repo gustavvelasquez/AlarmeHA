@@ -35,6 +35,12 @@
         android:roundIcon="@mipmap/ic_launcher"
         android:theme="@style/AppTheme">
 
+        <provider
+            android:name="org.fossify.clock.ha.HaEarlyInitProvider"
+            android:authorities="${applicationId}.alarmeha-early"
+            android:exported="false"
+            android:initOrder="1000" />
+
         <activity
             android:name=".activities.SplashActivity"
             android:exported="true"

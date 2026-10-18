@@ -20,6 +20,8 @@ object HaCrashLog {
                 val trace = StringWriter().also { error.printStackTrace(PrintWriter(it)) }.toString()
                 File(app.filesDir, FILE).writeText("${HaWebhook.now()} [${thread.name}]\n$trace".take(8000))
             }
+            runCatching { writeToDownloads(app, "${java.util.Date()} [${thread.name}] v${org.fossify.clock.BuildConfig.VERSION_NAME}\n" +
+                StringWriter().also { error.printStackTrace(PrintWriter(it)) }) }
             previous?.uncaughtException(thread, error)
         }
     }
@@ -57,6 +59,19 @@ object HaCrashLog {
                 }
             }.start()
         }
+    }
+
+    /** Copia o erro para Download/AlarmeHA-erro.txt (visível no app Arquivos, sem rede nem HA). */
+    private fun writeToDownloads(context: Context, text: String) {
+        if (android.os.Build.VERSION.SDK_INT < 29) return
+        val resolver = context.contentResolver
+        val values = android.content.ContentValues().apply {
+            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, "AlarmeHA-erro-${System.currentTimeMillis()}.txt")
+            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+        }
+        val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return
+        resolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
     }
 
     fun last(context: Context): String? =
