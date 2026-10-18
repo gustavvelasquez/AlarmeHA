@@ -3,46 +3,32 @@
     "step": {
       "user": {
         "title": "AlarmeHA",
-        "description": "Uma entrada por pessoa/celular. Escolha o serviço de notificação do app Companion desse celular.",
+        "description": "Adicione uma única vez para a casa toda. Depois, cada pessoa abre o painel **Despertador** na barra lateral para baixar o app e ativar o próprio celular.\n\nInforme a URL externa do Home Assistant que os celulares vão usar (também fora de casa).",
         "data": {
-          "pessoa": "Pessoa",
-          "notify_service": "Serviço de notificação (Companion)",
-          "package": "Pacote do app",
           "ha_url": "URL externa do Home Assistant"
-        }
-      },
-      "pair": {
-        "title": "Parear o celular",
-        "description": "1. No celular, abra o AlarmeHA: Configurações → Home Assistant → Pareamento e token → **Ler QR code**.\n\n{qr}\n\nSem câmera? Copie o texto abaixo para o celular e use **Colar configuração**:\n\n`{pairing}`\n\n2. O app mostra o token uma única vez: toque em **Copiar token** e cole abaixo.",
-        "data": {
-          "token": "Token do AlarmeHA"
         }
       }
     },
     "error": {
-      "invalid_url": "URL inválida (use https://...)",
-      "invalid_token": "Token inválido: copie do app AlarmeHA"
+      "invalid_url": "URL inválida (use https://...)"
     },
     "abort": {
-      "already_configured": "Este celular já está configurado",
-      "no_mobile_app": "Nenhum serviço notify.mobile_app_* encontrado. Instale e configure o app Companion no celular."
+      "already_configured": "O AlarmeHA já está configurado. Os celulares são ativados pelo painel Despertador.",
+      "single_instance_allowed": "O AlarmeHA já está configurado. Os celulares são ativados pelo painel Despertador."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "AlarmeHA",
-        "description": "Para trocar o token (depois de **Gerar novo token** no app), cole o novo abaixo. Para parear de novo, leia este QR no app:\n\n{qr}\n\n`{pairing}`",
+        "description": "URL externa enviada aos celulares na ativação.",
         "data": {
-          "token": "Novo token (deixe vazio para manter)",
-          "package": "Pacote do app",
           "ha_url": "URL externa do Home Assistant"
         }
       }
     },
     "error": {
-      "invalid_url": "URL inválida (use https://...)",
-      "invalid_token": "Token inválido: copie do app AlarmeHA"
+      "invalid_url": "URL inválida (use https://...)"
     }
   },
   "entity": {
@@ -68,13 +54,9 @@
       "name": "Criar alarme",
       "description": "Cria (ou atualiza, se o ref já existir) um alarme no celular.",
       "fields": {
-        "config_entry_id": {
-          "name": "Celular",
-          "description": "Entrada do AlarmeHA (pessoa/celular). Opcional se houver só um."
-        },
         "device_id": {
-          "name": "Dispositivo",
-          "description": "Dispositivo AlarmeHA, alternativa ao celular acima."
+          "name": "Celular",
+          "description": "Celular AlarmeHA (dispositivo). Opcional se houver só um. Usuários só podem escolher o próprio celular."
         },
         "timeout": {
           "name": "Tempo de espera",
@@ -118,13 +100,9 @@
       "name": "Editar alarme",
       "description": "Altera um alarme criado pelo HA.",
       "fields": {
-        "config_entry_id": {
-          "name": "Celular",
-          "description": "Entrada do AlarmeHA (pessoa/celular). Opcional se houver só um."
-        },
         "device_id": {
-          "name": "Dispositivo",
-          "description": "Dispositivo AlarmeHA, alternativa ao celular acima."
+          "name": "Celular",
+          "description": "Celular AlarmeHA (dispositivo). Opcional se houver só um. Usuários só podem escolher o próprio celular."
         },
         "timeout": {
           "name": "Tempo de espera",
@@ -168,13 +146,9 @@
       "name": "Ligar alarme",
       "description": "Liga um alarme criado pelo HA.",
       "fields": {
-        "config_entry_id": {
-          "name": "Celular",
-          "description": "Entrada do AlarmeHA (pessoa/celular). Opcional se houver só um."
-        },
         "device_id": {
-          "name": "Dispositivo",
-          "description": "Dispositivo AlarmeHA, alternativa ao celular acima."
+          "name": "Celular",
+          "description": "Celular AlarmeHA (dispositivo). Opcional se houver só um. Usuários só podem escolher o próprio celular."
         },
         "timeout": {
           "name": "Tempo de espera",
@@ -190,13 +164,9 @@
       "name": "Desligar alarme",
       "description": "Desliga um alarme criado pelo HA.",
       "fields": {
-        "config_entry_id": {
-          "name": "Celular",
-          "description": "Entrada do AlarmeHA (pessoa/celular). Opcional se houver só um."
-        },
         "device_id": {
-          "name": "Dispositivo",
-          "description": "Dispositivo AlarmeHA, alternativa ao celular acima."
+          "name": "Celular",
+          "description": "Celular AlarmeHA (dispositivo). Opcional se houver só um. Usuários só podem escolher o próprio celular."
         },
         "timeout": {
           "name": "Tempo de espera",
@@ -212,13 +182,9 @@
       "name": "Apagar alarme",
       "description": "Apaga um alarme criado pelo HA.",
       "fields": {
-        "config_entry_id": {
-          "name": "Celular",
-          "description": "Entrada do AlarmeHA (pessoa/celular). Opcional se houver só um."
-        },
         "device_id": {
-          "name": "Dispositivo",
-          "description": "Dispositivo AlarmeHA, alternativa ao celular acima."
+          "name": "Celular",
+          "description": "Celular AlarmeHA (dispositivo). Opcional se houver só um. Usuários só podem escolher o próprio celular."
         },
         "timeout": {
           "name": "Tempo de espera",
@@ -234,13 +200,9 @@
       "name": "Listar alarmes",
       "description": "Pede ao celular a lista de alarmes (atualiza os sensores).",
       "fields": {
-        "config_entry_id": {
-          "name": "Celular",
-          "description": "Entrada do AlarmeHA (pessoa/celular). Opcional se houver só um."
-        },
         "device_id": {
-          "name": "Dispositivo",
-          "description": "Dispositivo AlarmeHA, alternativa ao celular acima."
+          "name": "Celular",
+          "description": "Celular AlarmeHA (dispositivo). Opcional se houver só um. Usuários só podem escolher o próprio celular."
         },
         "timeout": {
           "name": "Tempo de espera",

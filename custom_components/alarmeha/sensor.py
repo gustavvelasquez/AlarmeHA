@@ -10,14 +10,16 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import AlarmeHaConfigEntry
-from .entity import AlarmeHaEntity
+from .entity import AlarmeHaEntity, setup_dynamic
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: AlarmeHaConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    phone = entry.runtime_data
-    async_add_entities([NextAlarmSensor(phone), LastEventSensor(phone), AlarmsSensor(phone)])
+    setup_dynamic(
+        hass, entry, async_add_entities,
+        lambda phone: [NextAlarmSensor(phone), LastEventSensor(phone), AlarmsSensor(phone)],
+    )
 
 
 class NextAlarmSensor(AlarmeHaEntity, SensorEntity):

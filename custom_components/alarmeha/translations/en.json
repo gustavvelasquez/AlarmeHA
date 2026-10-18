@@ -3,46 +3,32 @@
     "step": {
       "user": {
         "title": "AlarmeHA",
-        "description": "One entry per person/phone. Pick the Companion app notify service of that phone.",
+        "description": "Add this once for the whole house. Each person then opens the **Despertador** panel in the sidebar to download the app and activate their own phone.\n\nEnter the external Home Assistant URL that the phones will use (also from outside the house).",
         "data": {
-          "pessoa": "Person",
-          "notify_service": "Notify service (Companion)",
-          "package": "App package",
           "ha_url": "External Home Assistant URL"
-        }
-      },
-      "pair": {
-        "title": "Pair the phone",
-        "description": "1. On the phone, open AlarmeHA: Settings → Home Assistant → Pairing and token → **Scan QR code**.\n\n{qr}\n\nNo camera? Copy the text below to the phone and use **Paste configuration**:\n\n`{pairing}`\n\n2. The app shows the token only once: tap **Copy token** and paste it below.",
-        "data": {
-          "token": "AlarmeHA token"
         }
       }
     },
     "error": {
-      "invalid_url": "Invalid URL (use https://...)",
-      "invalid_token": "Invalid token: copy it from the AlarmeHA app"
+      "invalid_url": "Invalid URL (use https://...)"
     },
     "abort": {
-      "already_configured": "This phone is already configured",
-      "no_mobile_app": "No notify.mobile_app_* service found. Install and set up the Companion app on the phone."
+      "already_configured": "AlarmeHA is already set up. Phones are activated from the Despertador panel.",
+      "single_instance_allowed": "AlarmeHA is already set up. Phones are activated from the Despertador panel."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "AlarmeHA",
-        "description": "To change the token (after **Generate new token** in the app), paste the new one below. To pair again, scan this QR in the app:\n\n{qr}\n\n`{pairing}`",
+        "description": "External URL sent to the phones during activation.",
         "data": {
-          "token": "New token (leave empty to keep)",
-          "package": "App package",
           "ha_url": "External Home Assistant URL"
         }
       }
     },
     "error": {
-      "invalid_url": "Invalid URL (use https://...)",
-      "invalid_token": "Invalid token: copy it from the AlarmeHA app"
+      "invalid_url": "Invalid URL (use https://...)"
     }
   },
   "entity": {
@@ -68,13 +54,9 @@
       "name": "Create alarm",
       "description": "Creates (or updates, if the ref exists) an alarm on the phone.",
       "fields": {
-        "config_entry_id": {
-          "name": "Phone",
-          "description": "AlarmeHA entry (person/phone). Optional if there is only one."
-        },
         "device_id": {
-          "name": "Device",
-          "description": "AlarmeHA device, alternative to the phone above."
+          "name": "Phone",
+          "description": "AlarmeHA phone (device). Optional if there is only one. Users can only target their own phone."
         },
         "timeout": {
           "name": "Timeout",
@@ -118,13 +100,9 @@
       "name": "Edit alarm",
       "description": "Changes an alarm created by HA.",
       "fields": {
-        "config_entry_id": {
-          "name": "Phone",
-          "description": "AlarmeHA entry (person/phone). Optional if there is only one."
-        },
         "device_id": {
-          "name": "Device",
-          "description": "AlarmeHA device, alternative to the phone above."
+          "name": "Phone",
+          "description": "AlarmeHA phone (device). Optional if there is only one. Users can only target their own phone."
         },
         "timeout": {
           "name": "Timeout",
@@ -168,13 +146,9 @@
       "name": "Turn alarm on",
       "description": "Enables an alarm created by HA.",
       "fields": {
-        "config_entry_id": {
-          "name": "Phone",
-          "description": "AlarmeHA entry (person/phone). Optional if there is only one."
-        },
         "device_id": {
-          "name": "Device",
-          "description": "AlarmeHA device, alternative to the phone above."
+          "name": "Phone",
+          "description": "AlarmeHA phone (device). Optional if there is only one. Users can only target their own phone."
         },
         "timeout": {
           "name": "Timeout",
@@ -190,13 +164,9 @@
       "name": "Turn alarm off",
       "description": "Disables an alarm created by HA.",
       "fields": {
-        "config_entry_id": {
-          "name": "Phone",
-          "description": "AlarmeHA entry (person/phone). Optional if there is only one."
-        },
         "device_id": {
-          "name": "Device",
-          "description": "AlarmeHA device, alternative to the phone above."
+          "name": "Phone",
+          "description": "AlarmeHA phone (device). Optional if there is only one. Users can only target their own phone."
         },
         "timeout": {
           "name": "Timeout",
@@ -212,13 +182,9 @@
       "name": "Delete alarm",
       "description": "Deletes an alarm created by HA.",
       "fields": {
-        "config_entry_id": {
-          "name": "Phone",
-          "description": "AlarmeHA entry (person/phone). Optional if there is only one."
-        },
         "device_id": {
-          "name": "Device",
-          "description": "AlarmeHA device, alternative to the phone above."
+          "name": "Phone",
+          "description": "AlarmeHA phone (device). Optional if there is only one. Users can only target their own phone."
         },
         "timeout": {
           "name": "Timeout",
@@ -234,13 +200,9 @@
       "name": "List alarms",
       "description": "Asks the phone for its alarm list (updates the sensors).",
       "fields": {
-        "config_entry_id": {
-          "name": "Phone",
-          "description": "AlarmeHA entry (person/phone). Optional if there is only one."
-        },
         "device_id": {
-          "name": "Device",
-          "description": "AlarmeHA device, alternative to the phone above."
+          "name": "Phone",
+          "description": "AlarmeHA phone (device). Optional if there is only one. Users can only target their own phone."
         },
         "timeout": {
           "name": "Timeout",

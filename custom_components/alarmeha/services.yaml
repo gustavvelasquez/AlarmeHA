@@ -1,10 +1,5 @@
 criar:
   fields:
-    config_entry_id:
-      required: false
-      selector:
-        config_entry:
-          integration: alarmeha
     device_id:
       required: false
       selector:
@@ -63,11 +58,6 @@ criar:
         boolean:
 editar:
   fields:
-    config_entry_id:
-      required: false
-      selector:
-        config_entry:
-          integration: alarmeha
     device_id:
       required: false
       selector:
@@ -126,11 +116,6 @@ editar:
         boolean:
 ligar:
   fields:
-    config_entry_id:
-      required: false
-      selector:
-        config_entry:
-          integration: alarmeha
     device_id:
       required: false
       selector:
@@ -151,11 +136,6 @@ ligar:
         text:
 desligar:
   fields:
-    config_entry_id:
-      required: false
-      selector:
-        config_entry:
-          integration: alarmeha
     device_id:
       required: false
       selector:
@@ -176,11 +156,6 @@ desligar:
         text:
 apagar:
   fields:
-    config_entry_id:
-      required: false
-      selector:
-        config_entry:
-          integration: alarmeha
     device_id:
       required: false
       selector:
@@ -201,11 +176,6 @@ apagar:
         text:
 listar:
   fields:
-    config_entry_id:
-      required: false
-      selector:
-        config_entry:
-          integration: alarmeha
     device_id:
       required: false
       selector:

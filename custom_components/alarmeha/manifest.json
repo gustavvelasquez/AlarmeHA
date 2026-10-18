@@ -2,21 +2,25 @@
   "domain": "alarmeha",
   "name": "AlarmeHA",
   "after_dependencies": [
-    "mobile_app"
+    "mobile_app",
+    "person"
   ],
   "codeowners": [
     "@gustavvelasquez"
   ],
   "config_flow": true,
   "dependencies": [
-    "webhook"
+    "frontend",
+    "http",
+    "panel_custom",
+    "webhook",
+    "websocket_api"
   ],
   "documentation": "https://github.com/gustavvelasquez/AlarmeHA/blob/main/docs/integracao-home-assistant.md",
-  "integration_type": "device",
+  "integration_type": "hub",
   "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/gustavvelasquez/AlarmeHA/issues",
-  "requirements": [
-    "segno==1.6.6"
-  ],
-  "version": "0.2.1"
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.3.0"
 }

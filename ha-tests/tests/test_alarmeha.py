@@ -1,120 +1,240 @@
+"""Testes da integração AlarmeHA 0.3.0 (hub único, ativação por código, isolamento por usuário)."""
+
+from __future__ import annotations
+
 import asyncio
 from unittest.mock import patch
-from urllib.parse import unquote
 
-from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
+import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_capture_events
+
+from homeassistant.core import HomeAssistant, ServiceCall, Context
+from homeassistant.exceptions import Unauthorized
+from homeassistant.helpers import device_registry as dr
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import async_mock_service, async_capture_events
 
 from custom_components.alarmeha.const import DOMAIN
 from custom_components.alarmeha.phone import encode_extras
 
-TOKEN = "A" * 43
+URL = "https://casa.example.com"
 
 
 def test_encode_extras():
-    s = encode_extras({"token": "ab-_", "op": "criar", "hora": 6, "ativo": True, "rotulo": "Aula 07:45, sala"})
-    assert s == "token:ab-_:String.urlencoded,op:criar:String.urlencoded,hora:6:int,ativo:true:boolean,rotulo:Aula%2007%3A45%2C%20sala:String.urlencoded"
-
-
-async def _setup(hass: HomeAssistant):
-    await async_setup_component(hass, "http", {})
-    await async_setup_component(hass, "webhook", {})
-    calls = async_mock_service(hass, "notify", "mobile_app_pixel")
-    hass.config.external_url = "https://ha.example.com"
-    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
-    assert result["type"] == "form" and result["step_id"] == "user"
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        {"pessoa": "Usuario", "notify_service": "notify.mobile_app_pixel", "package": "br.casa.alarmeha.debug",
-         "ha_url": "https://ha.example.com/"},
+    assert encode_extras({"op": "criar", "hora": 7, "ativo": True, "rotulo": "Aula, cedo"}) == (
+        "op:criar:String.urlencoded,hora:7:int,ativo:true:boolean,rotulo:Aula%2C%20cedo:String.urlencoded"
     )
-    assert result["step_id"] == "pair"
-    ph = result["description_placeholders"]
-    assert ph["qr"].startswith("![QR](data:image/svg+xml")
-    assert '"url":"https://ha.example.com"' in ph["pairing"]
-    bad = await hass.config_entries.flow.async_configure(result["flow_id"], {"token": "curto"})
-    assert bad["errors"] == {"token": "invalid_token"}
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"token": TOKEN})
-    assert result["type"] == "create_entry"
+
+
+@pytest.fixture
+def notify_calls(hass: HomeAssistant):
+    calls: dict[str, list[ServiceCall]] = {"pixel_admin": [], "moto_filha": []}
+    for name, lst in calls.items():
+        async def handler(call: ServiceCall, lst=lst) -> None:
+            lst.append(call)
+        hass.services.async_register("notify", f"mobile_app_{name}", handler)
+    return calls
+
+
+@pytest.fixture
+async def setup(hass: HomeAssistant, hass_admin_user, hass_read_only_user, notify_calls):
+    MockConfigEntry(domain="mobile_app", data={"user_id": hass_admin_user.id, "device_name": "Pixel Admin"}).add_to_hass(hass)
+    MockConfigEntry(domain="mobile_app", data={"user_id": hass_read_only_user.id, "device_name": "Moto Filha"}).add_to_hass(hass)
+    await async_setup_component(hass, "http", {})
+    entry = MockConfigEntry(domain=DOMAIN, version=2, unique_id=DOMAIN, data={"ha_url": URL}, title="AlarmeHA")
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    return result["result"], calls
+    return entry
 
 
-async def test_flow_and_events(hass: HomeAssistant, hass_client_no_auth):
-    entry, calls = await _setup(hass)
+async def _ws(hass, hass_ws_client, token):
+    return await hass_ws_client(hass, access_token=token)
+
+
+async def _activate(hass, client_ws, http):
+    await client_ws.send_json_auto_id({"type": "alarmeha/ativar"})
+    msg = await client_ws.receive_json()
+    assert msg["success"], msg
+    res = msg["result"]
+    assert res["deep_link"] == f"alarmeha://ativar?url=https%3A%2F%2Fcasa.example.com&codigo={res['codigo']}"
+    assert res["intent_link"].startswith("intent://ativar?") and "scheme=alarmeha" in res["intent_link"]
+    r = await http.post("/api/alarmeha/ativar", json={"codigo": res["codigo"], "pacote": "br.casa.alarmeha", "dispositivo": "Celular"})
+    assert r.status == 200
+    return res["codigo"], await r.json()
+
+
+async def test_config_flow_single_entry(hass: HomeAssistant, setup):
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
+    assert result["type"] == "abort"
+
+
+async def test_config_flow_creates(hass: HomeAssistant):
+    await async_setup_component(hass, "http", {})
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {"ha_url": "ftp://x"})
+    assert result["errors"] == {"ha_url": "invalid_url"}
+    with patch("custom_components.alarmeha.async_setup_entry", return_value=True):
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], {"ha_url": URL + "/"})
+    assert result["type"] == "create_entry" and result["data"] == {"ha_url": URL}
+
+
+async def test_activation_code_exchange(hass, setup, hass_ws_client, hass_access_token, hass_client_no_auth, hass_admin_user):
+    ws = await _ws(hass, hass_ws_client, hass_access_token)
+    http = await hass_client_no_auth()
+    code, body = await _activate(hass, ws, http)
+    assert body["url"] == URL and body["webhook"].startswith("alarmeha_") and len(body["token"]) >= 40
+
+    # Código é de uso único.
+    r = await http.post("/api/alarmeha/ativar", json={"codigo": code, "pacote": "br.casa.alarmeha"})
+    assert r.status == 403
+    # Pacote desconhecido é recusado.
+    await ws.send_json_auto_id({"type": "alarmeha/ativar"})
+    code2 = (await ws.receive_json())["result"]["codigo"]
+    r = await http.post("/api/alarmeha/ativar", json={"codigo": code2, "pacote": "com.malicioso"})
+    assert r.status == 403
+    r = await http.post("/api/alarmeha/ativar", json={"lixo": 1})
+    assert r.status == 400
+
+    hub = hass.data[DOMAIN]
+    (phone,) = hub.phones.values()
+    assert phone.user_id == hass_admin_user.id
+    assert phone.notify_service == "notify.mobile_app_pixel_admin"
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, phone.phone_id)})
+    assert device is not None
+    await hass.async_block_till_done()
+    assert any(s.entity_id.startswith("binary_sensor.alarmeha") for s in hass.states.async_all())
+
+    # Webhook recebe eventos do app.
     events = async_capture_events(hass, "alarmeha_evento")
-    client = await hass_client_no_auth()
-    url = f"/api/webhook/{entry.data['webhook_id']}"
-    resp = await client.post(url, json={
-        "origem": "alarmeha", "evento": "lista", "pedido": None,
-        "alarmes": [{"ref": "g_aula", "id": 3, "hora": 6, "minuto": 30, "dias": 31, "rotulo": "Aula",
-                     "ativo": True, "criado_pelo_ha": True, "proximo_disparo": "2099-01-01T06:30:00-03:00"},
-                    {"ref": None, "id": 4, "ativo": False, "proximo_disparo": None}]})
-    assert resp.status == 200
+    r = await http.post(f"/api/webhook/{body['webhook']}", json={"origem": "alarmeha", "evento": "pareado"})
+    assert r.status == 200
     await hass.async_block_till_done()
-    assert len(events) == 1 and events[0].data["pessoa"] == "Usuario"
-    states = {s.entity_id: s for s in hass.states.async_all()}
-    alarms = states["sensor.alarmeha_usuario_alarms"]
-    assert alarms.state == "2" and alarms.attributes["ativos"] == 1
-    nxt = states["sensor.alarmeha_usuario_next_alarm"]
-    assert nxt.state.startswith("2099-01-01T09:30:00")
-    conn = next(s for k, s in states.items() if k.startswith("binary_sensor."))
-    assert conn.state == "on"
-    ultimo = states["sensor.alarmeha_usuario_last_event"]
-    assert ultimo.state == "lista"
+    assert events[0].data["user_id"] == hass_admin_user.id and phone.connected
 
 
-async def test_service_with_confirmation_and_retry(hass: HomeAssistant, hass_client_no_auth):
-    entry, calls = await _setup(hass)
-    client = await hass_client_no_auth()
-    url = f"/api/webhook/{entry.data['webhook_id']}"
-    calls.clear()
-
-    task = hass.async_create_task(hass.services.async_call(
-        DOMAIN, "criar", {"ref": "g_aula", "hora": 6, "minuto": 30, "dias": 31, "rotulo": "Aula 07:45", "timeout": 10},
-        blocking=True, return_response=True))
-    for _ in range(200):
-        await asyncio.sleep(0.01)
-        crit = [c for c in calls if "op:criar" in c.data["data"]["intent_extras"]]
-        if crit:
-            break
-    assert len(crit) == 1
-    data = crit[0].data
-    assert data["message"] == "command_broadcast_intent"
-    assert data["data"]["intent_package_name"] == "br.casa.alarmeha.debug"
-    assert data["data"]["intent_action"] == "br.casa.alarmeha.action.COMANDO"
-    extras = dict(p.rsplit(":", 1)[0].split(":", 1) for p in data["data"]["intent_extras"].split(","))
-    assert extras["token"] == TOKEN and extras["op"] == "criar" and extras["hora"] == "6"
-    assert unquote(extras["rotulo"]) == "Aula 07:45"
-    pedido = extras["pedido"]
-    resp = await client.post(url, json={"origem": "alarmeha", "evento": "criado", "pedido": pedido, "ref": "g_aula", "id": 9,
-                                        "alarme": {"ref": "g_aula", "id": 9, "ativo": True}})
-    assert resp.status == 200
-    result = await task
-    assert result["evento"] == "criado"
+async def test_reactivation_reuses_device(hass, setup, hass_ws_client, hass_access_token, hass_client_no_auth):
+    ws = await _ws(hass, hass_ws_client, hass_access_token)
+    http = await hass_client_no_auth()
+    _, first = await _activate(hass, ws, http)
+    _, second = await _activate(hass, ws, http)
+    hub = hass.data[DOMAIN]
+    assert len(hub.phones) == 1
+    assert first["token"] != second["token"] and first["webhook"] != second["webhook"]
+    r = await http.post(f"/api/webhook/{first['webhook']}", json={"origem": "alarmeha", "evento": "lista"})
+    assert r.status == 200  # webhook antigo não existe mais: HA responde 200 sem processar
+    assert next(iter(hub.phones.values())).last_seen is None
 
 
-async def test_service_error_and_timeout(hass: HomeAssistant, hass_client_no_auth):
-    import pytest
-    from homeassistant.exceptions import HomeAssistantError
-    entry, calls = await _setup(hass)
-    real_timeout = asyncio.timeout
-    with patch("custom_components.alarmeha.phone.asyncio.timeout", side_effect=lambda t: real_timeout(0.01)):
-        calls.clear()
-        with pytest.raises(HomeAssistantError, match="3 tentativas"):
-            await hass.services.async_call(DOMAIN, "desligar", {"ref": "*", "timeout": 10}, blocking=True)
-        assert len([c for c in calls if "op:desligar" in c.data["data"]["intent_extras"]]) == 3
-    client = await hass_client_no_auth()
-    url = f"/api/webhook/{entry.data['webhook_id']}"
-    task = hass.async_create_task(hass.services.async_call(DOMAIN, "apagar", {"ref": "x1", "timeout": 10}, blocking=True))
-    for _ in range(200):
-        await asyncio.sleep(0.01)
-        ap = [c for c in calls if "op:apagar" in c.data["data"]["intent_extras"]]
-        if ap:
-            break
-    pedido = [p for p in ap[0].data["data"]["intent_extras"].split(",") if p.startswith("pedido:")][0].split(":")[1]
-    await client.post(url, json={"origem": "alarmeha", "evento": "erro", "pedido": pedido, "op": "apagar", "ref": "x1", "motivo": "ref_inexistente"})
-    with pytest.raises(HomeAssistantError, match="ref_inexistente"):
-        await task
+async def test_code_expires(hass, setup, hass_ws_client, hass_access_token, hass_client_no_auth):
+    ws = await _ws(hass, hass_ws_client, hass_access_token)
+    http = await hass_client_no_auth()
+    await ws.send_json_auto_id({"type": "alarmeha/ativar"})
+    code = (await ws.receive_json())["result"]["codigo"]
+    with patch("custom_components.alarmeha.hub.time.monotonic", return_value=10**9):
+        r = await http.post("/api/alarmeha/ativar", json={"codigo": code, "pacote": "br.casa.alarmeha"})
+    assert r.status == 403
+
+
+async def test_rate_limit(hass, setup, hass_client_no_auth):
+    http = await hass_client_no_auth()
+    for _ in range(30):
+        await http.post("/api/alarmeha/ativar", json={"codigo": "XXXX", "pacote": "br.casa.alarmeha"})
+    r = await http.post("/api/alarmeha/ativar", json={"codigo": "XXXX", "pacote": "br.casa.alarmeha"})
+    assert r.status == 429
+
+
+async def test_per_user_isolation(
+    hass, setup, hass_ws_client, hass_access_token, hass_read_only_access_token,
+    hass_client_no_auth, hass_admin_user, hass_read_only_user, notify_calls,
+):
+    http = await hass_client_no_auth()
+    ws_admin = await _ws(hass, hass_ws_client, hass_access_token)
+    ws_user = await _ws(hass, hass_ws_client, hass_read_only_access_token)
+    _, admin_body = await _activate(hass, ws_admin, http)
+    _, user_body = await _activate(hass, ws_user, http)
+    hub = hass.data[DOMAIN]
+    admin_phone = next(p for p in hub.phones.values() if p.user_id == hass_admin_user.id)
+    user_phone = next(p for p in hub.phones.values() if p.user_id == hass_read_only_user.id)
+    assert user_phone.notify_service == "notify.mobile_app_moto_filha"
+
+    # Status: usuário comum só vê o próprio celular; admin vê todos. Nunca expõe token/webhook.
+    await ws_user.send_json_auto_id({"type": "alarmeha/status"})
+    st = (await ws_user.receive_json())["result"]
+    assert [c["id"] for c in st["celulares"]] == [user_phone.phone_id]
+    assert user_body["token"] not in str(st) and user_body["webhook"] not in str(st)
+    await ws_admin.send_json_auto_id({"type": "alarmeha/status"})
+    st = (await ws_admin.receive_json())["result"]
+    assert {c["id"] for c in st["celulares"]} == {admin_phone.phone_id, user_phone.phone_id}
+
+    # Comando no celular de outra pessoa é recusado e nada é enviado.
+    await ws_user.send_json_auto_id({"type": "alarmeha/comando", "celular": admin_phone.phone_id, "op": "listar"})
+    msg = await ws_user.receive_json()
+    assert not msg["success"] and msg["error"]["code"] == "unauthorized"
+    await ws_user.send_json_auto_id({"type": "alarmeha/remover", "celular": admin_phone.phone_id})
+    assert not (await ws_user.receive_json())["success"]
+    assert notify_calls["pixel_admin"] == [] and admin_phone.phone_id in hub.phones
+
+    # Comando no próprio celular funciona (o app responde pelo webhook).
+    async def reply():
+        for _ in range(50):
+            await asyncio.sleep(0)
+            if notify_calls["moto_filha"]:
+                break
+        extras = notify_calls["moto_filha"][-1].data["data"]["intent_extras"]
+        pedido = next(p.split(":")[1] for p in extras.split(",") if p.startswith("pedido:"))
+        alarme = {"id": 5, "ref": "aula", "hora": 6, "minuto": 30, "dias": 31, "ativo": True}
+        await http.post(f"/api/webhook/{user_body['webhook']}", json={"origem": "alarmeha", "evento": "criado", "pedido": pedido, "alarme": alarme})
+
+    task = hass.async_create_task(reply())
+    await ws_user.send_json_auto_id({"type": "alarmeha/comando", "celular": user_phone.phone_id, "op": "criar",
+                                     "dados": {"ref": "aula", "hora": 6, "minuto": 30, "dias": 31}})
+    msg = await ws_user.receive_json()
+    await task
+    assert msg["success"], msg
+    assert msg["result"]["celular"]["alarmes"][0]["ref"] == "aula"
+
+    # Serviços: usuário comum não pode mirar o celular de outra pessoa.
+    admin_device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, admin_phone.phone_id)})
+    with pytest.raises(Unauthorized):
+        await hass.services.async_call(DOMAIN, "listar", {"device_id": admin_device.id}, blocking=True,
+                                       context=Context(user_id=hass_read_only_user.id))
+    # Automação (sem usuário) pode.
+    hass.async_create_task(hass.services.async_call(DOMAIN, "listar", {"device_id": admin_device.id, "timeout": 10}, blocking=False))
+    for _ in range(20):
+        await asyncio.sleep(0)
+    assert notify_calls["pixel_admin"]
+
+
+async def test_activate_without_companion(hass, setup, hass_ws_client, hass_access_token):
+    for entry in hass.config_entries.async_entries("mobile_app"):
+        hass.config_entries.async_update_entry(entry, data={**entry.data, "user_id": "outra-pessoa"})
+    ws = await _ws(hass, hass_ws_client, hass_access_token)
+    await ws.send_json_auto_id({"type": "alarmeha/ativar"})
+    msg = await ws.receive_json()
+    assert msg["error"]["code"] == "no_companion"
+
+
+async def test_migration_from_v1(hass: HomeAssistant, notify_calls, hass_client_no_auth):
+    await async_setup_component(hass, "http", {})
+    old = MockConfigEntry(
+        domain=DOMAIN, version=1, title="AlarmeHA Usuario",
+        data={"pessoa": "Usuario", "notify_service": "notify.mobile_app_pixel_admin", "package": "br.casa.alarmeha",
+              "webhook_id": "alarmeha_antigo", "token": "tok-antigo", "ha_url": URL},
+    )
+    old.add_to_hass(hass)
+    second = MockConfigEntry(domain=DOMAIN, version=1, title="AlarmeHA Filha",
+                             data={"pessoa": "Filha", "notify_service": "notify.mobile_app_moto_filha",
+                                   "package": "br.casa.alarmeha", "webhook_id": "w2", "token": "t2", "ha_url": URL})
+    second.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(old.entry_id)
+    await hass.async_block_till_done()
+    assert old.version == 2 and old.data == {"ha_url": URL}
+    hub = hass.data[DOMAIN]
+    phone = hub.phones[old.entry_id]
+    assert phone.token == "tok-antigo" and phone.user_id is None
+    http = await hass_client_no_auth()
+    await http.post("/api/webhook/alarmeha_antigo", json={"origem": "alarmeha", "evento": "lista", "alarmes": []})
+    assert phone.last_seen is not None
+    # A segunda entrada antiga não migra: o usuário é avisado para removê-la.
+    assert second.version == 1
+    assert second.state.name == "MIGRATION_ERROR"
