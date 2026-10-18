@@ -38,6 +38,7 @@ class HaPairingActivity : SimpleActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        HaCrashLog.install(this)
         super.onCreate(savedInstanceState)
         config = HaConfig(this)
         setContentView(buildLayout())
@@ -71,7 +72,12 @@ class HaPairingActivity : SimpleActivity() {
     private fun activate(request: HaActivation.Request) {
         status.text = "Ativando…"
         ensureBackgroundThread {
-            val error = HaActivation.redeem(this, request)
+            // Nada da ativação pode derrubar o app: qualquer exceção vira mensagem.
+            val error = try {
+                HaActivation.redeem(this, request)
+            } catch (e: Throwable) {
+                "Erro inesperado ao ativar: ${e.javaClass.simpleName}: ${e.message}"
+            }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 shownToken = null
@@ -178,6 +184,7 @@ class HaPairingActivity : SimpleActivity() {
                 append("\nHA: ${config.haUrl}")
                 if (config.personName.isNotEmpty()) append("\nPessoa: ${config.personName}")
             }
+            HaCrashLog.last(this@HaPairingActivity)?.let { append("\n\nÚltimo erro do app (para diagnóstico):\n").append(it.take(1500)) }
             if (config.rejectedCommands > 0) append("\nComandos recusados (token errado): ${config.rejectedCommands}")
         }
         val token = shownToken

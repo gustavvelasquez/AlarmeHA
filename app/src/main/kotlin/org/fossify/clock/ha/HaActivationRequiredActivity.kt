@@ -22,6 +22,7 @@ import org.fossify.commons.extensions.getProperTextColor
  * Depois da primeira ativação ela nunca mais aparece (nem sem internet, HA ou token válido). */
 class HaActivationRequiredActivity : SimpleActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        HaCrashLog.install(this)
         super.onCreate(savedInstanceState)
         setContentView(buildLayout())
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {

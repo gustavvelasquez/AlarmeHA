@@ -84,10 +84,13 @@ object HaActivation {
         config.setServerToken(token)
         config.rejectedCommands = 0
         config.markActivated()
-        HaWebhook.send(context, "pareado", JSONObject().apply {
-            put("pedido", JSONObject.NULL)
-            put("token_definido", true)
-        })
+        // A ativação já está salva; o aviso "pareado" é melhor esforço e nunca derruba o app.
+        runCatching {
+            HaWebhook.send(context, "pareado", JSONObject().apply {
+                put("pedido", JSONObject.NULL)
+                put("token_definido", true)
+            })
+        }
         return null
     }
 }

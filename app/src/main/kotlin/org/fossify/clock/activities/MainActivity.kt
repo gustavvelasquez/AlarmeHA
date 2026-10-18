@@ -13,6 +13,7 @@ import org.fossify.clock.BuildConfig
 import org.fossify.clock.R
 import org.fossify.clock.adapters.ViewPagerAdapter
 import org.fossify.clock.databinding.ActivityMainBinding
+import org.fossify.clock.ha.HaCrashLog
 import org.fossify.clock.ha.HaOnboarding
 import org.fossify.clock.extensions.alarmController
 import org.fossify.clock.extensions.config
@@ -66,6 +67,7 @@ class MainActivity : SimpleActivity() {
     private val binding: ActivityMainBinding by viewBinding(ActivityMainBinding::inflate)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        HaCrashLog.install(this)
         super.onCreate(savedInstanceState)
         if (HaOnboarding.redirectIfNeverActivated(this)) return
         setContentView(binding.root)
