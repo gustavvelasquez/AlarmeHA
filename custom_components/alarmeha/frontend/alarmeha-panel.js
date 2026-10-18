@@ -155,6 +155,20 @@ class AlarmehaPanel extends HTMLElement {
         input[type=text], input[type=time] { font-size: 16px; padding: 6px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: inherit; }
         label { margin-right: 8px; white-space: nowrap; } .linha { margin: 10px 0; }
         details { margin-top: 8px; }
+        .novo { border-top: 1px solid var(--divider-color); margin-top: 8px; padding-top: 12px; }
+        .relogio { display: flex; justify-content: center; align-items: center; gap: 4px; }
+        .giro { display: flex; flex-direction: column; align-items: center; }
+        .dig { width: 2.2ch; font-size: 56px; text-align: center; border: 0; background: transparent; color: var(--primary-color); font-weight: 500; padding: 0; }
+        .dig:focus { outline: 2px solid var(--primary-color); border-radius: 8px; }
+        .dois { font-size: 48px; color: var(--primary-color); }
+        .seta { background: transparent; border: 0; color: var(--secondary-text-color); font-size: 22px; padding: 6px 20px; cursor: pointer; }
+        .dias { display: flex; justify-content: center; gap: 6px; margin-top: 12px; }
+        .dia input { display: none; }
+        .dia span { display: inline-flex; width: 38px; height: 38px; border-radius: 50%; align-items: center; justify-content: center; border: 1px solid var(--divider-color); cursor: pointer; font-weight: 500; }
+        .dia input:checked + span { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: var(--primary-color); }
+        .centro { text-align: center; }
+        .rot { width: 100%; box-sizing: border-box; font-size: 16px; padding: 10px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: inherit; margin: 8px 0; }
+        .acoes { display: flex; justify-content: flex-end; }
       </style>
       <h1>Despertador</h1>
       ${this._erro ? `<div class="erro">${esc(this._erro)}</div>` : ""}
@@ -236,15 +250,22 @@ class AlarmehaPanel extends HTMLElement {
   }
 
   _formulario(f) {
+    // Igual ao app: hora grande com setas e teclado numérico, dias em bolinhas.
+    const campo = (nome, v, max) => `
+      <div class="giro">
+        <button type="button" class="seta" data-passo="${nome}" data-d="1" data-max="${max}">▲</button>
+        <input class="dig" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" name="${nome}" value="${pad(v)}" data-max="${max}">
+        <button type="button" class="seta" data-passo="${nome}" data-d="-1" data-max="${max}">▼</button>
+      </div>`;
     return `
-      <form class="linha" data-form>
-        <div class="linha"><input type="time" name="hora" required value="${pad(f.hora)}:${pad(f.minuto)}">
-          <input type="text" name="rotulo" maxlength="64" placeholder="Nome (opcional)" value="${esc(f.rotulo)}"></div>
-        <div class="linha">${DIAS.map(([n, b]) => `<label><input type="checkbox" name="dia" value="${b}" ${f.dias > 0 && f.dias & b ? "checked" : ""}>${n}</label>`).join("")}</div>
-        <div class="linha"><label><input type="checkbox" name="vibrar" ${f.vibrar ? "checked" : ""}>Vibrar</label>
-          <span class="muted">Sem dias marcados = toca uma vez.</span></div>
-        <button class="btn" type="submit" ${this._ocupado ? "disabled" : ""}>${this._ocupado ? "Enviando…" : "Salvar"}</button>
-        <button class="btn sec" type="button" data-cancelar>Cancelar</button>
+      <form class="novo" data-form>
+        <div class="relogio">${campo("h", f.hora, 23)}<span class="dois">:</span>${campo("m", f.minuto, 59)}</div>
+        <div class="dias">${DIAS.map(([n, b]) => `<label class="dia"><input type="checkbox" name="dia" value="${b}" ${f.dias > 0 && f.dias & b ? "checked" : ""}><span>${n[0]}</span></label>`).join("")}</div>
+        <p class="muted centro">Sem dias marcados, toca uma vez.</p>
+        <input class="rot" type="text" name="rotulo" maxlength="64" placeholder="Rótulo (opcional)" value="${esc(f.rotulo)}">
+        <label class="linha"><input type="checkbox" name="vibrar" ${f.vibrar ? "checked" : ""}> Vibrar</label>
+        <div class="acoes"><button class="btn sec" type="button" data-cancelar>Cancelar</button>
+          <button class="btn" type="submit" ${this._ocupado ? "disabled" : ""}>${this._ocupado ? "Enviando…" : "Salvar"}</button></div>
       </form>`;
   }
 
@@ -267,11 +288,21 @@ class AlarmehaPanel extends HTMLElement {
       if (al) { this._form = { celular: cel.id, ...al }; this._render(); }
     });
     on("[data-cancelar]", () => { this._form = null; this._render(); });
+    const ajusta = (inp, d) => {
+      const max = Number(inp.dataset.max) + 1;
+      inp.value = pad(((Number(inp.value) || 0) + d + max) % max);
+    };
+    on("[data-passo]", (el) => ajusta(root.querySelector(`input[name=${el.dataset.passo}]`), Number(el.dataset.d)));
+    root.querySelectorAll(".dig").forEach((inp) => {
+      inp.addEventListener("focus", () => inp.select());
+      inp.addEventListener("input", () => { inp.value = inp.value.replace(/\D/g, ""); });
+      inp.addEventListener("blur", () => { inp.value = pad(Math.min(Number(inp.value) || 0, Number(inp.dataset.max))); });
+    });
     const form = root.querySelector("[data-form]");
     if (form) form.addEventListener("submit", (ev) => {
       ev.preventDefault();
       const fd = new FormData(form);
-      const [h, m] = String(fd.get("hora")).split(":").map(Number);
+      const h = Math.min(Number(fd.get("h")) || 0, 23), m = Math.min(Number(fd.get("m")) || 0, 59);
       const dias = fd.getAll("dia").reduce((acc, v) => acc + Number(v), 0);
       const f = this._form;
       const rotulo = String(fd.get("rotulo") || "").trim();
