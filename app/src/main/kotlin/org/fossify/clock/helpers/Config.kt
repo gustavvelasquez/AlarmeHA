@@ -91,7 +91,7 @@ class Config(context: Context) : BaseConfig(context) {
         }
 
     var increaseVolumeGradually: Boolean
-        get() = prefs.getBoolean(INCREASE_VOLUME_GRADUALLY, true)
+        get() = prefs.getBoolean(INCREASE_VOLUME_GRADUALLY, false)
         set(increaseVolumeGradually) = prefs.edit {
             putBoolean(INCREASE_VOLUME_GRADUALLY, increaseVolumeGradually)
         }
