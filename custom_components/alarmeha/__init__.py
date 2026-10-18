@@ -37,6 +37,7 @@ from .const import (
     STATIC_URL,
     VERSION,
 )
+from .apk import AlarmeHaApkView, ApkCache
 from .http_api import AlarmeHaActivateView
 from .hub import AlarmeHaHub
 from .phone import AlarmeHaPhone
@@ -181,6 +182,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmeHaConfigEntry) -> 
     if "http" not in flags:
         flags.add("http")
         hass.http.register_view(AlarmeHaActivateView())
+        hass.http.register_view(AlarmeHaApkView(ApkCache(hass)))
         await hass.http.async_register_static_paths(
             [StaticPathConfig(STATIC_URL, str(Path(__file__).parent / "frontend"), False)]
         )

@@ -45,12 +45,19 @@ class AlarmehaPanel extends HTMLElement {
 
   async _ws(msg) { return this._hass.connection.sendMessagePromise(msg); }
 
+  // O cartão de ativação só aparece quando o painel foi aberto pelo app (?ativar=1).
+  _veioDoApp() { return new URLSearchParams(window.location.search).get("ativar") === "1"; }
+
   async _carregar(silencioso = false) {
     try {
       this._status = await this._ws({ type: "alarmeha/status" });
       if (!silencioso) this._erro = null;
     } catch (e) {
       this._erro = e.message || String(e);
+    }
+    if (this._status && this._veioDoApp() && !this._ativacao && !this._autoAtivou) {
+      this._autoAtivou = true;
+      if (this._status.companion.length) return this._ativar();
     }
     if (!this._form) this._render();
   }
@@ -100,6 +107,8 @@ class AlarmehaPanel extends HTMLElement {
         .muted { color: var(--secondary-text-color); font-size: 14px; }
         .btn { display: inline-block; background: var(--primary-color); color: var(--text-primary-color, #fff); border: 0; border-radius: 8px; padding: 10px 16px; font-size: 15px; cursor: pointer; text-decoration: none; margin: 4px 4px 4px 0; }
         .btn.sec { background: transparent; color: var(--primary-color); border: 1px solid var(--primary-color); }
+        .btn.grande { display: block; text-align: center; font-size: 20px; padding: 18px; margin: 8px 0; }
+        .destaque { border: 2px solid var(--primary-color); }
         .btn.mini { padding: 4px 10px; font-size: 13px; }
         .btn[disabled] { opacity: .5; }
         .erro { background: var(--error-color, #db4437); color: #fff; padding: 10px; border-radius: 8px; margin-bottom: 16px; }
@@ -113,41 +122,47 @@ class AlarmehaPanel extends HTMLElement {
       <h1>Despertador</h1>
       ${this._erro ? `<div class="erro">${esc(this._erro)}</div>` : ""}
       ${!s ? `<div class="card">Carregando…</div>` : `
-        ${meus.length ? meus.map((c) => this._celular(c)).join("") : this._passos(s)}
-        ${meus.length ? `<div class="card"><details><summary>Instalar ou ativar outro celular</summary>${this._passos(s, true)}</details></div>` : ""}
+        ${this._veioDoApp() ? this._cartaoAtivacao(s) : ""}
+        ${meus.map((c) => this._celular(c)).join("")}
+        ${meus.length ? `<div class="card"><details><summary>Instalar o app em outro celular</summary>${this._passos(s, true)}</details></div>` : this._passos(s)}
         ${outros.length ? `<h2>Outros celulares (admin)</h2>${outros.map((c) => this._celular(c)).join("")}` : ""}
       `}`;
     this._ligar();
   }
 
-  _passos(s, compacto = false) {
+  _cartaoAtivacao(s) {
     const a = this._ativacao;
-    let passo2;
+    let corpo;
     if (a && a.escolher) {
-      passo2 = `<p>Você tem mais de um celular com o Companion. Qual deles?</p>` +
+      corpo = `<p>Você tem mais de um celular com o app Home Assistant. Qual deles vai despertar?</p>` +
         s.companion.map((d) => `<button class="btn sec" data-companion="${esc(d.entry_id)}">${esc(d.nome)}</button>`).join("");
     } else if (a && a.codigo) {
-      passo2 = `
-        <p>Toque no botão abaixo <b>neste celular</b> e confirme no AlarmeHA:</p>
-        <a class="btn" href="${esc(a.intent_link)}">Abrir o AlarmeHA e ativar</a>
-        <p class="muted">O código vale por ${Math.round(a.expira_em / 60)} minutos e só pode ser usado uma vez.</p>
-        <details><summary class="muted">Não abriu?</summary>
+      corpo = `
+        <a class="btn grande" href="${esc(a.intent_link)}">Confirmar ativação</a>
+        <p class="muted">Depois, confirme no AlarmeHA. O código vale ${Math.round(a.expira_em / 60)} minutos e só pode ser usado uma vez.</p>
+        <details><summary class="muted">Não voltou para o AlarmeHA?</summary>
           <p class="muted">No AlarmeHA, vá em Configurações → Home Assistant → Avançado → <b>Colar configuração</b> e cole:</p>
           <p><code>${esc(a.texto_pareamento)}</code> <button class="btn mini sec" data-copiar>Copiar</button></p>
         </details>
         <button class="btn sec" data-recarregar>Já ativei</button>`;
     } else if (!s.companion.length) {
-      passo2 = `<p class="muted">Abra este painel pelo app <b>Home Assistant Companion</b> no celular que vai despertar, entrando com a sua conta.</p>`;
+      corpo = `<p class="muted">Não achei o app Home Assistant (Companion) com a sua conta neste HA. Entre no app Home Assistant do celular com a sua conta e abra a ativação pelo AlarmeHA de novo.</p>`;
     } else {
-      passo2 = `<button class="btn" data-ativar>Ativar</button>`;
+      corpo = `<p class="muted">Gerando o código…</p>`;
     }
+    return `<div class="card destaque"><h2>Ativar este celular</h2>${corpo}</div>`;
+  }
+
+  _passos(s, compacto = false) {
     return `
       <div class="${compacto ? "" : "card"}">
-        <h2>1. Baixe o app</h2>
-        <p class="muted">No celular, baixe e instale o AlarmeHA (permita instalar de fontes desconhecidas se o Android pedir).</p>
-        <a class="btn sec" href="${esc(s.apk_url)}" target="_blank" rel="noopener">Baixar AlarmeHA.apk</a>
-        <h2 style="margin-top:16px">2. Ative</h2>
-        ${passo2}
+        <h2>Baixar e instalar o AlarmeHA</h2>
+        <p class="muted">Toque abaixo no celular que vai despertar. Se o Android pedir, permita instalar apps desta fonte; se o Play Protect avisar, toque em <i>Instalar mesmo assim</i>.</p>
+        <a class="btn" href="${esc(s.apk_url)}" download="AlarmeHA.apk">Baixar e instalar</a>
+        <p><b>Depois, abra o app AlarmeHA</b> e toque em <b>Ativar</b>. Ele traz você de volta aqui para confirmar.</p>
+        <details><summary class="muted">O download não funcionou?</summary>
+          <p class="muted">Abra a <a href="${esc(s.releases_url)}" target="_blank" rel="noopener">página da última versão no GitHub</a> e baixe o arquivo <b>AlarmeHA.apk</b>. No Chrome, se aparecer "o arquivo pode ser perigoso", toque em <i>Baixar mesmo assim</i>.</p>
+        </details>
       </div>`;
   }
 

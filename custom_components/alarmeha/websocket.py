@@ -6,11 +6,14 @@ from typing import Any
 
 import voluptuous as vol
 
+from datetime import timedelta
+
 from homeassistant.components import websocket_api
+from homeassistant.components.http.auth import async_sign_path
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import APK_URL, DEFAULT_TIMEOUT, DOMAIN, OPS
+from .const import APK_PATH, APK_URL, DEFAULT_TIMEOUT, DOMAIN, OPS, RELEASES_URL
 
 
 @callback
@@ -37,7 +40,12 @@ def ws_status(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
     connection.send_result(
         msg["id"],
         {
-            "apk_url": APK_URL,
+            # Link assinado servido pelo próprio HA (mesma origem do painel, funciona no Companion).
+            "apk_url": async_sign_path(
+                hass, APK_PATH, timedelta(minutes=30), refresh_token_id=connection.refresh_token_id
+            ),
+            "apk_github_url": APK_URL,
+            "releases_url": RELEASES_URL,
             "admin": user.is_admin,
             "url": hub.external_url,
             "celulares": [p.summary(user.id) for p in hub.phones_for(user)],

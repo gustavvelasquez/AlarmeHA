@@ -238,3 +238,46 @@ async def test_migration_from_v1(hass: HomeAssistant, notify_calls, hass_client_
     # A segunda entrada antiga não migra: o usuário é avisado para removê-la.
     assert second.version == 1
     assert second.state.name == "MIGRATION_ERROR"
+
+
+APK_BYTES = b"PK\x03\x04" + b"0" * 2000
+LATEST = "https://api.github.com/repos/gustavvelasquez/AlarmeHA/releases/latest"
+ASSET = "https://github.com/gustavvelasquez/AlarmeHA/releases/download/v0.3.1/AlarmeHA.apk"
+
+
+async def test_apk_served_by_ha(hass, setup, hass_ws_client, hass_access_token, hass_client_no_auth, aioclient_mock):
+    import shutil
+    shutil.rmtree(hass.config.path(".storage", "alarmeha_apk"), ignore_errors=True)
+    aioclient_mock.get(LATEST, json={"tag_name": "v0.3.1", "assets": [
+        {"name": "AlarmeHA.apk", "size": len(APK_BYTES), "browser_download_url": ASSET}]})
+    aioclient_mock.get(ASSET, content=APK_BYTES)
+    ws = await _ws(hass, hass_ws_client, hass_access_token)
+    await ws.send_json_auto_id({"type": "alarmeha/status"})
+    st = (await ws.receive_json())["result"]
+    assert st["apk_url"].startswith("/api/alarmeha/apk?authSig=")
+    assert st["releases_url"].endswith("/releases/latest")
+
+    http = await hass_client_no_auth()
+    assert (await http.get("/api/alarmeha/apk")).status == 401  # sem assinatura
+    r = await http.get(st["apk_url"])
+    assert r.status == 200
+    assert r.headers["Content-Type"] == "application/vnd.android.package-archive"
+    assert r.headers["Content-Disposition"] == 'attachment; filename="AlarmeHA-v0.3.1.apk"'
+    assert int(r.headers["Content-Length"]) == len(APK_BYTES)
+    assert await r.read() == APK_BYTES
+
+    # Segunda vez vem do cache (sem novo download do GitHub).
+    calls = aioclient_mock.call_count
+    assert (await http.get(st["apk_url"])).status == 200
+    assert aioclient_mock.call_count == calls
+
+
+async def test_apk_github_down(hass, setup, hass_ws_client, hass_access_token, hass_client_no_auth, aioclient_mock):
+    import shutil
+    shutil.rmtree(hass.config.path(".storage", "alarmeha_apk"), ignore_errors=True)
+    aioclient_mock.get(LATEST, status=503)
+    ws = await _ws(hass, hass_ws_client, hass_access_token)
+    await ws.send_json_auto_id({"type": "alarmeha/status"})
+    url = (await ws.receive_json())["result"]["apk_url"]
+    http = await hass_client_no_auth()
+    assert (await http.get(url)).status == 502

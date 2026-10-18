@@ -1,7 +1,7 @@
 """Constantes da integração AlarmeHA."""
 
 DOMAIN = "alarmeha"
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 
 CONF_HA_URL = "ha_url"
 # Chaves da versão 1 (uma entrada por celular), usadas só na migração.
@@ -20,6 +20,10 @@ PANEL_TITLE = "Despertador"
 PANEL_ICON = "mdi:alarm"
 STATIC_URL = "/alarmeha_static"
 ACTIVATE_URL = "/api/alarmeha/ativar"
+APK_PATH = "/api/alarmeha/apk"
+APK_CACHE_HOURS = 6
+GITHUB_LATEST_API = "https://api.github.com/repos/gustavvelasquez/AlarmeHA/releases/latest"
+RELEASES_URL = "https://github.com/gustavvelasquez/AlarmeHA/releases/latest"
 APK_URL = "https://github.com/gustavvelasquez/AlarmeHA/releases/latest/download/AlarmeHA.apk"
 
 EVENT_ALARMEHA = "alarmeha_evento"

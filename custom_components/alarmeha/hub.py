@@ -23,7 +23,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import slugify
 
 from .const import (
-    APK_URL,
+    RELEASES_URL,
     CODE_TTL_SECONDS,
     CONF_HA_URL,
     DOMAIN,
@@ -145,7 +145,7 @@ class AlarmeHaHub:
             "deep_link": f"alarmeha://ativar?{query}",
             "intent_link": (
                 f"intent://ativar?{query}#Intent;scheme=alarmeha;"
-                f"S.browser_fallback_url={quote(APK_URL, safe='')};end"
+                f"S.browser_fallback_url={quote(RELEASES_URL, safe='')};end"
             ),
             "texto_pareamento": f'{{"v":2,"url":"{url}","codigo":"{code}"}}',
         }
