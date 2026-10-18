@@ -32,7 +32,9 @@ class App : FossifyApp(), LifecycleObserver {
     private var countDownTimers = mutableMapOf<Int, CountDownTimer>()
 
     override fun onCreate() {
+        org.fossify.clock.ha.HaCrashLog.install(this)
         super.onCreate()
+        org.fossify.clock.ha.HaCrashLog.reportPending(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
         EventBus.getDefault().register(this)
     }
