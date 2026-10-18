@@ -9,6 +9,8 @@ import java.net.URL
 /** Ativação pelo painel Despertador: troca o código de uso único por webhook + token gerados pelo HA. */
 object HaActivation {
     const val PANEL_PATH = "despertador"
+    /** O painel só mostra o cartão de ativação quando chega com ?ativar=1 (vindo do app). */
+    const val PANEL_ACTIVATE_PATH = "despertador?ativar=1"
     private val URL_REGEX = Regex("^https?://[^\\s/]+(/[^\\s]*)?$")
     private val CODE_REGEX = Regex("^[A-Za-z0-9]{6,32}$")
 

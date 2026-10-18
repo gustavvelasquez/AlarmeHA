@@ -20,10 +20,10 @@ object HaOnboarding {
         AlertDialog.Builder(activity)
             .setTitle("Bem-vindo ao AlarmeHA")
             .setMessage(
-                "Ative este celular pelo Home Assistant da casa: o app Home Assistant abre o painel " +
-                    "Despertador, onde você toca em Ativar.\n\n" + oldAlarmHint(activity)
+                "Toque em Ativar: o app Home Assistant abre o painel Despertador já na ativação; " +
+                    "lá, toque em Confirmar ativação.\n\n" + oldAlarmHint(activity)
             )
-            .setPositiveButton("Ativar pelo Home Assistant") { _, _ -> openPanel(activity) }
+            .setPositiveButton("Ativar") { _, _ -> openPanel(activity) }
             .setNegativeButton("Agora não") { _, _ -> config.onboardingDismissed = true }
             .setNeutralButton("Avançado") { _, _ ->
                 activity.startActivity(Intent(activity, HaPairingActivity::class.java))
@@ -52,15 +52,15 @@ object HaOnboarding {
     }
 
     fun openPanel(activity: Activity) {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("homeassistant://navigate/${HaActivation.PANEL_PATH}"))
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("homeassistant://navigate/${HaActivation.PANEL_ACTIVATE_PATH}"))
         try {
             activity.startActivity(intent)
         } catch (e: ActivityNotFoundException) {
             AlertDialog.Builder(activity)
                 .setTitle("App Home Assistant não encontrado")
                 .setMessage(
-                    "Para ativar, instale o app Home Assistant (Companion), entre com a sua conta da casa " +
-                        "e toque de novo em Ativar pelo Home Assistant.\n\nSem o Companion o HA não consegue " +
+                    "A ativação é feita pelo app Home Assistant (Companion), que não está instalado neste celular. " +
+                        "Instale-o, entre com a sua conta da casa e toque de novo em Ativar.\n\nSem o Companion o HA não consegue " +
                         "enviar comandos a este celular."
                 )
                 .setPositiveButton("Abrir a Play Store") { _, _ ->

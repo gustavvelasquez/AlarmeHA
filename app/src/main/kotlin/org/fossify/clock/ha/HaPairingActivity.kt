@@ -118,11 +118,11 @@ class HaPairingActivity : SimpleActivity() {
         text("Home Assistant", 22f, bold = true).setTextColor(getProperPrimaryColor())
         status = text()
         text(
-            "Abra o painel Despertador no app Home Assistant e toque em Ativar. " +
-                "O botão abaixo abre o painel direto.",
+            "Toque em Ativar com o Home Assistant: o app Home Assistant abre o painel Despertador " +
+                "e você toca em Confirmar ativação.",
             14f
         )
-        button("Ativar pelo Home Assistant") { HaOnboarding.openPanel(this) }
+        button("Ativar com o Home Assistant") { HaOnboarding.openPanel(this) }
         button("Testar: enviar lista de alarmes ao HA") {
             if (config.hasWebhook) {
                 HaEvents.sendList(this, "teste")

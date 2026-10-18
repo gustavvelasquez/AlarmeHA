@@ -180,6 +180,7 @@ class MainActivity : SimpleActivity() {
                 }
 
                 R.id.more_apps_from_us -> launchMoreAppsFromUsIntent()
+                R.id.home_assistant_activate -> HaOnboarding.openPanel(this)
                 R.id.settings -> launchSettings()
                 R.id.about -> showAlarmeHaAbout()
                 else -> return@setOnMenuItemClickListener false
