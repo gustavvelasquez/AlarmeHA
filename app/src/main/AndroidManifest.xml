@@ -17,6 +17,8 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- AlarmeHA: botão "Sem restrição de bateria" da tela de permissões. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- AlarmeHA: o WorkManager precisa disto para a fila de envio ao HA (o Fossify removia). -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -176,6 +178,11 @@
         <!-- AlarmeHA: integração com o Home Assistant -->
         <activity
             android:name=".ha.HaActivationRequiredActivity"
+            android:exported="false"
+            android:label="AlarmeHA" />
+
+        <activity
+            android:name=".ha.HaPermissionsActivity"
             android:exported="false"
             android:label="AlarmeHA" />
 

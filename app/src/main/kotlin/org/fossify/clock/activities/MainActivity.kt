@@ -70,6 +70,7 @@ class MainActivity : SimpleActivity() {
         HaCrashLog.install(this)
         super.onCreate(savedInstanceState)
         if (HaOnboarding.redirectIfNeverActivated(this)) return
+        if (org.fossify.clock.ha.HaPermissions.redirectIfMissing(this)) return
         setContentView(binding.root)
         appLaunched(BuildConfig.APPLICATION_ID)
         setupOptionsMenu()
