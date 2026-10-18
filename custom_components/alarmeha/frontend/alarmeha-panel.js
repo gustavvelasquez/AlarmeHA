@@ -159,6 +159,7 @@ class AlarmehaPanel extends HTMLElement {
         <h2>Baixar e instalar o AlarmeHA</h2>
         <p class="muted">Toque abaixo no celular que vai despertar. Se o Android pedir, permita instalar apps desta fonte; se o Play Protect avisar, toque em <i>Instalar mesmo assim</i>.</p>
         <a class="btn" href="${esc(s.apk_url)}" download="AlarmeHA.apk">Baixar e instalar</a>
+        <p class="muted">Quando o download terminar, toque em <b>Abrir</b> (ou na notificação do download) para instalar.</p>
         <p><b>Depois, abra o app AlarmeHA</b> e toque em <b>Ativar</b>. Ele traz você de volta aqui para confirmar.</p>
         <details><summary class="muted">O download não funcionou?</summary>
           <p class="muted">Abra a <a href="${esc(s.releases_url)}" target="_blank" rel="noopener">página da última versão no GitHub</a> e baixe o arquivo <b>AlarmeHA.apk</b>. No Chrome, se aparecer "o arquivo pode ser perigoso", toque em <i>Baixar mesmo assim</i>.</p>
