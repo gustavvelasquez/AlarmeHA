@@ -13,6 +13,7 @@ from homeassistant.components.http.auth import async_sign_path
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 
+from .hub import clean_url
 from .const import APK_PATH, APK_URL, DEFAULT_TIMEOUT, DOMAIN, OPS, RELEASES_URL
 
 
@@ -55,13 +56,17 @@ def ws_status(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
 
 
 @websocket_api.websocket_command(
-    {vol.Required("type"): "alarmeha/ativar", vol.Optional("companion_entry_id"): str}
+    {
+        vol.Required("type"): "alarmeha/ativar",
+        vol.Optional("companion_entry_id"): str,
+        vol.Optional("origem"): str,  # window.location.origin do painel
+    }
 )
 @callback
 def ws_activate(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     if (hub := _hub(hass, connection, msg)) is None:
         return
-    if not hub.external_url:
+    if not clean_url(msg.get("origem")) and not hub.external_url:
         connection.send_error(msg["id"], "no_url", "Configure a URL externa do Home Assistant na integração AlarmeHA")
         return
     devices = hub.mobile_devices_for_user(connection.user.id)
@@ -77,7 +82,7 @@ def ws_activate(hass: HomeAssistant, connection: websocket_api.ActiveConnection,
     if len(devices) > 1:
         connection.send_error(msg["id"], "choose_companion", "Escolha qual celular ativar")
         return
-    connection.send_result(msg["id"], hub.create_code(connection.user.id, devices[0]["entry_id"]))
+    connection.send_result(msg["id"], hub.create_code(connection.user.id, devices[0]["entry_id"], msg.get("origem")))
 
 
 @websocket_api.websocket_command(

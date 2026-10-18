@@ -82,7 +82,7 @@ async def test_activation_code_exchange(hass, setup, hass_ws_client, hass_access
     ws = await _ws(hass, hass_ws_client, hass_access_token)
     http = await hass_client_no_auth()
     code, body = await _activate(hass, ws, http)
-    assert body["url"] == URL and body["webhook"].startswith("alarmeha_") and len(body["token"]) >= 40
+    assert body["url"] == URL and body["urls"][0] == URL and body["url_externa"] == URL and body["webhook"].startswith("alarmeha_") and len(body["token"]) >= 40
 
     # Código é de uso único.
     r = await http.post("/api/alarmeha/ativar", json={"codigo": code, "pacote": "br.casa.alarmeha"})
@@ -281,3 +281,31 @@ async def test_apk_github_down(hass, setup, hass_ws_client, hass_access_token, h
     url = (await ws.receive_json())["result"]["apk_url"]
     http = await hass_client_no_auth()
     assert (await http.get(url)).status == 502
+
+
+async def test_activation_uses_panel_origin(hass, setup, hass_ws_client, hass_access_token, hass_client_no_auth):
+    await hass.config.async_update(internal_url="http://homeassistant.local:8123")
+    ws = await _ws(hass, hass_ws_client, hass_access_token)
+    await ws.send_json_auto_id({"type": "alarmeha/ativar", "origem": "https://abc.ui.nabu.casa"})
+    res = (await ws.receive_json())["result"]
+    assert res["url"] == "https://abc.ui.nabu.casa"
+    assert "url=https%3A%2F%2Fabc.ui.nabu.casa&" in res["deep_link"]
+    http = await hass_client_no_auth()
+    r = await http.post("/api/alarmeha/ativar", json={"codigo": res["codigo"], "pacote": "br.casa.alarmeha"})
+    body = await r.json()
+    assert body["urls"] == ["https://abc.ui.nabu.casa", URL, "http://homeassistant.local:8123"]
+    assert body["url_interna"] == "http://homeassistant.local:8123"
+
+    # Origem inválida cai na URL externa.
+    await ws.send_json_auto_id({"type": "alarmeha/ativar", "origem": "javascript:alert(1)"})
+    assert (await ws.receive_json())["result"]["url"] == URL
+
+
+async def test_panel_versioned(hass, setup):
+    from homeassistant.components.frontend import DATA_PANELS
+    from custom_components.alarmeha.const import VERSION
+    panel = hass.data[DATA_PANELS]["despertador"]
+    cfg = panel.config["_panel_custom"]
+    assert cfg["name"] == "alarmeha-panel-" + VERSION.replace(".", "-")
+    assert cfg["module_url"].endswith("?v=" + VERSION)
+    assert panel.require_admin is False

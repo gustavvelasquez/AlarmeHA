@@ -8,7 +8,7 @@ import logging
 import secrets
 import time
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from aiohttp import web
 
@@ -19,6 +19,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.helpers.storage import Store
 from homeassistant.util import slugify
 
@@ -33,6 +34,16 @@ from .const import (
 )
 from .phone import AlarmeHaPhone
 
+
+def clean_url(url: str | None) -> str | None:
+    if not url:
+        return None
+    url = url.strip().rstrip("/")
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc or parsed.path or parsed.query:
+        return None
+    return url
+
 _LOGGER = logging.getLogger(__name__)
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
@@ -46,6 +57,7 @@ class PendingCode:
     user_id: str
     mobile_entry_id: str
     expires: float
+    origin: str
 
 
 class AlarmeHaHub:
@@ -131,12 +143,30 @@ class AlarmeHaHub:
 
     # ---- ativação ------------------------------------------------------------------
 
-    def create_code(self, user_id: str, mobile_entry_id: str) -> dict[str, Any]:
+    @property
+    def internal_url(self) -> str | None:
+        try:
+            return get_url(self.hass, allow_external=False, allow_cloud=False).rstrip("/")
+        except NoURLAvailableError:
+            return None
+
+    def urls_for(self, origin: str | None) -> list[str]:
+        """URLs que o app pode usar, na ordem de tentativa: a da ativação, a externa e a interna."""
+        urls: list[str] = []
+        for url in (origin, self.external_url, self.internal_url):
+            url = clean_url(url)
+            if url and url not in urls:
+                urls.append(url)
+        return urls
+
+    def create_code(self, user_id: str, mobile_entry_id: str, origin: str | None = None) -> dict[str, Any]:
         now = time.monotonic()
         self._codes = {c: p for c, p in self._codes.items() if p.expires > now and p.user_id != user_id}
         code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(10))
-        self._codes[code] = PendingCode(user_id, mobile_entry_id, now + CODE_TTL_SECONDS)
-        url = self.external_url
+        # A URL que a pessoa está usando agora (Nabu Casa, IP local, proxy...) vem primeiro;
+        # a URL externa configurada é o reserva.
+        url = clean_url(origin) or clean_url(self.external_url) or ""
+        self._codes[code] = PendingCode(user_id, mobile_entry_id, now + CODE_TTL_SECONDS, url)
         query = f"url={quote(url, safe='')}&codigo={code}"
         return {
             "codigo": code,
@@ -156,12 +186,13 @@ class AlarmeHaHub:
             self._failures.popleft()
         return len(self._failures) >= MAX_FAILED_ACTIVATIONS
 
-    async def async_redeem(self, code: str, package: str, device_label: str) -> AlarmeHaPhone:
+    async def async_redeem(self, code: str, package: str, device_label: str) -> tuple[AlarmeHaPhone, list[str]]:
         """Troca um código de uso único por webhook + token e cria (ou atualiza) o celular."""
         pending = self._codes.pop(code.strip().upper(), None)
         if pending is None or pending.expires < time.monotonic():
             self._failures.append(time.monotonic())
             raise ActivationError("codigo_invalido")
+        urls = self.urls_for(pending.origin)
         if package not in PACKAGES:
             raise ActivationError("pacote_invalido")
 
@@ -203,7 +234,7 @@ class AlarmeHaHub:
             async_dispatcher_send(self.hass, SIGNAL_NEW_PHONE, phone)
         else:
             async_dispatcher_send(self.hass, phone.signal)
-        return phone
+        return phone, urls
 
     @callback
     def add_legacy_phone(self, data: dict[str, Any]) -> None:

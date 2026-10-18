@@ -188,7 +188,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmeHaConfigEntry) -> 
         )
     await panel_custom.async_register_panel(
         hass,
-        webcomponent_name="alarmeha-panel",
+        # Nome do elemento com a versão: um WebView que ficou aberto durante a atualização já tem
+        # "alarmeha-panel" definido com o código antigo e não aceitaria redefinir a mesma tag.
+        webcomponent_name=f"alarmeha-panel-{VERSION.replace('.', '-')}",
         frontend_url_path=PANEL_URL,
         module_url=f"{STATIC_URL}/alarmeha-panel.js?v={VERSION}",
         sidebar_title=PANEL_TITLE,

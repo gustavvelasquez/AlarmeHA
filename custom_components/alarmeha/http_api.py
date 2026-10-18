@@ -35,11 +35,19 @@ class AlarmeHaActivateView(HomeAssistantView):
         except (ValueError, KeyError, TypeError):
             return self.json_message("requisicao_invalida", HTTPStatus.BAD_REQUEST)
         try:
-            phone = await hub.async_redeem(code, package, label)
+            phone, urls = await hub.async_redeem(code, package, label)
         except ActivationError as err:
             return self.json_message(str(err), HTTPStatus.FORBIDDEN)
 
         _LOGGER.info("AlarmeHA: celular de %s ativado", phone.person)
         return self.json(
-            {"webhook": phone.webhook_id, "token": phone.token, "url": hub.external_url, "nome": phone.person}
+            {
+                "webhook": phone.webhook_id,
+                "token": phone.token,
+                "nome": phone.person,
+                "url": urls[0] if urls else hub.external_url,  # compatível com o app 0.3.0/0.3.1
+                "urls": urls,  # ordem: origem da ativação, externa, interna
+                "url_externa": hub.external_url or None,
+                "url_interna": hub.internal_url,
+            }
         )

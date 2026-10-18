@@ -65,7 +65,7 @@ class AlarmehaPanel extends HTMLElement {
   async _ativar(companionId) {
     this._erro = null;
     try {
-      const msg = { type: "alarmeha/ativar" };
+      const msg = { type: "alarmeha/ativar", origem: window.location.origin };
       if (companionId) msg.companion_entry_id = companionId;
       this._ativacao = await this._ws(msg);
     } catch (e) {
@@ -241,4 +241,7 @@ class AlarmehaPanel extends HTMLElement {
   }
 }
 
-customElements.define("alarmeha-panel", AlarmehaPanel);
+// A tag leva a versão (?v= do módulo), igual ao webcomponent_name registrado pela integração.
+const versao = new URL(import.meta.url).searchParams.get("v") || "dev";
+const tag = `alarmeha-panel-${versao.replace(/[^a-z0-9]/gi, "-")}`;
+if (!customElements.get(tag)) customElements.define(tag, AlarmehaPanel);
