@@ -41,36 +41,72 @@ class AlarmehaPanel extends HTMLElement {
     this._timer = setInterval(() => this._carregar(true), 30000);
   }
 
-  disconnectedCallback() { clearInterval(this._timer); }
+  disconnectedCallback() { clearInterval(this._timer); clearInterval(this._poll); }
 
-  async _ws(msg) { return this._hass.connection.sendMessagePromise(msg); }
+  async _ws(msg, timeoutMs = 15000) {
+    // Nunca fica girando para sempre: sem resposta em 15 s vira erro visível.
+    return Promise.race([
+      this._hass.connection.sendMessagePromise(msg),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("O Home Assistant não respondeu. Verifique a conexão e tente de novo.")), timeoutMs)),
+    ]);
+  }
 
-  // O cartão de ativação só aparece quando o painel foi aberto pelo app (?ativar=1).
+  // Modo ativação: o painel foi aberto pelo app (?ativar=1) e mostra só a ativação.
   _veioDoApp() { return new URLSearchParams(window.location.search).get("ativar") === "1"; }
+
+  _sairDaAtivacao() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("ativar");
+    history.replaceState(null, "", url.pathname + url.search + url.hash);
+    this._ativ = null;
+    clearInterval(this._poll);
+    this._render();
+  }
 
   async _carregar(silencioso = false) {
     try {
       this._status = await this._ws({ type: "alarmeha/status" });
       if (!silencioso) this._erro = null;
     } catch (e) {
-      this._erro = e.message || String(e);
+      if (!silencioso) this._erro = e.message || String(e);
     }
-    if (this._status && this._veioDoApp() && !this._ativacao && !this._autoAtivou) {
-      this._autoAtivou = true;
-      if (this._status.companion.length) return this._ativar();
+    if (this._status && this._veioDoApp() && !this._ativ) {
+      this._ativ = { estado: "gerando" };
+      this._render();
+      return this._ativar();
     }
+    this._verificarAtivado();
     if (!this._form) this._render();
   }
 
+  _verificarAtivado() {
+    const a = this._ativ;
+    if (!a || a.estado !== "codigo" || !this._status) return;
+    const ativado = this._status.celulares.find((c) => c.meu && c.ativado_em && c.ativado_em >= a.dados.criado_em);
+    if (ativado) {
+      this._ativ = { estado: "ativado", celular: ativado };
+      clearInterval(this._poll);
+    }
+  }
+
   async _ativar(companionId) {
-    this._erro = null;
+    const s = this._status;
+    if (s && !s.companion.length) {
+      this._ativ = { estado: "sem_companion" };
+      return this._render();
+    }
+    this._ativ = { estado: "gerando" };
+    this._render();
     try {
       const msg = { type: "alarmeha/ativar", origem: window.location.origin };
       if (companionId) msg.companion_entry_id = companionId;
-      this._ativacao = await this._ws(msg);
+      this._ativ = { estado: "codigo", dados: await this._ws(msg) };
+      clearInterval(this._poll);
+      this._poll = setInterval(() => this._carregar(true), 3000);
     } catch (e) {
-      if (e.code === "choose_companion") this._ativacao = { escolher: true };
-      else this._erro = e.message || String(e);
+      this._ativ = e.code === "choose_companion"
+        ? { estado: "escolher" }
+        : { estado: "erro", msg: e.message || String(e) };
     }
     this._render();
   }
@@ -108,6 +144,7 @@ class AlarmehaPanel extends HTMLElement {
         .btn { display: inline-block; background: var(--primary-color); color: var(--text-primary-color, #fff); border: 0; border-radius: 8px; padding: 10px 16px; font-size: 15px; cursor: pointer; text-decoration: none; margin: 4px 4px 4px 0; }
         .btn.sec { background: transparent; color: var(--primary-color); border: 1px solid var(--primary-color); }
         .btn.grande { display: block; text-align: center; font-size: 20px; padding: 18px; margin: 8px 0; }
+        .ok { font-size: 20px; color: var(--success-color, #43a047); font-weight: 500; }
         .destaque { border: 2px solid var(--primary-color); }
         .btn.mini { padding: 4px 10px; font-size: 13px; }
         .btn[disabled] { opacity: .5; }
@@ -121,8 +158,7 @@ class AlarmehaPanel extends HTMLElement {
       </style>
       <h1>Despertador</h1>
       ${this._erro ? `<div class="erro">${esc(this._erro)}</div>` : ""}
-      ${!s ? `<div class="card">Carregando…</div>` : `
-        ${this._veioDoApp() ? this._cartaoAtivacao(s) : ""}
+      ${!s ? `<div class="card">Carregando…</div>` : this._veioDoApp() ? this._cartaoAtivacao(s) : `
         ${meus.map((c) => this._celular(c)).join("")}
         ${meus.length ? `<div class="card"><details><summary>Instalar o app em outro celular</summary>${this._passos(s, true)}</details></div>` : this._passos(s)}
         ${outros.length ? `<h2>Outros celulares (admin)</h2>${outros.map((c) => this._celular(c)).join("")}` : ""}
@@ -131,22 +167,30 @@ class AlarmehaPanel extends HTMLElement {
   }
 
   _cartaoAtivacao(s) {
-    const a = this._ativacao;
+    const a = this._ativ || { estado: "gerando" };
     let corpo;
-    if (a && a.escolher) {
-      corpo = `<p>Você tem mais de um celular com o app Home Assistant. Qual deles vai despertar?</p>` +
+    if (a.estado === "escolher") {
+      corpo = `<p>Você tem mais de um celular com o app Home Assistant. Qual é este?</p>` +
         s.companion.map((d) => `<button class="btn sec" data-companion="${esc(d.entry_id)}">${esc(d.nome)}</button>`).join("");
-    } else if (a && a.codigo) {
+    } else if (a.estado === "codigo") {
       corpo = `
-        <a class="btn grande" href="${esc(a.intent_link)}">Confirmar ativação</a>
-        <p class="muted">Depois, confirme no AlarmeHA. O código vale ${Math.round(a.expira_em / 60)} minutos e só pode ser usado uma vez.</p>
-        <details><summary class="muted">Não voltou para o AlarmeHA?</summary>
-          <p class="muted">No AlarmeHA, vá em Configurações → Home Assistant → Avançado → <b>Colar configuração</b> e cole:</p>
-          <p><code>${esc(a.texto_pareamento)}</code> <button class="btn mini sec" data-copiar>Copiar</button></p>
-        </details>
-        <button class="btn sec" data-recarregar>Já ativei</button>`;
-    } else if (!s.companion.length) {
-      corpo = `<p class="muted">Não achei o app Home Assistant (Companion) com a sua conta neste HA. Entre no app Home Assistant do celular com a sua conta e abra a ativação pelo AlarmeHA de novo.</p>`;
+        <p>Toque no botão e confirme no AlarmeHA.</p>
+        <a class="btn grande" href="${esc(a.dados.intent_link)}">Confirmar ativação</a>
+        <p class="muted">Esta tela muda sozinha quando o celular for ativado. O código vale ${Math.round(a.dados.expira_em / 60)} minutos.</p>
+        <details><summary class="muted">O AlarmeHA não abriu?</summary>
+          <p class="muted">No AlarmeHA, toque em <b>Não abriu? Ativar manualmente</b> → <b>Colar configuração</b> e cole:</p>
+          <p><code>${esc(a.dados.texto_pareamento)}</code> <button class="btn mini sec" data-copiar>Copiar</button></p>
+        </details>`;
+    } else if (a.estado === "ativado") {
+      corpo = `
+        <p class="ok">✓ Celular ativado${a.celular.aparelho ? `: ${esc(a.celular.aparelho)}` : ""}.</p>
+        <p class="muted">Pode voltar para o AlarmeHA.</p>
+        <button class="btn" data-sair>Ver meus alarmes aqui</button>`;
+    } else if (a.estado === "erro") {
+      corpo = `<div class="erro">${esc(a.msg)}</div><button class="btn" data-ativar>Tentar de novo</button>`;
+    } else if (a.estado === "sem_companion") {
+      corpo = `<p>Não achei o app Home Assistant com a sua conta neste HA. Abra este painel pelo app Home Assistant do celular que vai despertar, logado com a sua conta.</p>
+        <button class="btn" data-ativar>Tentar de novo</button>`;
     } else {
       corpo = `<p class="muted">Gerando o código…</p>`;
     }
@@ -207,10 +251,10 @@ class AlarmehaPanel extends HTMLElement {
   _ligar() {
     const root = this.shadowRoot;
     const on = (sel, fn) => root.querySelectorAll(sel).forEach((el) => el.addEventListener("click", (ev) => fn(el, ev)));
-    on("[data-ativar]", () => this._ativar());
+    on("[data-ativar]", async () => { await this._carregar(true); this._ativar(); });
     on("[data-companion]", (el) => this._ativar(el.dataset.companion));
-    on("[data-recarregar]", () => { this._ativacao = null; this._carregar(); });
-    on("[data-copiar]", () => navigator.clipboard && navigator.clipboard.writeText(this._ativacao.texto_pareamento));
+    on("[data-sair]", () => this._sairDaAtivacao());
+    on("[data-copiar]", () => navigator.clipboard && navigator.clipboard.writeText(this._ativ.dados.texto_pareamento));
     on("[data-op]", (el) => {
       if (el.dataset.op === "apagar" && !confirm("Apagar este alarme do celular?")) return;
       this._comando(el.dataset.cel, el.dataset.op, el.dataset.ref ? { ref: el.dataset.ref } : {});

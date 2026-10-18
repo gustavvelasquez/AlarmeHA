@@ -21,7 +21,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.helpers.storage import Store
-from homeassistant.util import slugify
+from homeassistant.util import dt as dt_util, slugify
 
 from .const import (
     RELEASES_URL,
@@ -170,6 +170,7 @@ class AlarmeHaHub:
         query = f"url={quote(url, safe='')}&codigo={code}"
         return {
             "codigo": code,
+            "criado_em": dt_util.utcnow().isoformat(),
             "expira_em": CODE_TTL_SECONDS,
             "url": url,
             "deep_link": f"alarmeha://ativar?{query}",
@@ -204,7 +205,16 @@ class AlarmeHaHub:
             raise ActivationError("companion_nao_encontrado")
         user = await self.hass.auth.async_get_user(pending.user_id)
 
-        existing = next((p for p in self.phones.values() if p.mobile_entry_id == pending.mobile_entry_id), None)
+        # O mesmo celular (mesma entrada do Companion ou mesmo serviço notify) é substituído, não duplicado.
+        same = [
+            p for p in self.phones.values()
+            if p.mobile_entry_id == pending.mobile_entry_id
+            or (p.notify_service == mobile["notify_service"] and p.user_id in (None, pending.user_id))
+        ]
+        same.sort(key=lambda p: p.mobile_entry_id != pending.mobile_entry_id)
+        existing = same[0] if same else None
+        for stale in same[1:]:
+            await self.async_remove_phone(stale.phone_id)
         if existing:
             webhook.async_unregister(self.hass, existing.webhook_id)
             phone_id = existing.phone_id
@@ -225,6 +235,7 @@ class AlarmeHaHub:
                 "webhook_id": "alarmeha_" + secrets.token_urlsafe(24),
                 "token": secrets.token_urlsafe(32),
                 "alarms": existing.alarms if existing else [],
+                "activated_at": dt_util.utcnow().isoformat(),
             },
         )
         self.phones[phone_id] = phone

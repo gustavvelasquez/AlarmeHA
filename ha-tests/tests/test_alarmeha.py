@@ -309,3 +309,26 @@ async def test_panel_versioned(hass, setup):
     assert cfg["name"] == "alarmeha-panel-" + VERSION.replace(".", "-")
     assert cfg["module_url"].endswith("?v=" + VERSION)
     assert panel.require_admin is False
+
+
+async def test_reactivation_replaces_stale_phone(hass, setup, hass_ws_client, hass_access_token, hass_client_no_auth, hass_admin_user):
+    hub = hass.data[DOMAIN]
+    # Celular antigo do mesmo aparelho (ex.: migrado da 0.2.x, sem usuário e sem entrada do Companion).
+    hub.add_legacy_phone({"phone_id": "antigo", "user_id": None, "person": "Usuario", "device_name": "Celular",
+                          "mobile_entry_id": None, "notify_service": "notify.mobile_app_pixel_admin",
+                          "package": "br.casa.alarmeha", "webhook_id": "alarmeha_velho", "token": "velho"})
+    hub.add_legacy_phone({"phone_id": "outro", "user_id": None, "person": "Filha", "device_name": "Moto",
+                          "mobile_entry_id": None, "notify_service": "notify.mobile_app_moto_filha",
+                          "package": "br.casa.alarmeha", "webhook_id": "alarmeha_outro", "token": "x"})
+    ws = await _ws(hass, hass_ws_client, hass_access_token)
+    http = await hass_client_no_auth()
+    await ws.send_json_auto_id({"type": "alarmeha/ativar"})
+    res = (await ws.receive_json())["result"]
+    r = await http.post("/api/alarmeha/ativar", json={"codigo": res["codigo"], "pacote": "br.casa.alarmeha"})
+    assert r.status == 200
+    assert set(hub.phones) == {"antigo", "outro"}  # reaproveitou o antigo, não duplicou
+    phone = hub.phones["antigo"]
+    assert phone.user_id == hass_admin_user.id and phone.token != "velho"
+    await ws.send_json_auto_id({"type": "alarmeha/status"})
+    mine = [c for c in (await ws.receive_json())["result"]["celulares"] if c["meu"]]
+    assert len(mine) == 1 and mine[0]["ativado_em"] >= res["criado_em"]
