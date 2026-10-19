@@ -76,7 +76,7 @@ class AlarmehaPanel extends HTMLElement {
       return this._ativar();
     }
     this._verificarAtivado();
-    if (!this._form) this._render();
+    if (!this._form && !this._agenda) this._render();
   }
 
   _verificarAtivado() {
@@ -169,6 +169,7 @@ class AlarmehaPanel extends HTMLElement {
         .centro { text-align: center; }
         .rot { width: 100%; box-sizing: border-box; font-size: 16px; padding: 10px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: inherit; margin: 8px 0; }
         .acoes { display: flex; justify-content: flex-end; }
+        select, input[type=date] { font-size: 16px; padding: 6px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: inherit; }
       </style>
       <h1>Despertador</h1>
       ${this._erro ? `<div class="erro">${esc(this._erro)}</div>` : ""}
@@ -245,8 +246,53 @@ class AlarmehaPanel extends HTMLElement {
           </div>`).join("")}
         ${f ? this._formulario(f) : `<button class="btn" data-novo="${esc(c.id)}">Novo alarme</button>
           <button class="btn sec" data-cel="${esc(c.id)}" data-op="listar" ${this._ocupado ? "disabled" : ""}>Atualizar</button>
+          <button class="btn sec" data-agenda="${esc(c.id)}">Acordar pela agenda</button>
           <button class="btn sec" data-remover="${esc(c.id)}">Desvincular</button>`}
+        ${this._agenda && this._agenda.celular === c.id ? this._cartaoAgenda(this._agenda) : ""}
       </div>`;
+  }
+
+  async _abrirAgenda(celular, salvar) {
+    this._agenda = { celular, carregando: true, ...(this._agenda && this._agenda.celular === celular ? this._agenda : {}) };
+    this._render();
+    try {
+      const msg = { type: "alarmeha/agenda", celular };
+      if (salvar) msg.salvar = salvar;
+      this._agenda = { celular, ...(await this._ws(msg, 30000)), salvo: !!salvar };
+    } catch (e) {
+      this._agenda = { celular, erro: e.message || String(e) };
+    }
+    this._render();
+  }
+
+  _cartaoAgenda(a) {
+    if (!a.config) return `<div class="novo">${a.erro ? `<div class="erro">${esc(a.erro)}</div>` : `<p class="muted">Lendo a agenda…</p>`}</div>`;
+    const c = a.config;
+    const h = Math.floor(c.antecedencia / 60), m = c.antecedencia % 60;
+    const dia = (iso) => new Date(iso + "T12:00").toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
+    return `
+      <form class="novo" data-agenda-form>
+        <h2>Acordar pela agenda</h2>
+        <p class="muted">Por enquanto é só a prévia: confira os horários abaixo antes de ligar de verdade.</p>
+        ${a.erro ? `<div class="erro">${esc(a.erro)}</div>` : ""}
+        <div class="linha"><label>Agenda</label>
+          <select name="calendario"><option value="">Nenhuma</option>${a.calendarios.map((k) => `<option value="${esc(k.entity_id)}" ${k.entity_id === c.calendario ? "selected" : ""}>${esc(k.nome)}</option>`).join("")}</select></div>
+        ${a.calendarios.length ? "" : `<p class="muted">Nenhuma agenda no HA ainda. Conecte o link iCal pela integração Remote Calendar.</p>`}
+        <div class="linha"><label>Acordar antes do 1º compromisso</label>
+          <input type="text" inputmode="numeric" name="ant_h" size="2" value="${h}"> h <input type="text" inputmode="numeric" name="ant_m" size="2" value="${pad(m)}"> min</div>
+        <div class="linha"><label>Compromissos que contam: das</label>
+          <input type="text" inputmode="numeric" name="janela_inicio" size="5" value="${esc(c.janela_inicio)}"> às <input type="text" inputmode="numeric" name="janela_fim" size="5" value="${esc(c.janela_fim)}"></div>
+        <div class="linha"><label>Nunca antes de</label> <input type="text" inputmode="numeric" name="minimo" size="5" value="${esc(c.minimo)}"></div>
+        <div class="linha"><label>Dia sem compromisso</label>
+          <input type="text" inputmode="numeric" name="sem_compromisso" size="5" placeholder="não toca" value="${esc(c.sem_compromisso || "")}">
+          <span class="muted">vazio = não toca</span></div>
+        <div class="linha"><label>Semanas alternadas: começa uma semana de trabalho em</label>
+          <input type="date" name="escala_inicio" value="${esc(c.escala_inicio || "")}"> <span class="muted">vazio = toda semana</span></div>
+        <div class="acoes"><button class="btn sec" type="button" data-agenda-fechar>Fechar</button><button class="btn" type="submit">Salvar e recalcular</button></div>
+        ${a.salvo ? `<p class="ok">✓ Salvo</p>` : ""}
+        <h2>Próximos ${a.previa.length} dias</h2>
+        ${a.previa.map((d) => `<div class="alarme ${d.horario ? "" : "off"}"><div><b>${dia(d.dia)}</b> <span class="hora">${d.horario || "—"}</span><div class="muted">${esc(d.motivo)}</div></div></div>`).join("")}
+      </form>`;
   }
 
   _formulario(f) {
@@ -297,6 +343,23 @@ class AlarmehaPanel extends HTMLElement {
       inp.addEventListener("focus", () => inp.select());
       inp.addEventListener("input", () => { inp.value = inp.value.replace(/\D/g, ""); });
       inp.addEventListener("blur", () => { inp.value = pad(Math.min(Number(inp.value) || 0, Number(inp.dataset.max))); });
+    });
+    on("[data-agenda]", (el) => this._abrirAgenda(el.dataset.agenda));
+    on("[data-agenda-fechar]", () => { this._agenda = null; this._render(); });
+    const af = root.querySelector("[data-agenda-form]");
+    if (af) af.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(af);
+      const hm = (v) => { const t = String(v || "").trim(); if (!t) return null; const [hh, mm = "0"] = t.split(/[:h]/); return `${pad(Math.min(Number(hh) || 0, 23))}:${pad(Math.min(Number(mm) || 0, 59))}`; };
+      this._abrirAgenda(this._agenda.celular, {
+        calendario: fd.get("calendario") || null,
+        antecedencia: (Number(fd.get("ant_h")) || 0) * 60 + (Number(fd.get("ant_m")) || 0),
+        janela_inicio: hm(fd.get("janela_inicio")) || "04:00",
+        janela_fim: hm(fd.get("janela_fim")) || "12:00",
+        minimo: hm(fd.get("minimo")) || "05:00",
+        sem_compromisso: hm(fd.get("sem_compromisso")),
+        escala_inicio: fd.get("escala_inicio") || null,
+      });
     });
     const form = root.querySelector("[data-form]");
     if (form) form.addEventListener("submit", (ev) => {

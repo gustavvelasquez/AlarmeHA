@@ -30,6 +30,7 @@ _LOGGER = logging.getLogger(__name__)
 
 RESPONSE_EVENTS = {"criado", "alterado", "apagado", "lista", "erro"}
 STORED_FIELDS = (
+    "agenda",
     "user_id", "person", "device_name", "mobile_entry_id", "notify_service",
     "package", "webhook_id", "token", "alarms", "last_event", "last_seen", "activated_at",
 )
@@ -70,6 +71,7 @@ class AlarmeHaPhone:
         seen = data.get("last_seen")
         self.last_seen: datetime | None = dt_util.parse_datetime(seen) if seen else None
         self.activated_at: str | None = data.get("activated_at")
+        self.agenda: dict[str, Any] = data.get("agenda") or {}
         self._pending: dict[str, asyncio.Future[dict[str, Any]]] = {}
 
     def as_dict(self) -> dict[str, Any]:

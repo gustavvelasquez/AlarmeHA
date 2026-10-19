@@ -23,6 +23,7 @@ def async_register_websocket(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_activate)
     websocket_api.async_register_command(hass, ws_command)
     websocket_api.async_register_command(hass, ws_remove)
+    websocket_api.async_register_command(hass, ws_agenda)
 
 
 def _hub(hass: HomeAssistant, connection, msg) -> Any:
@@ -131,3 +132,38 @@ async def ws_remove(hass: HomeAssistant, connection: websocket_api.ActiveConnect
         return
     await hub.async_remove_phone(phone.phone_id)
     connection.send_result(msg["id"], {})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "alarmeha/agenda",
+        vol.Required("celular"): str,
+        vol.Optional("salvar"): dict,
+    }
+)
+@websocket_api.async_response
+async def ws_agenda(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Lê (e opcionalmente salva) a configuração "Acordar pela agenda" e devolve a prévia dos próximos dias."""
+    from . import agenda  # noqa: PLC0415
+
+    if (hub := _hub(hass, connection, msg)) is None:
+        return
+    phone = hub.phones.get(msg["celular"])
+    if phone is None or not hub.can_access(connection.user, phone):
+        connection.send_error(msg["id"], "unauthorized", "Celular não encontrado")
+        return
+    if "salvar" in msg:
+        novo = {k: v for k, v in msg["salvar"].items() if k in agenda.PADRAO}
+        phone.agenda = agenda.config({**phone.agenda, **novo})
+        hub.async_save()
+    cfg = agenda.config(phone.agenda)
+    try:
+        previa = await agenda.async_previa(hass, cfg)
+        erro = None
+    except Exception as err:  # noqa: BLE001 - mostra no painel em vez de quebrar
+        previa, erro = [], f"Não consegui ler a agenda: {err}"
+    calendarios = [
+        {"entity_id": s.entity_id, "nome": s.attributes.get("friendly_name", s.entity_id)}
+        for s in hass.states.async_all("calendar")
+    ]
+    connection.send_result(msg["id"], {"config": cfg, "previa": previa, "erro": erro, "calendarios": calendarios})
