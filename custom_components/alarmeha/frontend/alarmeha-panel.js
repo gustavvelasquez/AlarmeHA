@@ -169,6 +169,20 @@ class AlarmehaPanel extends HTMLElement {
         .centro { text-align: center; }
         .rot { width: 100%; box-sizing: border-box; font-size: 16px; padding: 10px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: inherit; margin: 8px 0; }
         .acoes { display: flex; justify-content: flex-end; }
+        .abas { display: flex; gap: 0; margin: 4px 0 12px; border-bottom: 1px solid var(--divider-color); }
+        .aba { flex: 1; background: transparent; border: 0; border-bottom: 3px solid transparent; color: var(--secondary-text-color); font-size: 16px; padding: 10px; cursor: pointer; }
+        .aba.sel { color: var(--primary-color); border-bottom-color: var(--primary-color); font-weight: 500; }
+        .item { display: flex; flex-direction: column; align-items: flex-start; position: relative; width: 100%; text-align: left; background: var(--secondary-background-color); color: inherit; border: 0; border-radius: 10px; padding: 12px 32px 12px 12px; margin: 6px 0; font-size: 16px; cursor: pointer; gap: 2px; }
+        .vai { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 22px; color: var(--secondary-text-color); }
+        .sub { margin-top: 18px; }
+        .hora.mini { font-size: 18px; }
+        .aviso { background: var(--success-color, #43a047); color: #fff; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; }
+        .chave { display: flex; align-items: center; gap: 10px; font-size: 16px; white-space: normal; margin: 8px 0; }
+        .chave input { width: 22px; height: 22px; }
+        .chave span { display: none; }
+        .rodape { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px; background: var(--card-background-color, #fff); padding: 10px 0; margin-top: 12px; border-top: 1px solid var(--divider-color); }
+        .x { background: transparent; border: 0; color: var(--secondary-text-color); font-size: 18px; cursor: pointer; padding: 4px 10px; }
+        .perigo { color: var(--error-color, #db4437); border-color: var(--error-color, #db4437); }
         .tipo { border: 1px solid var(--divider-color); border-radius: 10px; padding: 10px; margin: 8px 0; }
         .al { margin: 6px 0; }
         select, input[type=date] { font-size: 16px; padding: 6px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: inherit; }
@@ -235,6 +249,8 @@ class AlarmehaPanel extends HTMLElement {
       <div class="card">
         <h2>${esc(c.pessoa)}${c.aparelho ? ` <span class="muted">· ${esc(c.aparelho)}</span>` : ""}</h2>
         <p class="muted">${c.conectado ? "Conectado" : "Sem contato recente"}${c.proximo_alarme ? ` · próximo alarme ${new Date(c.proximo_alarme).toLocaleString()}` : ""}</p>
+        <div class="abas"><button class="aba ${this._agenda && this._agenda.celular === c.id ? "" : "sel"}" data-aba-alarmes="${esc(c.id)}">Alarmes</button><button class="aba ${this._agenda && this._agenda.celular === c.id ? "sel" : ""}" data-agenda="${esc(c.id)}">Agenda</button></div>
+        ${this._agenda && this._agenda.celular === c.id ? this._cartaoAgenda(this._agenda) : `
         ${alarmes.length ? "" : `<p class="muted">Nenhum alarme ainda.</p>`}
         ${alarmes.map((al) => `
           <div class="alarme ${al.ativo ? "" : "off"}">
@@ -248,9 +264,7 @@ class AlarmehaPanel extends HTMLElement {
           </div>`).join("")}
         ${f ? this._formulario(f) : `<button class="btn" data-novo="${esc(c.id)}">Novo alarme</button>
           <button class="btn sec" data-cel="${esc(c.id)}" data-op="listar" ${this._ocupado ? "disabled" : ""}>Atualizar</button>
-          <button class="btn sec" data-agenda="${esc(c.id)}">Acordar pela agenda</button>
-          <button class="btn sec" data-remover="${esc(c.id)}">Desvincular</button>`}
-        ${this._agenda && this._agenda.celular === c.id ? this._cartaoAgenda(this._agenda) : ""}
+          <button class="btn sec" data-remover="${esc(c.id)}">Desvincular</button>`}`}
       </div>`;
   }
 
@@ -267,65 +281,75 @@ class AlarmehaPanel extends HTMLElement {
     this._render();
   }
 
+  _resumoTipo(t) {
+    const fmt = (m) => (m === 0 ? "na hora" : `${m >= 60 ? `${Math.floor(m / 60)}h` : ""}${m % 60 ? `${pad(m % 60)}min` : ""} antes`.replace(/^(\d+h)(\d+min)/, "$1$2"));
+    const as = t.alarmes.map((x) => x.antes).sort((x, y) => y - x);
+    const quando = as.length === 1 ? fmt(as[0]) : `de ${fmt(as[0])} até ${as[as.length - 1] === 0 ? "a hora" : fmt(as[as.length - 1])}`;
+    const como = t.id === "padrao" ? "qualquer outro evento" : [...(t.palavras || []).map((w) => `"${w}"`), ...(t.agendas || []).map((k) => (this._agenda.calendarios.find((x) => x.entity_id === k) || { nome: k }).nome)].join(", ") || "sem regra: não reconhece nada";
+    return `${as.length} alarme${as.length > 1 ? "s" : ""}, ${quando} · ${esc(como)}`;
+  }
+
   _cartaoAgenda(a) {
-    if (!a.config) return `<div class="novo">${a.erro ? `<div class="erro">${esc(a.erro)}</div>` : `<p class="muted">Lendo a agenda…</p>`}</div>`;
+    if (!a.config) return a.erro ? `<div class="erro">${esc(a.erro)}</div>` : `<p class="muted">Lendo a agenda…</p>`;
+    if (a.rasc) return this._editorAgenda(a);
     const c = a.config;
     const dia = (iso) => new Date(iso + "T12:00").toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
-    const tipo = (t, ti) => `
-      <div class="tipo" data-tipo="${ti}">
-        <div class="linha"><input class="rot" type="text" data-k="nome" value="${esc(t.nome)}" ${t.id === "padrao" ? "readonly" : ""} placeholder="Nome do tipo (ex.: Plantão)"></div>
-        ${t.id === "padrao" ? `<p class="muted">Vale para qualquer evento que não se encaixe nos outros tipos.</p>` : `
-        <div class="linha"><b>Reconhecer pela agenda</b><br>${a.calendarios.length ? a.calendarios.map((k) => `<label><input type="checkbox" data-k="agenda" value="${esc(k.entity_id)}" ${(t.agendas || []).includes(k.entity_id) ? "checked" : ""}> ${esc(k.nome)}</label>`).join(" ") : `<span class="muted">nenhuma agenda no HA</span>`}</div>
-        <div class="linha"><b>ou por palavra no título</b><br><input class="rot" type="text" data-k="palavras" value="${esc((t.palavras || []).join(", "))}" placeholder="ex.: plantão, turno"></div>`}
-        <div class="linha"><b>Alarmes</b>
+    return `
+      ${a.erro ? `<div class="erro">${esc(a.erro)}</div>` : ""}
+      ${a.salvo ? `<div class="aviso">✓ Salvo</div>` : ""}
+      ${a.calendarios.length ? "" : `<p class="muted">Nenhuma agenda conectada ao HA ainda. Você já pode criar os tipos; a prévia passa a mostrar seus compromissos quando a agenda for conectada.</p>`}
+      <label class="chave"><input type="checkbox" data-ligado ${c.ligado ? "checked" : ""}><span></span> Ajustar meus alarmes pela agenda</label>
+      <h2 class="sub">Tipos de evento</h2>
+      ${c.tipos.map((t, i) => `<button class="item" data-tipo-abrir="${i}"><b>${esc(t.nome)}</b><span class="muted">${this._resumoTipo(t)}</span><span class="vai">›</span></button>`).join("")}
+      <button class="btn sec" data-tipo-add>+ Novo tipo</button>
+      <button class="item" data-ajustes><b>Ajustes</b><span class="muted">Dia sem compromisso: ${c.sem_compromisso ? esc(c.sem_compromisso) : "não toca"} · ${c.escala_inicio ? "semanas alternadas" : "toda semana"}</span><span class="vai">›</span></button>
+      <h2 class="sub">Próximos ${a.previa.length} dias</h2>
+      ${a.previa.map((d) => `<div class="alarme ${d.horarios.length ? "" : "off"}"><div><b>${dia(d.dia)}</b> <span class="hora mini">${d.horarios.join(" · ") || "—"}</span><div class="muted">${esc(d.motivo)}</div></div></div>`).join("")}`;
+  }
+
+  _editorAgenda(a) {
+    const r = a.rasc;
+    const rodape = `<div class="rodape"><button class="btn sec" type="button" data-rasc-cancelar>Cancelar</button><button class="btn" type="submit">Salvar</button></div>`;
+    if (r.ajustes) return `
+      <form data-rasc-form>
+        <h2 class="sub">Ajustes</h2>
+        <div class="linha"><b>Dia sem compromisso</b><br><input type="text" inputmode="numeric" size="6" data-k="sem_compromisso" placeholder="não toca" value="${esc(r.sem_compromisso || "")}"> <span class="muted">vazio = não toca; ou um horário, ex.: 08:00</span></div>
+        <div class="linha"><b>Semanas alternadas</b><br><span class="muted">Se você trabalha semana sim, semana não, informe o primeiro dia de uma semana de trabalho. Vazio = toda semana.</span><br><input type="date" data-k="escala_inicio" value="${esc(r.escala_inicio || "")}"></div>
+        ${rodape}
+      </form>`;
+    const t = r.tipo, cal = a.calendarios;
+    return `
+      <form data-rasc-form>
+        <h2 class="sub">${r.novo ? "Novo tipo" : "Editar tipo"}</h2>
+        ${t.id === "padrao" ? `<p><b>Padrão</b></p><p class="muted">Vale para todo evento que não for de outro tipo.</p>` : `
+        <div class="linha"><b>Nome</b><input class="rot" type="text" data-k="nome" value="${esc(t.nome)}" placeholder="ex.: Plantão"></div>
+        <div class="linha"><b>Como reconhecer</b><br><span class="muted">Palavras no título do evento (separe por vírgula)</span><input class="rot" type="text" data-k="palavras" value="${esc((t.palavras || []).join(", "))}" placeholder="ex.: plantão, turno">
+          ${cal.length ? `<span class="muted">ou todos os eventos destas agendas</span><br>${cal.map((k) => `<label><input type="checkbox" data-k="agenda" value="${esc(k.entity_id)}" ${(t.agendas || []).includes(k.entity_id) ? "checked" : ""}> ${esc(k.nome)}</label>`).join("<br>")}` : ""}</div>`}
+        <div class="linha"><b>Alarmes</b> <span class="muted">quanto tempo antes do evento</span>
           ${t.alarmes.map((al, ai) => `<div class="al" data-al="${ai}">
             <input type="text" inputmode="numeric" size="2" data-k="h" value="${Math.floor(al.antes / 60)}"> h
-            <input type="text" inputmode="numeric" size="2" data-k="m" value="${pad(al.antes % 60)}"> min antes
-            ${t.alarmes.length > 1 ? `<button type="button" class="btn mini sec" data-al-rm="${ti}:${ai}">Remover</button>` : ""}</div>`).join("")}
-          <button type="button" class="btn mini sec" data-al-add="${ti}">+ Alarme</button>
-          <span class="muted">0 h 00 = na hora do evento</span></div>
-        <div class="linha"><label>Nunca antes de</label> <input type="text" inputmode="numeric" size="5" data-k="minimo" placeholder="—" value="${esc(t.minimo || "")}"></div>
-        ${t.id === "padrao" ? "" : `<button type="button" class="btn mini sec" data-tipo-rm="${ti}">Apagar tipo</button>`}
-      </div>`;
-    return `
-      <form class="novo" data-agenda-form>
-        <h2>Acordar pela agenda</h2>
-        ${a.erro ? `<div class="erro">${esc(a.erro)}</div>` : ""}
-        ${a.calendarios.length ? "" : `<p class="muted">Nenhuma agenda no HA ainda. Conecte o link iCal pela integração Remote Calendar; ela aparece aqui.</p>`}
-        <label class="linha"><input type="checkbox" data-g="ligado" ${c.ligado ? "checked" : ""}> <b>Ajustar os alarmes do celular automaticamente</b></label>
-        <p class="muted">Desligado, só mostra a prévia. Cada tipo ganha alarmes fixos no celular (ex.: "Plantão 1/2") que o HA só reajusta e liga ou desliga.</p>
-        <h2>Tipos de evento</h2>
-        ${c.tipos.map(tipo).join("")}
-        <button type="button" class="btn sec" data-tipo-add>+ Novo tipo</button>
-        <div class="linha"><label>Dia sem compromisso</label>
-          <input type="text" inputmode="numeric" size="5" data-g="sem_compromisso" placeholder="não toca" value="${esc(c.sem_compromisso || "")}"> <span class="muted">vazio = não toca</span></div>
-        <div class="linha"><label>Semanas alternadas: começa uma semana de trabalho em</label>
-          <input type="date" data-g="escala_inicio" value="${esc(c.escala_inicio || "")}"> <span class="muted">vazio = toda semana</span></div>
-        <div class="acoes"><button class="btn sec" type="button" data-agenda-fechar>Fechar</button><button class="btn" type="submit">Salvar</button></div>
-        ${a.salvo ? `<p class="ok">✓ Salvo</p>` : ""}
-        <h2>Próximos ${a.previa.length} dias</h2>
-        ${a.previa.map((d) => `<div class="alarme ${d.horarios.length ? "" : "off"}"><div><b>${dia(d.dia)}</b> <span class="hora">${d.horarios.join(" · ") || "—"}</span><div class="muted">${esc(d.motivo)}</div></div></div>`).join("")}
+            <input type="text" inputmode="numeric" size="2" data-k="m" value="${pad(al.antes % 60)}"> min
+            ${t.alarmes.length > 1 ? `<button type="button" class="x" data-al-rm="${ai}" title="Remover">✕</button>` : ""}</div>`).join("")}
+          <button type="button" class="btn mini sec" data-al-add>+ Alarme</button></div>
+        <div class="linha"><b>Nunca antes de</b> <span class="muted">(opcional)</span><br><input type="text" inputmode="numeric" size="6" data-k="minimo" placeholder="ex.: 05:00" value="${esc(t.minimo || "")}"></div>
+        ${t.id === "padrao" || r.novo ? "" : `<button type="button" class="btn mini sec perigo" data-tipo-rm>Apagar este tipo</button>`}
+        ${rodape}
       </form>`;
   }
 
-  // Lê o formulário de volta para this._agenda.config (antes de adicionar/remover ou salvar).
+  // Lê o editor aberto de volta para this._agenda.rasc.
   _lerAgenda() {
-    const root = this.shadowRoot, c = this._agenda.config;
+    const root = this.shadowRoot, r = this._agenda.rasc;
     const hm = (v) => { const t = String(v || "").trim(); if (!t) return null; const [hh, mm = "0"] = t.split(/[:h]/); return `${pad(Math.min(Number(hh) || 0, 23))}:${pad(Math.min(Number(mm) || 0, 59))}`; };
-    const g = (k) => root.querySelector(`[data-g=${k}]`);
-    c.ligado = g("ligado").checked;
-    c.sem_compromisso = hm(g("sem_compromisso").value);
-    c.escala_inicio = g("escala_inicio").value || null;
-    root.querySelectorAll("[data-tipo]").forEach((el) => {
-      const t = c.tipos[Number(el.dataset.tipo)];
-      t.nome = el.querySelector("[data-k=nome]").value.trim() || t.nome || "Tipo";
-      t.agendas = [...el.querySelectorAll("[data-k=agenda]:checked")].map((x) => x.value);
-      const pal = el.querySelector("[data-k=palavras]");
-      t.palavras = pal ? pal.value.split(",").map((x) => x.trim()).filter(Boolean) : [];
-      t.alarmes = [...el.querySelectorAll("[data-al]")].map((x) => ({ antes: (Number(x.querySelector("[data-k=h]").value) || 0) * 60 + (Number(x.querySelector("[data-k=m]").value) || 0) }));
-      t.minimo = hm(el.querySelector("[data-k=minimo]").value);
-    });
-    return c;
+    const v = (k) => { const el = root.querySelector(`[data-rasc-form] [data-k=${k}]`); return el ? el.value : null; };
+    if (r.ajustes) { r.sem_compromisso = hm(v("sem_compromisso")); r.escala_inicio = v("escala_inicio") || null; return r; }
+    const t = r.tipo;
+    if (v("nome") !== null) t.nome = v("nome").trim();
+    if (v("palavras") !== null) t.palavras = v("palavras").split(",").map((x) => x.trim()).filter(Boolean);
+    t.agendas = [...root.querySelectorAll("[data-rasc-form] [data-k=agenda]:checked")].map((x) => x.value);
+    t.alarmes = [...root.querySelectorAll("[data-al]")].map((x) => ({ antes: (Number(x.querySelector("[data-k=h]").value) || 0) * 60 + (Number(x.querySelector("[data-k=m]").value) || 0) }));
+    t.minimo = hm(v("minimo"));
+    return r;
   }
 
   _formulario(f) {
@@ -378,18 +402,28 @@ class AlarmehaPanel extends HTMLElement {
       inp.addEventListener("blur", () => { inp.value = pad(Math.min(Number(inp.value) || 0, Number(inp.dataset.max))); });
     });
     on("[data-agenda]", (el) => this._abrirAgenda(el.dataset.agenda));
-    on("[data-agenda-fechar]", () => { this._agenda = null; this._render(); });
-    const af = root.querySelector("[data-agenda-form]");
-    if (af) {
-      const mexe = (fn) => { const c = this._lerAgenda(); fn(c); this._agenda.salvo = false; this._render(); };
-      on("[data-tipo-add]", () => mexe((c) => c.tipos.push({ nome: "", agendas: [], palavras: [], alarmes: [{ antes: 0 }], minimo: null })));
-      on("[data-tipo-rm]", (el) => { if (confirm("Apagar este tipo? Os alarmes dele no celular serão desligados.")) mexe((c) => c.tipos.splice(Number(el.dataset.tipoRm), 1)); });
-      on("[data-al-add]", (el) => mexe((c) => { const t = c.tipos[Number(el.dataset.alAdd)]; const ult = t.alarmes[t.alarmes.length - 1]; t.alarmes.push({ antes: ult ? ult.antes + 15 : 0 }); }));
-      on("[data-al-rm]", (el) => mexe((c) => { const [ti, ai] = el.dataset.alRm.split(":").map(Number); c.tipos[ti].alarmes.splice(ai, 1); }));
-      af.addEventListener("submit", (ev) => {
+    on("[data-aba-alarmes]", () => { this._agenda = null; this._render(); });
+    if (this._agenda && this._agenda.config) {
+      const A = this._agenda, c = A.config;
+      const salvarTudo = (mudanca) => this._abrirAgenda(A.celular, { ligado: c.ligado, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, tipos: c.tipos, ...mudanca });
+      on("[data-ligado]", (el) => salvarTudo({ ligado: el.checked }), "change");
+      on("[data-tipo-abrir]", (el) => { const i = Number(el.dataset.tipoAbrir); A.rasc = { i, tipo: JSON.parse(JSON.stringify(c.tipos[i])) }; A.salvo = false; this._render(); });
+      on("[data-tipo-add]", () => { A.rasc = { novo: true, tipo: { nome: "", agendas: [], palavras: [], alarmes: [{ antes: 0 }], minimo: null } }; A.salvo = false; this._render(); });
+      on("[data-ajustes]", () => { A.rasc = { ajustes: true, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio }; A.salvo = false; this._render(); });
+      on("[data-rasc-cancelar]", () => { A.rasc = null; this._render(); });
+      on("[data-al-add]", () => { const r = this._lerAgenda(); const ult = r.tipo.alarmes[r.tipo.alarmes.length - 1]; r.tipo.alarmes.push({ antes: ult ? ult.antes + 15 : 0 }); this._render(); });
+      on("[data-al-rm]", (el) => { const r = this._lerAgenda(); r.tipo.alarmes.splice(Number(el.dataset.alRm), 1); this._render(); });
+      on("[data-tipo-rm]", () => { if (!confirm("Apagar este tipo? Os alarmes dele no celular serão desligados.")) return; const tipos = c.tipos.filter((_, i) => i !== A.rasc.i); A.rasc = null; salvarTudo({ tipos }); });
+      const rf = root.querySelector("[data-rasc-form]");
+      if (rf) rf.addEventListener("submit", (ev) => {
         ev.preventDefault();
-        const c = this._lerAgenda();
-        this._abrirAgenda(this._agenda.celular, { ligado: c.ligado, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, tipos: c.tipos });
+        const r = this._lerAgenda();
+        if (r.ajustes) { A.rasc = null; return salvarTudo({ sem_compromisso: r.sem_compromisso, escala_inicio: r.escala_inicio }); }
+        if (!r.tipo.nome) { alert("Dê um nome ao tipo."); return; }
+        const tipos = [...c.tipos];
+        if (r.novo) tipos.push(r.tipo); else tipos[r.i] = r.tipo;
+        A.rasc = null;
+        salvarTudo({ tipos });
       });
     }
     const form = root.querySelector("[data-form]");
