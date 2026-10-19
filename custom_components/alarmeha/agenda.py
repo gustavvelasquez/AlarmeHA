@@ -115,7 +115,8 @@ def _alarmes_do_evento(ev: dict[str, Any], t: dict[str, Any], dia: date) -> list
         h = ev["inicio"] - timedelta(minutes=int(al.get("antes", 0)))
         if minimo and h < minimo:
             h = minimo
-        saida.append({"n": i + 1, "tipo": t["id"], "horario": h, "agenda": ev.get("agenda_nome") or ev.get("agenda") or ""})
+        saida.append({"n": i + 1, "total": len(t["alarmes"]), "titulo": (ev.get("titulo") or "").strip(),
+                      "tipo": t["id"], "horario": h, "agenda": ev.get("agenda_nome") or ev.get("agenda") or ""})
     return saida
 
 
@@ -123,6 +124,18 @@ def _motivo(t: dict[str, Any], ev: dict[str, Any], alarmes: list[dict[str, Any]]
     partes = ", ".join(f'{a["horario"]:%H:%M}' for a in alarmes)
     origem = ev.get("agenda_nome") or ev.get("agenda")
     return f'{t["nome"]}: {ev["titulo"] or "compromisso"} às {ev["inicio"]:%H:%M} → {partes}' + (f" ({origem})" if origem else "")
+
+
+def rotulo_alarme(a: dict[str, Any], nome_tipo: str) -> str:
+    """ "📅 <título do evento>" (ou o nome do tipo), com " n/N" se o tipo tem mais de um alarme por evento.
+    Cabe em 64 (UTF-16, como no app): corta o título, nunca o sufixo."""
+    total = int(a.get("total") or 1)
+    sufixo = f' {a.get("n", 1)}/{total}' if total > 1 else ""
+    titulo = " ".join((a.get("titulo") or nome_tipo).split())
+    caber = 64 - 3 - len(sufixo)  # "📅 " ocupa 3 unidades UTF-16 no app
+    if len(titulo) > caber:
+        titulo = titulo[: caber - 1].rstrip() + "…"
+    return f"📅 {titulo}{sufixo}"
 
 
 def calcular(eventos: list[dict[str, Any]], cfg: dict[str, Any], hoje: date, dias: int = DIAS_PREVIA, desde: int = 1) -> list[dict[str, Any]]:
@@ -226,11 +239,15 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
             _LOGGER.warning("AlarmeHA agenda: tipo %s tem %d alarmes até amanhã; só os %d primeiros vão para o celular",
                             t["nome"], len(futuros), MAX_TODOS)
         usados = futuros[:MAX_TODOS]
-        total = max(len(usados), 1)
         for i in range(MAX_TODOS if t is not livre else 1):
             prox = usados[i]["horario"] if i < len(usados) else None
             ref = f'ag_{slug(t["id"])}_{i + 1}'[:64]
-            rotulo = "📅 " + (f'{t["nome"]} {i + 1}/{total}' if total > 1 else t["nome"])
+            if t is livre:
+                rotulo = "📅 Sem compromisso"
+            elif prox:
+                rotulo = rotulo_alarme(usados[i], t["nome"])
+            else:
+                rotulo = "📅 " + t["nome"]
             if prox and cfg.get("ligado"):
                 plano[ref] = {"hora": prox.hour, "minuto": prox.minute, "dias": -1 if prox.date() == hoje else -2,
                               "rotulo": rotulo, "ativo": True}
