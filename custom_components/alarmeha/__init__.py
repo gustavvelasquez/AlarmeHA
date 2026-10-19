@@ -186,6 +186,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmeHaConfigEntry) -> 
     from . import agenda  # noqa: PLC0415
 
     async def _agenda_tick(_now=None) -> None:
+        usadas = set()
+        for phone in list(hub.phones.values()):
+            cfg = agenda.config(phone.agenda)
+            if cfg.get("ligado"):
+                usadas.update(agenda.agendas_para_ler(hass, cfg))
+        await agenda.async_atualizar_agendas(hass, sorted(usadas))
         for phone in list(hub.phones.values()):
             try:
                 await agenda.async_sincronizar(hass, phone)

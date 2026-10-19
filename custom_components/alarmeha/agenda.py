@@ -6,6 +6,8 @@ lista de alarmes relativos ao início do evento. No celular cada tipo tem alarme
 
 from __future__ import annotations
 
+import asyncio
+
 import logging
 import re
 import unicodedata
@@ -138,8 +140,13 @@ def _parse(valor: str) -> tuple[datetime, bool]:
     return dt_util.as_local(dt_util.parse_datetime(valor)), False
 
 
+def agendas_para_ler(hass: HomeAssistant, cfg: dict[str, Any]) -> list[str]:
+    """Todas as agendas do HA: o tipo Padrão e os tipos por palavra valem para qualquer agenda."""
+    return sorted(hass.states.async_entity_ids("calendar"))
+
+
 async def async_eventos(hass: HomeAssistant, cfg: dict[str, Any]) -> list[dict[str, Any]]:
-    entidades = [e for e in agendas_usadas(cfg) if hass.states.get(e)]
+    entidades = agendas_para_ler(hass, cfg)
     if not entidades:
         return []
     inicio = dt_util.start_of_local_day()
@@ -197,8 +204,32 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
     return plano
 
 
+_TRAVAS: dict[str, asyncio.Lock] = {}
+
+
+async def async_atualizar_agendas(hass: HomeAssistant, entidades: list[str]) -> None:
+    """Força a agenda (ex.: Remote Calendar, que sozinha só baixa 1x por dia) a baixar de novo."""
+    entidades = [e for e in entidades if hass.states.get(e)]
+    if not entidades:
+        return
+    try:
+        await hass.services.async_call("homeassistant", "update_entity", {"entity_id": entidades}, blocking=True)
+    except Exception as err:  # noqa: BLE001 - segue com o que já tem
+        _LOGGER.debug("AlarmeHA agenda: não consegui atualizar %s: %s", entidades, err)
+
+
 async def async_sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
-    """Ajusta os alarmes fixos do celular. Só envia o que mudou desde o último envio."""
+    """Ajusta os alarmes fixos do celular. Só envia o que mudou desde o último envio.
+
+    Uma sincronização por celular de cada vez: salvar duas vezes seguidas (ou salvar
+    durante o ciclo de 15 min) não pode mandar os mesmos comandos em dobro.
+    """
+    trava = _TRAVAS.setdefault(phone.phone_id, asyncio.Lock())
+    async with trava:
+        await _sincronizar(hass, phone)
+
+
+async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
     cfg = config(phone.agenda)
     enviados: dict[str, Any] = dict(phone.agenda.get("_enviados") or {})
     if not cfg.get("ligado") and not any(v.get("ativo") for v in enviados.values()):
