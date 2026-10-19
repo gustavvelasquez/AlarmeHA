@@ -35,7 +35,7 @@ class AlarmehaPanel extends HTMLElement {
     if (first) this._carregar();
   }
 
-  set narrow(v) { this._narrow = v; }
+  set narrow(v) { const mudou = this._narrow !== v; this._narrow = v; if (mudou && this.shadowRoot && this.shadowRoot.innerHTML && !this._form && !this._agenda) this._render(); }
 
   connectedCallback() {
     this._timer = setInterval(() => this._carregar(true), 30000);
@@ -183,11 +183,13 @@ class AlarmehaPanel extends HTMLElement {
         .rodape { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px; background: var(--card-background-color, #fff); padding: 10px 0; margin-top: 12px; border-top: 1px solid var(--divider-color); }
         .x { background: transparent; border: 0; color: var(--secondary-text-color); font-size: 18px; cursor: pointer; padding: 4px 10px; }
         .perigo { color: var(--error-color, #db4437); border-color: var(--error-color, #db4437); }
+        .topo { display: flex; align-items: center; gap: 4px; } .topo h1 { margin: 8px 0; }
+        .menu { background: transparent; border: 0; color: inherit; font-size: 26px; padding: 4px 12px 4px 0; cursor: pointer; }
         .tipo { border: 1px solid var(--divider-color); border-radius: 10px; padding: 10px; margin: 8px 0; }
         .al { margin: 6px 0; }
         select, input[type=date] { font-size: 16px; padding: 6px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: inherit; }
       </style>
-      <h1>Despertador</h1>
+      <div class="topo">${this._narrow ? `<button class="menu" data-menu title="Menu">☰</button>` : ""}<h1>Despertador</h1></div>
       ${this._erro ? `<div class="erro">${esc(this._erro)}</div>` : ""}
       ${!s ? `<div class="card">Carregando…</div>` : this._veioDoApp() ? this._cartaoAtivacao(s) : `
         ${meus.map((c) => this._celular(c)).join("")}
@@ -402,6 +404,7 @@ class AlarmehaPanel extends HTMLElement {
       inp.addEventListener("blur", () => { inp.value = pad(Math.min(Number(inp.value) || 0, Number(inp.dataset.max))); });
     });
     on("[data-agenda]", (el) => this._abrirAgenda(el.dataset.agenda));
+    on("[data-menu]", () => this.dispatchEvent(new Event("hass-toggle-menu", { bubbles: true, composed: true })));
     on("[data-aba-alarmes]", () => { this._agenda = null; this._render(); });
     if (this._agenda && this._agenda.config) {
       const A = this._agenda, c = A.config;
