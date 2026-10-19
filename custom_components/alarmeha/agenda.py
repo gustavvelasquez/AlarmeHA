@@ -222,9 +222,18 @@ async def async_previa(hass: HomeAssistant, cfg: dict[str, Any]) -> list[dict[st
     return previa_json(calcular(await async_eventos(hass, cfg), cfg, dt_util.now().date()), cfg)
 
 
+def _dias(grupo: list[dict[str, Any]], hoje: date) -> int:
+    """-1 hoje, -2 amanhã; hoje e amanhã juntos viram bits da semana como no app (seg=1 … dom=64)."""
+    datas = {a["horario"].date() for a in grupo}
+    if len(datas) == 1:
+        return -1 if hoje in datas else -2
+    return sum(1 << d.weekday() for d in datas)
+
+
 def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -> dict[str, dict[str, Any]]:
-    """Para cada alarme fixo (ref) decide o próximo disparo dentro de hoje/amanhã, ou desligado.
-    O app só aceita alarme avulso para hoje (-1) ou amanhã (-2)."""
+    """Para cada alarme fixo (ref) decide os disparos dentro de hoje/amanhã, ou desligado.
+    Disparo único vai como hoje (-1) ou amanhã (-2). Se hoje e amanhã têm o mesmo horário e o
+    mesmo nome, um só alarme cobre os dois, marcado nos dois dias da semana (bits do app)."""
     plano: dict[str, dict[str, Any]] = {}
     hoje = agora.date()
     amanha = hoje + timedelta(days=1)
@@ -234,22 +243,28 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
             (a for d in dias if d["dia"] <= amanha for a in d["alarmes"] if a.get("tipo") == t["id"] and a["horario"] > agora),
             key=lambda a: a["horario"],
         )
-        # Os próximos disparos de hoje/amanhã ocupam os alarmes fixos 1..N, em ordem.
-        if len(futuros) > MAX_TODOS:
+        # Mesmo horário e mesmo nome hoje e amanhã: um alarme só, nos dois dias da semana.
+        grupos: dict[tuple, list[dict[str, Any]]] = {}
+        for a in futuros:
+            chave = (a["horario"].hour, a["horario"].minute, rotulo_alarme(a, t["nome"]) if t is not livre else a["horario"].date())  # sem compromisso: igual antes
+            grupos.setdefault(chave, []).append(a)
+        # Os grupos ocupam os alarmes fixos 1..N, na ordem do primeiro disparo.
+        if len(grupos) > MAX_TODOS:
             _LOGGER.warning("AlarmeHA agenda: tipo %s tem %d alarmes até amanhã; só os %d primeiros vão para o celular",
-                            t["nome"], len(futuros), MAX_TODOS)
-        usados = futuros[:MAX_TODOS]
+                            t["nome"], len(grupos), MAX_TODOS)
+        usados = list(grupos.values())[:MAX_TODOS]
         for i in range(MAX_TODOS if t is not livre else 1):
-            prox = usados[i]["horario"] if i < len(usados) else None
+            grupo = usados[i] if i < len(usados) else []
+            prox = grupo[0]["horario"] if grupo else None
             ref = f'ag_{slug(t["id"])}_{i + 1}'[:64]
             if t is livre:
                 rotulo = "📅 Sem compromisso"
             elif prox:
-                rotulo = rotulo_alarme(usados[i], t["nome"])
+                rotulo = rotulo_alarme(grupo[0], t["nome"])
             else:
                 rotulo = "📅 " + t["nome"]
             if prox and cfg.get("ligado"):
-                plano[ref] = {"hora": prox.hour, "minuto": prox.minute, "dias": -1 if prox.date() == hoje else -2,
+                plano[ref] = {"hora": prox.hour, "minuto": prox.minute, "dias": _dias(grupo, hoje),
                               "rotulo": rotulo, "ativo": True}
                 som = t.get("som") or cfg.get("som_padrao") or {}
                 if som.get("uri"):
