@@ -183,7 +183,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmeHaConfigEntry) -> 
     # Acordar pela agenda: reajusta os alarmes fixos dos tipos de evento a cada 15 min.
     from datetime import timedelta  # noqa: PLC0415
 
-    from homeassistant.helpers.event import async_track_time_interval  # noqa: PLC0415
+    from homeassistant.core import callback  # noqa: PLC0415
+    from homeassistant.helpers.event import async_track_time_change  # noqa: PLC0415
+    from homeassistant.helpers.start import async_at_started  # noqa: PLC0415
 
     from . import agenda  # noqa: PLC0415
 
@@ -200,7 +202,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmeHaConfigEntry) -> 
             except Exception as err:  # noqa: BLE001
                 _LOGGER.warning("AlarmeHA agenda: falha ao sincronizar %s: %s", phone.phone_id, err)
 
-    entry.async_on_unload(async_track_time_interval(hass, _agenda_tick, timedelta(minutes=15)))
+    # Nos minutos 00/15/30/45 (hora local), não importa quando o HA reiniciou.
+    entry.async_on_unload(async_track_time_change(hass, _agenda_tick, minute=[0, 15, 30, 45], second=0))
+
+    # Uma sincronização logo ao carregar (com o HA já iniciado, para as agendas estarem prontas).
+    @callback
+    def _agenda_inicial(_hass: HomeAssistant | None = None) -> None:
+        entry.async_on_unload(async_call_later(hass, 5, _agenda_tick))
+
+    entry.async_on_unload(async_at_started(hass, _agenda_inicial))
 
     flags = hass.data.setdefault(f"{DOMAIN}_registered", set())
     if "http" not in flags:
