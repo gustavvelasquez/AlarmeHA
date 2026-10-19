@@ -169,6 +169,8 @@ class AlarmehaPanel extends HTMLElement {
         .centro { text-align: center; }
         .rot { width: 100%; box-sizing: border-box; font-size: 16px; padding: 10px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: inherit; margin: 8px 0; }
         .acoes { display: flex; justify-content: flex-end; }
+        .tipo { border: 1px solid var(--divider-color); border-radius: 10px; padding: 10px; margin: 8px 0; }
+        .al { margin: 6px 0; }
         select, input[type=date] { font-size: 16px; padding: 6px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: inherit; }
       </style>
       <h1>Despertador</h1>
@@ -268,31 +270,62 @@ class AlarmehaPanel extends HTMLElement {
   _cartaoAgenda(a) {
     if (!a.config) return `<div class="novo">${a.erro ? `<div class="erro">${esc(a.erro)}</div>` : `<p class="muted">Lendo a agenda…</p>`}</div>`;
     const c = a.config;
-    const h = Math.floor(c.antecedencia / 60), m = c.antecedencia % 60;
     const dia = (iso) => new Date(iso + "T12:00").toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" });
+    const tipo = (t, ti) => `
+      <div class="tipo" data-tipo="${ti}">
+        <div class="linha"><input class="rot" type="text" data-k="nome" value="${esc(t.nome)}" ${t.id === "padrao" ? "readonly" : ""} placeholder="Nome do tipo (ex.: Plantão)"></div>
+        ${t.id === "padrao" ? `<p class="muted">Vale para qualquer evento que não se encaixe nos outros tipos.</p>` : `
+        <div class="linha"><b>Reconhecer pela agenda</b><br>${a.calendarios.length ? a.calendarios.map((k) => `<label><input type="checkbox" data-k="agenda" value="${esc(k.entity_id)}" ${(t.agendas || []).includes(k.entity_id) ? "checked" : ""}> ${esc(k.nome)}</label>`).join(" ") : `<span class="muted">nenhuma agenda no HA</span>`}</div>
+        <div class="linha"><b>ou por palavra no título</b><br><input class="rot" type="text" data-k="palavras" value="${esc((t.palavras || []).join(", "))}" placeholder="ex.: plantão, turno"></div>`}
+        <div class="linha"><b>Alarmes</b>
+          ${t.alarmes.map((al, ai) => `<div class="al" data-al="${ai}">
+            <input type="text" inputmode="numeric" size="2" data-k="h" value="${Math.floor(al.antes / 60)}"> h
+            <input type="text" inputmode="numeric" size="2" data-k="m" value="${pad(al.antes % 60)}"> min antes
+            ${t.alarmes.length > 1 ? `<button type="button" class="btn mini sec" data-al-rm="${ti}:${ai}">Remover</button>` : ""}</div>`).join("")}
+          <button type="button" class="btn mini sec" data-al-add="${ti}">+ Alarme</button>
+          <span class="muted">0 h 00 = na hora do evento</span></div>
+        <div class="linha"><label>Nunca antes de</label> <input type="text" inputmode="numeric" size="5" data-k="minimo" placeholder="—" value="${esc(t.minimo || "")}"></div>
+        ${t.id === "padrao" ? "" : `<button type="button" class="btn mini sec" data-tipo-rm="${ti}">Apagar tipo</button>`}
+      </div>`;
     return `
       <form class="novo" data-agenda-form>
         <h2>Acordar pela agenda</h2>
-        <p class="muted">Por enquanto é só a prévia: confira os horários abaixo antes de ligar de verdade.</p>
         ${a.erro ? `<div class="erro">${esc(a.erro)}</div>` : ""}
-        <div class="linha"><label>Agenda</label>
-          <select name="calendario"><option value="">Nenhuma</option>${a.calendarios.map((k) => `<option value="${esc(k.entity_id)}" ${k.entity_id === c.calendario ? "selected" : ""}>${esc(k.nome)}</option>`).join("")}</select></div>
-        ${a.calendarios.length ? "" : `<p class="muted">Nenhuma agenda no HA ainda. Conecte o link iCal pela integração Remote Calendar.</p>`}
-        <div class="linha"><label>Acordar antes do 1º compromisso</label>
-          <input type="text" inputmode="numeric" name="ant_h" size="2" value="${h}"> h <input type="text" inputmode="numeric" name="ant_m" size="2" value="${pad(m)}"> min</div>
-        <div class="linha"><label>Compromissos que contam: das</label>
-          <input type="text" inputmode="numeric" name="janela_inicio" size="5" value="${esc(c.janela_inicio)}"> às <input type="text" inputmode="numeric" name="janela_fim" size="5" value="${esc(c.janela_fim)}"></div>
-        <div class="linha"><label>Nunca antes de</label> <input type="text" inputmode="numeric" name="minimo" size="5" value="${esc(c.minimo)}"></div>
+        ${a.calendarios.length ? "" : `<p class="muted">Nenhuma agenda no HA ainda. Conecte o link iCal pela integração Remote Calendar; ela aparece aqui.</p>`}
+        <label class="linha"><input type="checkbox" data-g="ligado" ${c.ligado ? "checked" : ""}> <b>Ajustar os alarmes do celular automaticamente</b></label>
+        <p class="muted">Desligado, só mostra a prévia. Cada tipo ganha alarmes fixos no celular (ex.: "Plantão 1/2") que o HA só reajusta e liga ou desliga.</p>
+        <h2>Tipos de evento</h2>
+        ${c.tipos.map(tipo).join("")}
+        <button type="button" class="btn sec" data-tipo-add>+ Novo tipo</button>
         <div class="linha"><label>Dia sem compromisso</label>
-          <input type="text" inputmode="numeric" name="sem_compromisso" size="5" placeholder="não toca" value="${esc(c.sem_compromisso || "")}">
-          <span class="muted">vazio = não toca</span></div>
+          <input type="text" inputmode="numeric" size="5" data-g="sem_compromisso" placeholder="não toca" value="${esc(c.sem_compromisso || "")}"> <span class="muted">vazio = não toca</span></div>
         <div class="linha"><label>Semanas alternadas: começa uma semana de trabalho em</label>
-          <input type="date" name="escala_inicio" value="${esc(c.escala_inicio || "")}"> <span class="muted">vazio = toda semana</span></div>
-        <div class="acoes"><button class="btn sec" type="button" data-agenda-fechar>Fechar</button><button class="btn" type="submit">Salvar e recalcular</button></div>
+          <input type="date" data-g="escala_inicio" value="${esc(c.escala_inicio || "")}"> <span class="muted">vazio = toda semana</span></div>
+        <div class="acoes"><button class="btn sec" type="button" data-agenda-fechar>Fechar</button><button class="btn" type="submit">Salvar</button></div>
         ${a.salvo ? `<p class="ok">✓ Salvo</p>` : ""}
         <h2>Próximos ${a.previa.length} dias</h2>
-        ${a.previa.map((d) => `<div class="alarme ${d.horario ? "" : "off"}"><div><b>${dia(d.dia)}</b> <span class="hora">${d.horario || "—"}</span><div class="muted">${esc(d.motivo)}</div></div></div>`).join("")}
+        ${a.previa.map((d) => `<div class="alarme ${d.horarios.length ? "" : "off"}"><div><b>${dia(d.dia)}</b> <span class="hora">${d.horarios.join(" · ") || "—"}</span><div class="muted">${esc(d.motivo)}</div></div></div>`).join("")}
       </form>`;
+  }
+
+  // Lê o formulário de volta para this._agenda.config (antes de adicionar/remover ou salvar).
+  _lerAgenda() {
+    const root = this.shadowRoot, c = this._agenda.config;
+    const hm = (v) => { const t = String(v || "").trim(); if (!t) return null; const [hh, mm = "0"] = t.split(/[:h]/); return `${pad(Math.min(Number(hh) || 0, 23))}:${pad(Math.min(Number(mm) || 0, 59))}`; };
+    const g = (k) => root.querySelector(`[data-g=${k}]`);
+    c.ligado = g("ligado").checked;
+    c.sem_compromisso = hm(g("sem_compromisso").value);
+    c.escala_inicio = g("escala_inicio").value || null;
+    root.querySelectorAll("[data-tipo]").forEach((el) => {
+      const t = c.tipos[Number(el.dataset.tipo)];
+      t.nome = el.querySelector("[data-k=nome]").value.trim() || t.nome || "Tipo";
+      t.agendas = [...el.querySelectorAll("[data-k=agenda]:checked")].map((x) => x.value);
+      const pal = el.querySelector("[data-k=palavras]");
+      t.palavras = pal ? pal.value.split(",").map((x) => x.trim()).filter(Boolean) : [];
+      t.alarmes = [...el.querySelectorAll("[data-al]")].map((x) => ({ antes: (Number(x.querySelector("[data-k=h]").value) || 0) * 60 + (Number(x.querySelector("[data-k=m]").value) || 0) }));
+      t.minimo = hm(el.querySelector("[data-k=minimo]").value);
+    });
+    return c;
   }
 
   _formulario(f) {
@@ -347,20 +380,18 @@ class AlarmehaPanel extends HTMLElement {
     on("[data-agenda]", (el) => this._abrirAgenda(el.dataset.agenda));
     on("[data-agenda-fechar]", () => { this._agenda = null; this._render(); });
     const af = root.querySelector("[data-agenda-form]");
-    if (af) af.addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      const fd = new FormData(af);
-      const hm = (v) => { const t = String(v || "").trim(); if (!t) return null; const [hh, mm = "0"] = t.split(/[:h]/); return `${pad(Math.min(Number(hh) || 0, 23))}:${pad(Math.min(Number(mm) || 0, 59))}`; };
-      this._abrirAgenda(this._agenda.celular, {
-        calendario: fd.get("calendario") || null,
-        antecedencia: (Number(fd.get("ant_h")) || 0) * 60 + (Number(fd.get("ant_m")) || 0),
-        janela_inicio: hm(fd.get("janela_inicio")) || "04:00",
-        janela_fim: hm(fd.get("janela_fim")) || "12:00",
-        minimo: hm(fd.get("minimo")) || "05:00",
-        sem_compromisso: hm(fd.get("sem_compromisso")),
-        escala_inicio: fd.get("escala_inicio") || null,
+    if (af) {
+      const mexe = (fn) => { const c = this._lerAgenda(); fn(c); this._agenda.salvo = false; this._render(); };
+      on("[data-tipo-add]", () => mexe((c) => c.tipos.push({ nome: "", agendas: [], palavras: [], alarmes: [{ antes: 0 }], minimo: null })));
+      on("[data-tipo-rm]", (el) => { if (confirm("Apagar este tipo? Os alarmes dele no celular serão desligados.")) mexe((c) => c.tipos.splice(Number(el.dataset.tipoRm), 1)); });
+      on("[data-al-add]", (el) => mexe((c) => { const t = c.tipos[Number(el.dataset.alAdd)]; const ult = t.alarmes[t.alarmes.length - 1]; t.alarmes.push({ antes: ult ? ult.antes + 15 : 0 }); }));
+      on("[data-al-rm]", (el) => mexe((c) => { const [ti, ai] = el.dataset.alRm.split(":").map(Number); c.tipos[ti].alarmes.splice(ai, 1); }));
+      af.addEventListener("submit", (ev) => {
+        ev.preventDefault();
+        const c = this._lerAgenda();
+        this._abrirAgenda(this._agenda.celular, { ligado: c.ligado, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, tipos: c.tipos });
       });
-    });
+    }
     const form = root.querySelector("[data-form]");
     if (form) form.addEventListener("submit", (ev) => {
       ev.preventDefault();

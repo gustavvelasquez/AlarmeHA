@@ -178,6 +178,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmeHaConfigEntry) -> 
         hub.register_webhook(phone)
     entry.async_on_unload(hub.unregister_webhooks)
 
+    # Acordar pela agenda: reajusta os alarmes fixos dos tipos de evento a cada 15 min.
+    from datetime import timedelta  # noqa: PLC0415
+
+    from homeassistant.helpers.event import async_track_time_interval  # noqa: PLC0415
+
+    from . import agenda  # noqa: PLC0415
+
+    async def _agenda_tick(_now=None) -> None:
+        for phone in list(hub.phones.values()):
+            try:
+                await agenda.async_sincronizar(hass, phone)
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning("AlarmeHA agenda: falha ao sincronizar %s: %s", phone.phone_id, err)
+
+    entry.async_on_unload(async_track_time_interval(hass, _agenda_tick, timedelta(minutes=15)))
+
     flags = hass.data.setdefault(f"{DOMAIN}_registered", set())
     if "http" not in flags:
         flags.add("http")

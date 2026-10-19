@@ -154,8 +154,15 @@ async def ws_agenda(hass: HomeAssistant, connection: websocket_api.ActiveConnect
         return
     if "salvar" in msg:
         novo = {k: v for k, v in msg["salvar"].items() if k in agenda.PADRAO}
-        phone.agenda = agenda.config({**phone.agenda, **novo})
+        ids = set()
+        for t in novo.get("tipos") or []:
+            if not t.get("id"):
+                base = agenda.slug(t.get("nome", "tipo"))
+                t["id"] = base if base not in ids and base != agenda.PADRAO_ID else f"{base}_{len(ids)}"
+            ids.add(t["id"])
+        phone.agenda = {**phone.agenda, **novo}
         hub.async_save()
+        hass.async_create_task(agenda.async_sincronizar(hass, phone))
     cfg = agenda.config(phone.agenda)
     try:
         previa = await agenda.async_previa(hass, cfg)
