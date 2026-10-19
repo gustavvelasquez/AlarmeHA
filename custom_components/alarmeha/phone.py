@@ -28,6 +28,11 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+# Alarme tocando ou em soneca: a agenda não mexe nele (editar no app cancela a soneca).
+OCUPADO_TOCANDO_MIN = 10  # o app desliga sozinho após alarm_max_reminder_secs (padrão 5 min)
+OCUPADO_SONECA_FOLGA_MIN = 5
+SINCRONIZAR_APOS_DESLIGAR_S = 60
+
 RESPONSE_EVENTS = {"criado", "alterado", "apagado", "lista", "toques", "erro"}
 STORED_FIELDS = (
     "agenda", "toques",
@@ -74,6 +79,7 @@ class AlarmeHaPhone:
         self.agenda: dict[str, Any] = data.get("agenda") or {}
         self.toques: list[dict[str, Any]] = data.get("toques") or []
         self._pending: dict[str, asyncio.Future[dict[str, Any]]] = {}
+        self.ocupados: dict[str, datetime] = {}  # ref -> até quando (só em memória)
 
     def as_dict(self) -> dict[str, Any]:
         data = {key: getattr(self, key) for key in STORED_FIELDS}
@@ -119,6 +125,54 @@ class AlarmeHaPhone:
             "ativado_em": self.activated_at,
         }
 
+    # ---- alarme tocando / em soneca ---------------------------------------------------
+
+    def _ref_do_evento(self, payload: dict[str, Any]) -> str | None:
+        ref = payload.get("ref")
+        if isinstance(ref, str) and ref:
+            return ref
+        alarm_id = payload.get("id")
+        for a in self.alarms:
+            if isinstance(a, dict) and alarm_id is not None and a.get("id") == alarm_id and a.get("ref"):
+                return a["ref"]
+        return None
+
+    def ocupado(self, ref: str) -> bool:
+        ate = self.ocupados.get(ref)
+        if ate is None:
+            return False
+        if dt_util.utcnow() >= ate:
+            self.ocupados.pop(ref, None)
+            return False
+        return True
+
+    def _marcar_toque(self, event: str, payload: dict[str, Any]) -> None:
+        ref = self._ref_do_evento(payload)
+        if ref is None:
+            return
+        agora = dt_util.utcnow()
+        if event == "tocou":
+            self.ocupados[ref] = agora + timedelta(minutes=OCUPADO_TOCANDO_MIN)
+        elif event == "soneca":
+            try:
+                minutos = max(0, int(payload.get("minutos") or 0))
+            except (TypeError, ValueError):
+                minutos = 0
+            minutos = minutos or OCUPADO_TOCANDO_MIN
+            self.ocupados[ref] = agora + timedelta(minutes=minutos + OCUPADO_SONECA_FOLGA_MIN)
+        elif event == "desligado" and self.ocupados.pop(ref, None) is not None:
+            from homeassistant.helpers.event import async_call_later  # noqa: PLC0415
+
+            async def _sincronizar(_now: Any = None) -> None:
+                from . import agenda  # noqa: PLC0415
+
+                try:
+                    await agenda.async_sincronizar(self.hass, self)
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.warning("AlarmeHA agenda: falha ao sincronizar %s: %s", self.phone_id, err)
+
+            async_call_later(self.hass, SINCRONIZAR_APOS_DESLIGAR_S, _sincronizar)
+
     # ---- eventos vindos do celular -------------------------------------------------
 
     @callback
@@ -128,6 +182,9 @@ class AlarmeHaPhone:
             return
         self.last_event = payload
         self.last_seen = dt_util.utcnow()
+
+        if event in ("tocou", "soneca", "desligado"):
+            self._marcar_toque(event, payload)
 
         if event == "toques" and isinstance(payload.get("toques"), list):
             self.toques = [t for t in payload["toques"] if isinstance(t, dict) and t.get("uri")][:150]

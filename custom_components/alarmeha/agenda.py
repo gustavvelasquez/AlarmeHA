@@ -314,7 +314,7 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
     no_celular = {a.get("ref"): a for a in (phone.alarms or []) if isinstance(a, dict) and a.get("ref")}
     if no_celular:
         for ref, ant in list(enviados.items()):
-            if not ant.get("ativo"):
+            if not ant.get("ativo") or phone.ocupado(ref):
                 continue
             atual = no_celular.get(ref)
             if atual is None or (atual.get("hora"), atual.get("minuto"), bool(atual.get("ativo"))) != (ant.get("hora"), ant.get("minuto"), True):
@@ -325,6 +325,10 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
             continue
         if not alvo["ativo"] and ref not in enviados:
             continue  # nunca criado e nada a ligar
+        if phone.ocupado(ref):
+            # Tocando ou em soneca: mexer agora cancelaria a soneca. Fica para depois.
+            _LOGGER.debug("AlarmeHA agenda: %s tocando/em soneca, ajuste adiado", ref)
+            continue
         try:
             if alvo["ativo"]:
                 await phone.async_command("criar", {"ref": ref, "vibrar": True, **alvo}, 30)
