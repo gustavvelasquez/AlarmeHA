@@ -1,17 +1,19 @@
-*.iml
+
 *.aab
-.gradle
-/local.properties
-/.idea/
-.DS_Store
 /build
 /captures
-keystore.jks
-keystore.properties
+# Configuração local do Firebase (não versionar)
+.DS_Store
 fastlane/fastlane.json
 fastlane/report.xml
-.kotlin/
-
-# Configuração local do Firebase (não versionar)
-scripts/firebase.env
 *-firebase-sa*.json
+.gradle
+/.idea/
+*.iml
+keystore.jks
+keystore.properties
+.kotlin/
+/local.properties
+*.pyc
+__pycache__/
+scripts/firebase.env
