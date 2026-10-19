@@ -334,6 +334,15 @@ class AlarmehaPanel extends HTMLElement {
             <input type="text" inputmode="numeric" size="2" data-k="m" value="${pad(al.antes % 60)}"> min
             ${t.alarmes.length > 1 ? `<button type="button" class="x" data-al-rm="${ai}" title="Remover">✕</button>` : ""}</div>`).join("")}
           <button type="button" class="btn mini sec" data-al-add>+ Alarme</button></div>
+        <div class="linha"><b>Toque</b><br>${(() => {
+          const cel = (this._status.celulares || []).find((x) => x.id === a.celular) || {};
+          const toques = [...(cel.toques || [])];
+          const som = t.som || {};
+          if (som.uri && !toques.some((x) => x.uri === som.uri)) toques.unshift({ uri: som.uri, titulo: som.titulo || som.uri });
+          return `<select data-k="som"><option value="">Padrão do celular</option>${toques.map((x) => `<option value="${esc(x.uri)}" ${x.uri === som.uri ? "selected" : ""}>${esc(x.titulo)}</option>`).join("")}</select>
+            <button type="button" class="btn mini sec" data-toques ${a.buscandoToques ? "disabled" : ""}>${a.buscandoToques ? "Buscando…" : toques.length ? "Atualizar lista" : "Buscar toques do celular"}</button>
+            <div class="muted">Para usar uma música sua: escolha ela uma vez em qualquer alarme no app AlarmeHA e toque em Atualizar lista.</div>`;
+        })()}</div>
         <div class="linha"><b>Nunca antes de</b> <span class="muted">(opcional)</span><br><input type="text" inputmode="numeric" size="6" data-k="minimo" placeholder="ex.: 05:00" value="${esc(t.minimo || "")}"></div>
         ${t.id === "padrao" || r.novo ? "" : `<button type="button" class="btn mini sec perigo" data-tipo-rm>Apagar este tipo</button>`}
         ${rodape}
@@ -352,6 +361,8 @@ class AlarmehaPanel extends HTMLElement {
     t.agendas = [...root.querySelectorAll("[data-rasc-form] [data-k=agenda]:checked")].map((x) => x.value);
     t.alarmes = [...root.querySelectorAll("[data-al]")].map((x) => ({ antes: (Number(x.querySelector("[data-k=h]").value) || 0) * 60 + (Number(x.querySelector("[data-k=m]").value) || 0) }));
     t.minimo = hm(v("minimo"));
+    const somEl = root.querySelector("[data-rasc-form] [data-k=som]");
+    if (somEl) t.som = somEl.value ? { uri: somEl.value, titulo: somEl.selectedOptions[0].textContent } : null;
     return r;
   }
 
@@ -414,6 +425,15 @@ class AlarmehaPanel extends HTMLElement {
       on("[data-tipo-abrir]", (el) => { const i = Number(el.dataset.tipoAbrir); A.rasc = { i, tipo: JSON.parse(JSON.stringify(c.tipos[i])) }; A.salvo = false; this._render(); });
       on("[data-tipo-add]", () => { A.rasc = { novo: true, tipo: { nome: "", agendas: [], palavras: [], alarmes: [{ antes: 0 }], minimo: null } }; A.salvo = false; this._render(); });
       on("[data-ajustes]", () => { A.rasc = { ajustes: true, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio }; A.salvo = false; this._render(); });
+      on("[data-toques]", async () => {
+        this._lerAgenda(); A.buscandoToques = true; this._render();
+        try {
+          const res = await this._ws({ type: "alarmeha/toques", celular: A.celular }, 70000);
+          const cel = this._status.celulares.find((x) => x.id === A.celular);
+          if (cel) cel.toques = res.toques;
+        } catch (e) { alert("O celular não respondeu: " + (e.message || e)); }
+        A.buscandoToques = false; this._render();
+      });
       on("[data-rasc-cancelar]", () => { A.rasc = null; this._render(); });
       on("[data-al-add]", () => { const r = this._lerAgenda(); const ult = r.tipo.alarmes[r.tipo.alarmes.length - 1]; r.tipo.alarmes.push({ antes: ult ? ult.antes + 15 : 0 }); this._render(); });
       on("[data-al-rm]", (el) => { const r = this._lerAgenda(); r.tipo.alarmes.splice(Number(el.dataset.alRm), 1); this._render(); });

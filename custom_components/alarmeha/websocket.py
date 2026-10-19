@@ -24,6 +24,7 @@ def async_register_websocket(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_command)
     websocket_api.async_register_command(hass, ws_remove)
     websocket_api.async_register_command(hass, ws_agenda)
+    websocket_api.async_register_command(hass, ws_toques)
 
 
 def _hub(hass: HomeAssistant, connection, msg) -> Any:
@@ -174,3 +175,21 @@ async def ws_agenda(hass: HomeAssistant, connection: websocket_api.ActiveConnect
         for s in hass.states.async_all("calendar")
     ]
     connection.send_result(msg["id"], {"config": cfg, "previa": previa, "erro": erro, "calendarios": calendarios})
+
+
+@websocket_api.websocket_command({vol.Required("type"): "alarmeha/toques", vol.Required("celular"): str})
+@websocket_api.async_response
+async def ws_toques(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
+    """Pede ao celular a lista de toques de alarme dele."""
+    if (hub := _hub(hass, connection, msg)) is None:
+        return
+    phone = hub.phones.get(msg["celular"])
+    if phone is None or not hub.can_access(connection.user, phone):
+        connection.send_error(msg["id"], "unauthorized", "Celular não encontrado")
+        return
+    try:
+        await phone.async_command("toques", {}, 20)
+    except HomeAssistantError as err:
+        connection.send_error(msg["id"], "command_failed", str(err))
+        return
+    connection.send_result(msg["id"], {"toques": phone.toques})

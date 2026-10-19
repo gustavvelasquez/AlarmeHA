@@ -11,6 +11,7 @@ import org.fossify.clock.models.Alarm
 import org.fossify.clock.models.AlarmEvent
 import org.greenrobot.eventbus.EventBus
 import org.json.JSONObject
+import org.fossify.commons.helpers.SILENT
 import java.net.URLDecoder
 
 /** Executa as operações pedidas pelo HA: criar, editar, ligar, desligar, apagar e listar. */
@@ -40,6 +41,7 @@ class HaCommandProcessor(private val context: Context) {
                 "desligar" -> setEnabled(ref, false, pedido)
                 "apagar" -> delete(ref, pedido)
                 "listar" -> HaEvents.sendList(context, pedido)
+                "toques" -> HaEvents.sendSounds(context, pedido)
                 else -> throw CommandError("op_invalida")
             }
         } catch (e: CommandError) {
@@ -90,6 +92,7 @@ class HaCommandProcessor(private val context: Context) {
             vibrate = extras.getAsBoolean("vibrar") ?: false
             oneShot = extras.getAsBoolean("unico") ?: false
             label = label(extras) ?: ""
+            applySound(extras, this)
         }
         alarm.id = db.insertAlarm(alarm)
         if (alarm.id <= 0) throw CommandError("erro_ao_salvar")
@@ -110,6 +113,7 @@ class HaCommandProcessor(private val context: Context) {
         extras.getAsBoolean("vibrar")?.let { alarm.vibrate = it }
         extras.getAsBoolean("unico")?.let { alarm.oneShot = it }
         label(extras)?.let { alarm.label = it }
+        applySound(extras, alarm)
 
         if (!db.updateAlarm(alarm)) throw CommandError("erro_ao_salvar")
         applySchedule(alarm)
@@ -168,6 +172,23 @@ class HaCommandProcessor(private val context: Context) {
         return days
     }
 
+    /** Toque escolhido no HA (uma das opções que o próprio celular mandou em "toques"). */
+    private fun applySound(extras: Bundle, alarm: Alarm) {
+        val uri = decoded(extras.getAsString("som_uri"))?.trim() ?: return
+        if (uri != SILENT && SOUND_SCHEMES.none { uri.startsWith(it) }) throw CommandError("som_invalido")
+        alarm.soundUri = uri.take(MAX_URI)
+        alarm.soundTitle = decoded(extras.getAsString("som_titulo"))?.trim()?.take(MAX_TEXT) ?: ""
+    }
+
+    private fun decoded(raw: String?): String? {
+        if (raw == null) return null
+        return if (Regex("%[0-9A-Fa-f]{2}").containsMatchIn(raw)) {
+            runCatching { URLDecoder.decode(raw, "UTF-8") }.getOrDefault(raw)
+        } else {
+            raw
+        }
+    }
+
     private fun label(extras: Bundle): String? {
         val raw = extras.getAsString("rotulo") ?: return null
         // O Companion já decodifica String.urlencoded; decodifica de novo só se ainda vier com %XX.
@@ -182,6 +203,8 @@ class HaCommandProcessor(private val context: Context) {
     companion object {
         private const val ALL = "*"
         private const val MAX_TEXT = 64
+        private const val MAX_URI = 512
+        private val SOUND_SCHEMES = listOf("content://", "file://", "android.resource://")
         private val REF_REGEX = Regex("^[a-z0-9_-]{1,64}$")
 
         /** O Companion pode mandar números e booleanos como int/boolean ou como texto. */

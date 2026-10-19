@@ -28,9 +28,9 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-RESPONSE_EVENTS = {"criado", "alterado", "apagado", "lista", "erro"}
+RESPONSE_EVENTS = {"criado", "alterado", "apagado", "lista", "toques", "erro"}
 STORED_FIELDS = (
-    "agenda",
+    "agenda", "toques",
     "user_id", "person", "device_name", "mobile_entry_id", "notify_service",
     "package", "webhook_id", "token", "alarms", "last_event", "last_seen", "activated_at",
 )
@@ -72,6 +72,7 @@ class AlarmeHaPhone:
         self.last_seen: datetime | None = dt_util.parse_datetime(seen) if seen else None
         self.activated_at: str | None = data.get("activated_at")
         self.agenda: dict[str, Any] = data.get("agenda") or {}
+        self.toques: list[dict[str, Any]] = data.get("toques") or []
         self._pending: dict[str, asyncio.Future[dict[str, Any]]] = {}
 
     def as_dict(self) -> dict[str, Any]:
@@ -114,6 +115,7 @@ class AlarmeHaPhone:
             "proximo_alarme": nxt.isoformat() if nxt else None,
             "ultimo_evento": (self.last_event or {}).get("evento"),
             "alarmes": self.alarms,
+            "toques": self.toques,
             "ativado_em": self.activated_at,
         }
 
@@ -127,7 +129,9 @@ class AlarmeHaPhone:
         self.last_event = payload
         self.last_seen = dt_util.utcnow()
 
-        if event == "lista" and isinstance(payload.get("alarmes"), list):
+        if event == "toques" and isinstance(payload.get("toques"), list):
+            self.toques = [t for t in payload["toques"] if isinstance(t, dict) and t.get("uri")][:150]
+        elif event == "lista" and isinstance(payload.get("alarmes"), list):
             self.alarms = payload["alarmes"]
         elif event in ("criado", "alterado") and isinstance(payload.get("alarme"), dict):
             alarm = payload["alarme"]

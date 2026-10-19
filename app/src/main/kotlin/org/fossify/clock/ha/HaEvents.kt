@@ -1,6 +1,7 @@
 package org.fossify.clock.ha
 
 import android.content.Context
+import android.media.RingtoneManager
 import org.fossify.clock.extensions.dbHelper
 import org.fossify.clock.helpers.getTimeOfNextAlarm
 import org.fossify.clock.models.Alarm
@@ -19,6 +20,7 @@ object HaEvents {
         put("rotulo", alarm.label)
         put("ativo", alarm.isEnabled)
         put("vibrar", alarm.vibrate)
+        put("som_titulo", alarm.soundTitle)
         put("unico", alarm.oneShot)
         put("criado_pelo_ha", ref != null)
         val next = if (alarm.isEnabled) getTimeOfNextAlarm(alarm) else null
@@ -44,6 +46,28 @@ object HaEvents {
             put("alarmes", alarms)
         })
     }
+
+    /** Toques de alarme do celular (os do sistema e os que já estão em uso em algum alarme). */
+    fun sendSounds(context: Context, pedido: String?) {
+        val sounds = LinkedHashMap<String, String>()
+        context.dbHelper.getAlarms().forEach { if (it.soundUri.isNotEmpty()) sounds.putIfAbsent(it.soundUri, it.soundTitle) }
+        runCatching {
+            val manager = RingtoneManager(context).apply { setType(RingtoneManager.TYPE_ALARM) }
+            val cursor = manager.cursor
+            while (cursor.moveToNext() && sounds.size < MAX_SOUNDS) {
+                val uri = manager.getRingtoneUri(cursor.position)?.toString() ?: continue
+                sounds.putIfAbsent(uri, cursor.getString(RingtoneManager.TITLE_COLUMN_INDEX) ?: uri)
+            }
+        }
+        val list = JSONArray()
+        sounds.forEach { (uri, title) -> list.put(JSONObject().put("uri", uri).put("titulo", title)) }
+        HaWebhook.send(context, "toques", JSONObject().apply {
+            put("pedido", pedido ?: JSONObject.NULL)
+            put("toques", list)
+        })
+    }
+
+    private const val MAX_SOUNDS = 150
 
     /** Chamado pelo AlarmController (tocou, soneca, desligado). Não faz nada se não houver pareamento. */
     fun onRingEvent(context: Context, event: String, alarmId: Int, extra: JSONObject.() -> Unit = {}) {

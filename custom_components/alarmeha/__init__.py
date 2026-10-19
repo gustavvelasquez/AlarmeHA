@@ -60,6 +60,8 @@ EXTRA_FIELDS = {
     vol.Optional("ativo"): cv.boolean,
     vol.Optional("vibrar"): cv.boolean,
     vol.Optional("unico"): cv.boolean,
+    vol.Optional("som_uri"): vol.All(cv.string, vol.Length(max=512)),
+    vol.Optional("som_titulo"): vol.All(cv.string, vol.Length(max=64)),
 }
 # Campos de cada operação (sem o alvo); usados pelos serviços e pelo painel.
 OP_FIELDS: dict[str, dict] = {

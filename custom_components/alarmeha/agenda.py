@@ -185,7 +185,7 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
         total = len(t["alarmes"])
         for i in range(total):
             ref = f'ag_{slug(t["id"])}_{i + 1}'[:64]
-            rotulo = f'{t["nome"]} {i + 1}/{total}' if total > 1 else t["nome"]
+            rotulo = "📅 " + (f'{t["nome"]} {i + 1}/{total}' if total > 1 else t["nome"])
             prox = None
             for d in dias:
                 if d["tipo"] != t["id"] or d["dia"] > hoje + timedelta(days=1):
@@ -199,6 +199,9 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
             if prox and cfg.get("ligado"):
                 plano[ref] = {"hora": prox.hour, "minuto": prox.minute, "dias": -1 if prox.date() == hoje else -2,
                               "rotulo": rotulo, "ativo": True}
+                som = t.get("som") or {}
+                if som.get("uri"):
+                    plano[ref] |= {"som_uri": str(som["uri"])[:512], "som_titulo": str(som.get("titulo") or "")[:64]}
             else:
                 plano[ref] = {"ativo": False, "rotulo": rotulo}
     return plano
