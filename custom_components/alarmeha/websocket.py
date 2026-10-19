@@ -155,15 +155,18 @@ async def ws_agenda(hass: HomeAssistant, connection: websocket_api.ActiveConnect
         return
     if "salvar" in msg:
         novo = {k: v for k, v in msg["salvar"].items() if k in agenda.PADRAO}
+        novo = agenda.migrar(novo)
+        sem_agenda = [t.get("nome") or "sem nome" for t in novo.get("tipos") or [] if not t.get("agendas")]
+        if sem_agenda:
+            connection.send_error(msg["id"], "invalid_format", f"Marque pelo menos uma agenda no tipo {sem_agenda[0]}")
+            return
         ids = set()
         for t in novo.get("tipos") or []:
             if not t.get("id"):
                 base = agenda.slug(t.get("nome", "tipo"))
-                t["id"] = base if base not in ids and base != agenda.PADRAO_ID else f"{base}_{len(ids)}"
+                t["id"] = base if base not in ids and base not in agenda.RESERVADOS else f"{base}_{len(ids)}"
             ids.add(t["id"])
-            if t.get("eventos") not in agenda.EVENTOS:
-                t["eventos"] = "primeiro"
-        phone.agenda = {**phone.agenda, **novo}
+        phone.agenda = agenda.migrar({**phone.agenda, **novo})
         hub.async_save()
         hass.async_create_task(agenda.async_sincronizar(hass, phone))
     cfg = agenda.config(phone.agenda)

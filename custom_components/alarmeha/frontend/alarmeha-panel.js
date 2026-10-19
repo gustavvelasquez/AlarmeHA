@@ -180,11 +180,7 @@ class AlarmehaPanel extends HTMLElement {
         .chave { display: flex; align-items: center; gap: 10px; font-size: 16px; white-space: normal; margin: 8px 0; }
         .chave input { width: 22px; height: 22px; }
         .chave span { display: none; }
-        .seg { display: flex; gap: 0; margin: 6px 0 4px; border: 1px solid var(--divider-color, #ccc); border-radius: 10px; overflow: hidden; }
-        .seg label { flex: 1; text-align: center; padding: 10px 6px; cursor: pointer; font-size: 15px; }
-        .seg label + label { border-left: 1px solid var(--divider-color, #ccc); }
-        .seg input { position: absolute; opacity: 0; pointer-events: none; }
-        .seg label:has(input:checked) { background: var(--primary-color, #03a9f4); color: var(--text-primary-color, #fff); font-weight: 600; }
+        .falta { color: var(--error-color, #db4437); }
         .rodape { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px; background: var(--card-background-color, #fff); padding: 10px 0; margin-top: 12px; border-top: 1px solid var(--divider-color); }
         .x { background: transparent; border: 0; color: var(--secondary-text-color); font-size: 18px; cursor: pointer; padding: 4px 10px; }
         .perigo { color: var(--error-color, #db4437); border-color: var(--error-color, #db4437); }
@@ -293,9 +289,10 @@ class AlarmehaPanel extends HTMLElement {
     const fmt = (m) => (m === 0 ? "na hora" : `${m >= 60 ? `${Math.floor(m / 60)}h` : ""}${m % 60 ? `${pad(m % 60)}min` : ""} antes`.replace(/^(\d+h)(\d+min)/, "$1$2"));
     const as = t.alarmes.map((x) => x.antes).sort((x, y) => y - x);
     const quando = as.length === 1 ? fmt(as[0]) : `de ${fmt(as[0])} até ${as[as.length - 1] === 0 ? "a hora" : fmt(as[as.length - 1])}`;
-    const como = t.id === "padrao" ? "qualquer outro evento" : [...(t.palavras || []).map((w) => `"${w}"`), ...(t.agendas || []).map((k) => (this._agenda.calendarios.find((x) => x.entity_id === k) || { nome: k }).nome)].join(", ") || "sem regra: não reconhece nada";
-    const todos = t.eventos === "todos" ? " em todos os eventos" : "";
-    return `${as.length} alarme${as.length > 1 ? "s" : ""}, ${quando}${todos} · ${esc(como)}`;
+    const ags = (t.agendas || []).map((k) => (this._agenda.calendarios.find((x) => x.entity_id === k) || { nome: k }).nome);
+    if (!ags.length) return `<span class="falta">⚠ Nenhuma agenda marcada: este tipo não toca</span>`;
+    const pal = (t.palavras || []).length ? ` com ${(t.palavras || []).map((w) => `"${w}"`).join(" ou ")} no título` : "";
+    return `${as.length} alarme${as.length > 1 ? "s" : ""}, ${quando} · ${esc(ags.join(", ") + pal)}`;
   }
 
   _cartaoAgenda(a) {
@@ -306,10 +303,11 @@ class AlarmehaPanel extends HTMLElement {
     return `
       ${a.erro ? `<div class="erro">${esc(a.erro)}</div>` : ""}
       ${a.salvo ? `<div class="aviso">✓ Salvo</div>` : ""}
-      ${a.calendarios.length ? "" : `<p class="muted">Nenhuma agenda conectada ao HA ainda. Você já pode criar os tipos; a prévia passa a mostrar seus compromissos quando a agenda for conectada.</p>`}
+      ${a.calendarios.length ? "" : `<p class="muted">Nenhuma agenda conectada ao HA ainda. Conecte uma agenda ao HA para criar os tipos: cada evento dela vira alarme.</p>`}
       <label class="chave"><input type="checkbox" data-ligado ${c.ligado ? "checked" : ""}><span></span> Ajustar meus alarmes pela agenda</label>
       <h2 class="sub">Tipos de evento</h2>
       ${c.tipos.map((t, i) => `<button class="item" data-tipo-abrir="${i}"><b>${esc(t.nome)}</b><span class="muted">${this._resumoTipo(t)}</span><span class="vai">›</span></button>`).join("")}
+      ${c.tipos.length ? "" : `<p class="muted">Nenhum tipo ainda. Crie um (ex.: Trabalho) e marque a agenda dele: cada evento dessa agenda vira alarme.</p>`}
       <button class="btn sec" data-tipo-add>+ Novo tipo</button>
       <button class="item" data-ajustes><b>Ajustes</b><span class="muted">Dia sem compromisso: ${c.sem_compromisso ? esc(c.sem_compromisso) : "não toca"} · ${c.escala_inicio ? "semanas alternadas" : "toda semana"} · Toque: ${esc(c.som_padrao ? c.som_padrao.titulo : "padrão do celular")}</span><span class="vai">›</span></button>
       <h2 class="sub">Próximos ${a.previa.length} dias</h2>
@@ -332,13 +330,8 @@ class AlarmehaPanel extends HTMLElement {
     if (r.ajustes) return `
       <form data-rasc-form>
         <h2 class="sub">Ajustes</h2>
-        <div class="linha"><b>Dia sem compromisso</b><br><input type="text" inputmode="numeric" size="6" data-k="sem_compromisso" placeholder="não toca" value="${esc(r.sem_compromisso || "")}"> <span class="muted">vazio = não toca; ou um horário, ex.: 08:00</span></div>
-        <div class="linha"><b>Agendas deste celular</b><br><span class="muted">Só as marcadas viram alarme neste celular (além das que algum tipo usa). Agenda nova não entra sozinha.</span><br>
-          ${a.calendarios.length ? a.calendarios.map((k) => {
-            const doTipo = a.config.tipos.some((t) => (t.agendas || []).includes(k.entity_id));
-            return `<label><input type="checkbox" data-k="cal" value="${esc(k.entity_id)}" ${doTipo || (r.calendarios || []).includes(k.entity_id) ? "checked" : ""} ${doTipo ? "disabled" : ""}> ${esc(k.nome)}${doTipo ? ` <span class="muted">(usada por um tipo)</span>` : ""}</label>`;
-          }).join("<br>") : `<span class="muted">nenhuma agenda no HA</span>`}</div>
-        <div class="linha"><b>Toque padrão</b><br><span class="muted">Vale para os tipos que não têm toque próprio.</span><br>${this._seletorToque(a, r.som_padrao, "Padrão do celular")}</div>
+        <div class="linha"><b>Dia sem compromisso</b><br><input type="text" inputmode="numeric" size="6" data-k="sem_compromisso" placeholder="não toca" value="${esc(r.sem_compromisso || "")}"> <span class="muted">dia sem nenhum evento nas agendas dos tipos. Vazio = não toca; ou um horário, ex.: 08:00</span></div>
+        <div class="linha"><b>Toque padrão</b><br><span class="muted">Vale para os tipos sem toque próprio e para o dia sem compromisso.</span><br>${this._seletorToque(a, r.som_padrao, "Padrão do celular")}</div>
         <div class="linha"><b>Semanas alternadas</b><br><span class="muted">Se você trabalha semana sim, semana não, informe o primeiro dia de uma semana de trabalho. Vazio = toda semana.</span><br><input type="date" data-k="escala_inicio" value="${esc(r.escala_inicio || "")}"></div>
         ${rodape}
       </form>`;
@@ -346,16 +339,11 @@ class AlarmehaPanel extends HTMLElement {
     return `
       <form data-rasc-form>
         <h2 class="sub">${r.novo ? "Novo tipo" : "Editar tipo"}</h2>
-        ${t.id === "padrao" ? `<p><b>Padrão</b></p><p class="muted">Vale para todo evento que não for de outro tipo.</p>` : `
-        <div class="linha"><b>Nome</b><input class="rot" type="text" data-k="nome" value="${esc(t.nome)}" placeholder="ex.: Plantão"></div>
-        <div class="linha"><b>Como reconhecer</b><br><span class="muted">Palavras no título do evento (separe por vírgula)</span><input class="rot" type="text" data-k="palavras" value="${esc((t.palavras || []).join(", "))}" placeholder="ex.: plantão, turno">
-          ${cal.length ? `<span class="muted">ou todos os eventos destas agendas</span><br>${cal.map((k) => `<label><input type="checkbox" data-k="agenda" value="${esc(k.entity_id)}" ${(t.agendas || []).includes(k.entity_id) ? "checked" : ""}> ${esc(k.nome)}</label>`).join("<br>")}` : ""}</div>`}
-        <div class="linha"><b>Quais eventos</b>
-          <div class="seg" role="radiogroup">
-            <label><input type="radio" name="eventos" data-k="eventos" value="primeiro" ${t.eventos === "todos" ? "" : "checked"}>Só o primeiro do dia</label>
-            <label><input type="radio" name="eventos" data-k="eventos" value="todos" ${t.eventos === "todos" ? "checked" : ""}>Todos os eventos</label>
-          </div>
-          <span class="muted">Para acordar, use só o primeiro. Para remédios, todos: toca em cada evento, mesmo nos dias que têm outro compromisso.</span></div>
+        ${r.erro ? `<div class="erro">${esc(r.erro)}</div>` : ""}
+        <div class="linha"><b>Nome</b><input class="rot" type="text" data-k="nome" value="${esc(t.nome)}" placeholder="ex.: Trabalho"></div>
+        <div class="linha"><b>Agendas</b><br><span class="muted">Todo evento destas agendas vira alarme</span><br>
+          ${cal.length ? cal.map((k) => `<label><input type="checkbox" data-k="agenda" value="${esc(k.entity_id)}" ${(t.agendas || []).includes(k.entity_id) ? "checked" : ""}> ${esc(k.nome)}</label>`).join("<br>") : `<span class="falta">Nenhuma agenda no HA ainda. Conecte uma agenda ao HA para criar tipos.</span>`}</div>
+        <div class="linha"><b>Palavras no título</b><br><span class="muted">Opcional: use para separar tipos na mesma agenda (separe por vírgula)</span><input class="rot" type="text" data-k="palavras" value="${esc((t.palavras || []).join(", "))}" placeholder="ex.: plantão, turno"></div>
         <div class="linha"><b>Alarmes</b> <span class="muted">quanto tempo antes do evento</span>
           ${t.alarmes.map((al, ai) => `<div class="al" data-al="${ai}">
             <input type="text" inputmode="numeric" size="2" data-k="h" value="${Math.floor(al.antes / 60)}"> h
@@ -364,7 +352,7 @@ class AlarmehaPanel extends HTMLElement {
           <button type="button" class="btn mini sec" data-al-add>+ Alarme</button></div>
         <div class="linha"><b>Toque</b><br>${this._seletorToque(a, t.som, a.config.som_padrao ? `Toque padrão (${a.config.som_padrao.titulo})` : "Toque padrão (Ajustes)")}</div>
         <div class="linha"><b>Nunca antes de</b> <span class="muted">(opcional)</span><br><input type="text" inputmode="numeric" size="6" data-k="minimo" placeholder="ex.: 05:00" value="${esc(t.minimo || "")}"></div>
-        ${t.id === "padrao" || r.novo ? "" : `<button type="button" class="btn mini sec perigo" data-tipo-rm>Apagar este tipo</button>`}
+        ${r.novo ? "" : `<button type="button" class="btn mini sec perigo" data-tipo-rm>Apagar este tipo</button>`}
         ${rodape}
       </form>`;
   }
@@ -375,15 +363,13 @@ class AlarmehaPanel extends HTMLElement {
     const hm = (v) => { const t = String(v || "").trim(); if (!t) return null; const [hh, mm = "0"] = t.split(/[:h]/); return `${pad(Math.min(Number(hh) || 0, 23))}:${pad(Math.min(Number(mm) || 0, 59))}`; };
     const v = (k) => { const el = root.querySelector(`[data-rasc-form] [data-k=${k}]`); return el ? el.value : null; };
     const somDe = () => { const el = root.querySelector("[data-rasc-form] [data-k=som]"); return el && el.value ? { uri: el.value, titulo: el.selectedOptions[0].textContent } : null; };
-    if (r.ajustes) { r.sem_compromisso = hm(v("sem_compromisso")); r.escala_inicio = v("escala_inicio") || null; r.som_padrao = somDe(); r.calendarios = [...root.querySelectorAll("[data-rasc-form] [data-k=cal]:checked:not(:disabled)")].map((x) => x.value); return r; }
+    if (r.ajustes) { r.sem_compromisso = hm(v("sem_compromisso")); r.escala_inicio = v("escala_inicio") || null; r.som_padrao = somDe(); return r; }
     const t = r.tipo;
     if (v("nome") !== null) t.nome = v("nome").trim();
     if (v("palavras") !== null) t.palavras = v("palavras").split(",").map((x) => x.trim()).filter(Boolean);
     t.agendas = [...root.querySelectorAll("[data-rasc-form] [data-k=agenda]:checked")].map((x) => x.value);
     t.alarmes = [...root.querySelectorAll("[data-al]")].map((x) => ({ antes: (Number(x.querySelector("[data-k=h]").value) || 0) * 60 + (Number(x.querySelector("[data-k=m]").value) || 0) }));
     t.minimo = hm(v("minimo"));
-    const ev = root.querySelector("[data-rasc-form] [data-k=eventos]:checked");
-    if (ev) t.eventos = ev.value;
     t.som = somDe();
     return r;
   }
@@ -442,11 +428,14 @@ class AlarmehaPanel extends HTMLElement {
     on("[data-aba-alarmes]", () => { this._agenda = null; this._render(); });
     if (this._agenda && this._agenda.config) {
       const A = this._agenda, c = A.config;
-      const salvarTudo = (mudanca) => this._abrirAgenda(A.celular, { ligado: c.ligado, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao, calendarios: c.calendarios || [], tipos: c.tipos, ...mudanca });
+      const salvarTudo = (mudanca) => {
+        const falta = (mudanca.tipos || c.tipos).find((t) => !(t.agendas || []).length);
+        if (falta) { A.erro = `O tipo "${falta.nome}" está sem agenda. Abra ele e marque pelo menos uma agenda (ou apague o tipo).`; A.salvo = false; this._render(); return; }
+        return this._abrirAgenda(A.celular, { ligado: c.ligado, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao, tipos: c.tipos, ...mudanca }); };
       on("[data-ligado]", (el) => salvarTudo({ ligado: el.checked }), "change");
       on("[data-tipo-abrir]", (el) => { const i = Number(el.dataset.tipoAbrir); A.rasc = { i, tipo: JSON.parse(JSON.stringify(c.tipos[i])) }; A.salvo = false; this._render(); });
-      on("[data-tipo-add]", () => { A.rasc = { novo: true, tipo: { nome: "", agendas: [], palavras: [], alarmes: [{ antes: 0 }], minimo: null, eventos: "primeiro" } }; A.salvo = false; this._render(); });
-      on("[data-ajustes]", () => { A.rasc = { ajustes: true, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao, calendarios: c.calendarios || [] }; A.salvo = false; this._render(); });
+      on("[data-tipo-add]", () => { A.rasc = { novo: true, tipo: { nome: "", agendas: [], palavras: [], alarmes: [{ antes: 0 }], minimo: null } }; A.salvo = false; this._render(); });
+      on("[data-ajustes]", () => { A.rasc = { ajustes: true, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao }; A.salvo = false; this._render(); });
       on("[data-toques]", async () => {
         this._lerAgenda(); A.buscandoToques = true; this._render();
         try {
@@ -464,10 +453,14 @@ class AlarmehaPanel extends HTMLElement {
       if (rf) rf.addEventListener("submit", (ev) => {
         ev.preventDefault();
         const r = this._lerAgenda();
-        if (r.ajustes) { A.rasc = null; return salvarTudo({ sem_compromisso: r.sem_compromisso, escala_inicio: r.escala_inicio, som_padrao: r.som_padrao, calendarios: r.calendarios }); }
-        if (!r.tipo.nome) { alert("Dê um nome ao tipo."); return; }
+        if (r.ajustes) { A.rasc = null; return salvarTudo({ sem_compromisso: r.sem_compromisso, escala_inicio: r.escala_inicio, som_padrao: r.som_padrao }); }
+        r.erro = !r.tipo.nome ? "Dê um nome ao tipo." : !r.tipo.agendas.length ? "Marque pelo menos uma agenda: é dela que vêm os eventos deste tipo." : null;
+        if (r.erro) { this._render(); return; }
+        delete r.tipo.eventos;
         const tipos = [...c.tipos];
         if (r.novo) tipos.push(r.tipo); else tipos[r.i] = r.tipo;
+        const outro = tipos.find((t) => !(t.agendas || []).length);
+        if (outro) { r.erro = `O tipo "${outro.nome}" está sem agenda e não toca. Antes de salvar, abra "${outro.nome}" e marque uma agenda (ou apague esse tipo).`; this._render(); return; }
         A.rasc = null;
         salvarTudo({ tipos });
       });

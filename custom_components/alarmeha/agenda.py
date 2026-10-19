@@ -1,7 +1,8 @@
 """Acordar pela agenda com tipos de evento.
 
-Cada tipo (ex.: "Plantão") é reconhecido pela agenda e/ou por uma palavra no título e tem a sua
-lista de alarmes relativos ao início do evento. No celular cada tipo tem alarmes fixos
+Cada tipo (ex.: "Plantão") é ligado a uma ou mais agendas: todo evento com horário dessas agendas
+vira os alarmes do tipo (relativos ao início do evento). Palavras no título, opcionais, separam
+tipos que dividem a mesma agenda. Agenda que nenhum tipo usa é ignorada. No celular cada tipo tem alarmes fixos
 ("Plantão 1/4" ... "4/4", ref ag_<tipo>_<n>) que o HA só reajusta e liga/desliga."""
 
 from __future__ import annotations
@@ -23,23 +24,23 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 DIAS_PREVIA = 14
-PADRAO_ID = "padrao"
+PADRAO_ID = "padrao"  # tipo antigo (até 0.5.8); os alarmes ag_padrao_* são desligados
+LIVRE_ID = "sem_compromisso"  # alarme fixo do dia sem compromisso
+RESERVADOS = (PADRAO_ID, LIVRE_ID)
 
 PADRAO: dict[str, Any] = {
     "ligado": False,
-    "calendarios": [],  # agendas deste celular (Ajustes), além das ligadas a tipos
     "janela_inicio": "00:00",
     "janela_fim": "23:59",
     "sem_compromisso": None,  # None = não toca; "HH:MM" = horário fixo
     "escala_inicio": None,  # "AAAA-MM-DD" do início de uma semana de trabalho (semanas alternadas)
     "tipos": [],
-    "som_padrao": None,  # {"uri", "titulo"} para tipos sem toque próprio; None = padrão do celular
+    "som_padrao": None,  # {"uri", "titulo"} para tipos sem toque próprio (e o dia sem compromisso); None = padrão do celular
 }
 
-TIPO_PADRAO = {"id": PADRAO_ID, "nome": "Padrão", "agendas": [], "palavras": [], "alarmes": [{"antes": 0}], "minimo": None,
-               "eventos": "primeiro"}
-EVENTOS = ("primeiro", "todos")  # primeiro = só o 1º compromisso do dia (acordar); todos = cada evento (remédios)
-MAX_TODOS = 12  # alarmes fixos por tipo "todos" no celular (hoje + amanhã)
+TIPO_BASE = {"agendas": [], "palavras": [], "alarmes": [{"antes": 0}], "minimo": None, "som": None}
+MAX_TODOS = 12  # alarmes fixos por tipo no celular (hoje + amanhã)
+_OBSOLETOS = ("calendarios", "padrao", "eventos")
 
 
 def sem_acento(texto: str) -> str:
@@ -50,19 +51,24 @@ def slug(texto: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", sem_acento(texto)).strip("_")[:20] or "tipo"
 
 
+def migrar(dados: dict[str, Any] | None) -> dict[str, Any]:
+    """Limpa a configuração salva até a 0.5.8: sem tipo Padrão, sem "agendas deste celular",
+    sem a opção "eventos". Mantém _enviados (é por ele que os alarmes antigos são desligados)."""
+    dados = {k: v for k, v in (dados or {}).items() if k not in _OBSOLETOS}
+    if "tipos" in dados:
+        dados["tipos"] = [{k: v for k, v in t.items() if k not in _OBSOLETOS}
+                          for t in dados.get("tipos") or [] if t.get("id") not in RESERVADOS]
+    return dados
+
+
 def config(dados: dict[str, Any] | None) -> dict[str, Any]:
-    cfg = {**PADRAO, **(dados or {})}
-    tipos = [t for t in cfg.get("tipos") or [] if t.get("id") != PADRAO_ID]
-    padrao = next((t for t in cfg.get("tipos") or [] if t.get("id") == PADRAO_ID), None)
-    cfg["tipos"] = [{**TIPO_PADRAO, **(padrao or {}), "id": PADRAO_ID}] + [{**TIPO_PADRAO, **t} for t in tipos]
+    cfg = {**PADRAO, **migrar(dados)}
+    cfg["tipos"] = [{**TIPO_BASE, **t} for t in cfg.get("tipos") or []]
     return cfg
 
 
 def agendas_usadas(cfg: dict[str, Any]) -> list[str]:
-    todas = list(cfg.get("calendarios") or [])
-    for t in cfg["tipos"]:
-        todas += t.get("agendas") or []
-    return sorted(set(a for a in todas if a))
+    return sorted({a for t in cfg["tipos"] for a in t.get("agendas") or [] if a})
 
 
 def _hm(texto: str) -> time:
@@ -77,16 +83,20 @@ def _fmt_min(minutos: int) -> str:
     return (f"{h}h{m:02d}" if h else f"{m} min") + " antes"
 
 
-def tipo_do_evento(ev: dict[str, Any], cfg: dict[str, Any]) -> dict[str, Any]:
+def tipo_do_evento(ev: dict[str, Any], cfg: dict[str, Any]) -> dict[str, Any] | None:
+    """O tipo vale se a agenda do evento está nele E (não tem palavras OU o título tem uma).
+    Com palavra que bate vence sem palavras; empate: o primeiro da lista. None = ignorado."""
     titulo = sem_acento(ev.get("titulo", ""))
-    outros = cfg["tipos"][1:]
-    for t in outros:  # palavra no título vence
-        if any(p and sem_acento(p) in titulo for p in t.get("palavras") or []):
+    sem_palavra = None
+    for t in cfg["tipos"]:
+        if ev.get("agenda") not in (t.get("agendas") or []):
+            continue
+        palavras = [p for p in t.get("palavras") or [] if p]
+        if not palavras:
+            sem_palavra = sem_palavra or t
+        elif any(sem_acento(p) in titulo for p in palavras):
             return t
-    for t in outros:
-        if ev.get("agenda") in (t.get("agendas") or []):
-            return t
-    return cfg["tipos"][0]
+    return sem_palavra
 
 
 def semana_de_trabalho(dia: date, inicio: str | None) -> bool:
@@ -118,9 +128,7 @@ def _motivo(t: dict[str, Any], ev: dict[str, Any], alarmes: list[dict[str, Any]]
 def calcular(eventos: list[dict[str, Any]], cfg: dict[str, Any], hoje: date, dias: int = DIAS_PREVIA, desde: int = 1) -> list[dict[str, Any]]:
     """Função pura. eventos: [{"inicio": datetime local, "titulo", "agenda", "agenda_nome", "dia_inteiro"}].
     Devolve por dia: tipo, alarmes [{"n", "tipo", "horario": datetime, "agenda"}], motivo.
-
-    Tipos "primeiro": só o 1º compromisso do dia entre eles decide. Tipos "todos": cada evento
-    do tipo gera os seus alarmes, sem esconder nem ser escondido pelos outros tipos."""
+    Todo evento com horário de uma agenda ligada a um tipo vira os alarmes desse tipo."""
     ini, fim = _hm(cfg["janela_inicio"]), _hm(cfg["janela_fim"])
     saida = []
     for n in range(desde, dias + 1):
@@ -134,31 +142,21 @@ def calcular(eventos: list[dict[str, Any]], cfg: dict[str, Any], hoje: date, dia
             (e for e in eventos if not e.get("dia_inteiro") and e["inicio"].date() == dia and ini <= e["inicio"].time() <= fim),
             key=lambda e: e["inicio"],
         )
-        classificados = [(e, tipo_do_evento(e, cfg)) for e in do_dia]
-        primeiro = next(((e, t) for e, t in classificados if t.get("eventos") != "todos"), None)
-        motivos: list[tuple[datetime, str]] = []
-        if primeiro:
-            ev, t = primeiro
+        motivos = []
+        for ev in do_dia:
+            t = tipo_do_evento(ev, cfg)
+            if t is None:
+                continue
             als = _alarmes_do_evento(ev, t, dia)
             item["alarmes"] += als
-            item["tipo"] = t["id"]
-            motivos.append((ev["inicio"], _motivo(t, ev, als)))
-        for ev, t in classificados:
-            if t.get("eventos") == "todos":
-                als = _alarmes_do_evento(ev, t, dia)
-                item["alarmes"] += als
-                item["tipo"] = item["tipo"] or t["id"]
-                motivos.append((ev["inicio"], _motivo(t, ev, als)))
-        if not primeiro and cfg.get("sem_compromisso"):
+            item["tipo"] = item["tipo"] or t["id"]
+            motivos.append(_motivo(t, ev, als))
+        if not motivos and cfg.get("sem_compromisso"):
             h = datetime.combine(dia, _hm(cfg["sem_compromisso"]), tzinfo=dt_util.DEFAULT_TIME_ZONE)
-            item["alarmes"].append({"n": 1, "tipo": PADRAO_ID, "horario": h, "agenda": ""})
-            item["tipo"] = item["tipo"] or PADRAO_ID
-            motivos.insert(0, (h, "Sem compromisso: horário fixo (Padrão 1)"))
+            item.update(tipo=LIVRE_ID, alarmes=[{"n": 1, "tipo": LIVRE_ID, "horario": h, "agenda": ""}])
+            motivos.append(f"Sem compromisso: horário fixo {h:%H:%M}")
         item["alarmes"].sort(key=lambda a: a["horario"])
-        if motivos:
-            item["motivo"] = " · ".join(m for _, m in sorted(motivos, key=lambda x: x[0]))
-        else:
-            item["motivo"] = "Sem compromisso: não toca"
+        item["motivo"] = " · ".join(motivos) or "Sem compromisso: não toca"
         saida.append(item)
     return saida
 
@@ -170,8 +168,7 @@ def _parse(valor: str) -> tuple[datetime, bool]:
 
 
 def agendas_para_ler(hass: HomeAssistant | None, cfg: dict[str, Any]) -> list[str]:
-    """Só as agendas marcadas para este celular em Ajustes, mais as que algum tipo usa.
-    Uma agenda nova no HA (ex.: a de outra pessoa) nunca entra sozinha."""
+    """Só as agendas ligadas a algum tipo. Uma agenda nova no HA (ex.: a de outra pessoa) nunca entra sozinha."""
     usadas = agendas_usadas(cfg)
     if hass is None:
         return usadas
@@ -200,7 +197,7 @@ async def async_eventos(hass: HomeAssistant, cfg: dict[str, Any]) -> list[dict[s
 
 
 def previa_json(dias: list[dict[str, Any]], cfg: dict[str, Any]) -> list[dict[str, Any]]:
-    nomes = {t["id"]: t["nome"] for t in cfg["tipos"]}
+    nomes = {t["id"]: t["nome"] for t in cfg["tipos"]} | {LIVRE_ID: "Sem compromisso"}
     return [
         {"dia": d["dia"].isoformat(), "tipo": nomes.get(d["tipo"]), "horarios": [f'{a["horario"]:%H:%M}' for a in d["alarmes"]], "motivo": d["motivo"],
          "agendas": sorted({a["agenda"] for a in d["alarmes"] if a.get("agenda")})}
@@ -218,26 +215,22 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
     plano: dict[str, dict[str, Any]] = {}
     hoje = agora.date()
     amanha = hoje + timedelta(days=1)
-    for t in cfg["tipos"]:
+    livre = {"id": LIVRE_ID, "nome": "Sem compromisso", "som": None}
+    for t in cfg["tipos"] + [livre]:
         futuros = sorted(
-            (a for d in dias if d["dia"] <= amanha for a in d["alarmes"]
-             if a.get("tipo", d["tipo"]) == t["id"] and a["horario"] > agora),
+            (a for d in dias if d["dia"] <= amanha for a in d["alarmes"] if a.get("tipo") == t["id"] and a["horario"] > agora),
             key=lambda a: a["horario"],
         )
-        if t.get("eventos") == "todos":
-            # Os próximos disparos de hoje/amanhã ocupam os alarmes fixos 1..N, em ordem.
-            if len(futuros) > MAX_TODOS:
-                _LOGGER.warning("AlarmeHA agenda: tipo %s tem %d alarmes até amanhã; só os %d primeiros vão para o celular",
-                                t["nome"], len(futuros), MAX_TODOS)
-            usados = futuros[:MAX_TODOS]
-            total = max(len(usados), 1)
-            slots = [(i + 1, usados[i]["horario"] if i < len(usados) else None) for i in range(MAX_TODOS)]
-        else:
-            total = len(t["alarmes"])
-            slots = [(i + 1, next((a["horario"] for a in futuros if a["n"] == i + 1), None)) for i in range(total)]
-        for n, prox in slots:
-            ref = f'ag_{slug(t["id"])}_{n}'[:64]
-            rotulo = "📅 " + (f'{t["nome"]} {n}/{total}' if total > 1 else t["nome"])
+        # Os próximos disparos de hoje/amanhã ocupam os alarmes fixos 1..N, em ordem.
+        if len(futuros) > MAX_TODOS:
+            _LOGGER.warning("AlarmeHA agenda: tipo %s tem %d alarmes até amanhã; só os %d primeiros vão para o celular",
+                            t["nome"], len(futuros), MAX_TODOS)
+        usados = futuros[:MAX_TODOS]
+        total = max(len(usados), 1)
+        for i in range(MAX_TODOS if t is not livre else 1):
+            prox = usados[i]["horario"] if i < len(usados) else None
+            ref = f'ag_{slug(t["id"])}_{i + 1}'[:64]
+            rotulo = "📅 " + (f'{t["nome"]} {i + 1}/{total}' if total > 1 else t["nome"])
             if prox and cfg.get("ligado"):
                 plano[ref] = {"hora": prox.hour, "minuto": prox.minute, "dias": -1 if prox.date() == hoje else -2,
                               "rotulo": rotulo, "ativo": True}
@@ -310,5 +303,5 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
         except Exception as err:  # noqa: BLE001 - tenta de novo no próximo ciclo
             _LOGGER.warning("AlarmeHA agenda: não consegui ajustar %s: %s", ref, err)
     if mudou:
-        phone.agenda = {**phone.agenda, "_enviados": enviados}
+        phone.agenda = {**migrar(phone.agenda), "_enviados": enviados}
         phone.hub.async_save()
