@@ -27,7 +27,7 @@ PADRAO_ID = "padrao"
 
 PADRAO: dict[str, Any] = {
     "ligado": False,
-    "calendarios": [],  # agendas lidas além das ligadas a tipos
+    "calendarios": [],  # agendas deste celular (Ajustes), além das ligadas a tipos
     "janela_inicio": "00:00",
     "janela_fim": "23:59",
     "sem_compromisso": None,  # None = não toca; "HH:MM" = horário fixo
@@ -141,9 +141,13 @@ def _parse(valor: str) -> tuple[datetime, bool]:
     return dt_util.as_local(dt_util.parse_datetime(valor)), False
 
 
-def agendas_para_ler(hass: HomeAssistant, cfg: dict[str, Any]) -> list[str]:
-    """Todas as agendas do HA: o tipo Padrão e os tipos por palavra valem para qualquer agenda."""
-    return sorted(hass.states.async_entity_ids("calendar"))
+def agendas_para_ler(hass: HomeAssistant | None, cfg: dict[str, Any]) -> list[str]:
+    """Só as agendas marcadas para este celular em Ajustes, mais as que algum tipo usa.
+    Uma agenda nova no HA (ex.: a de outra pessoa) nunca entra sozinha."""
+    usadas = agendas_usadas(cfg)
+    if hass is None:
+        return usadas
+    return [e for e in usadas if hass.states.get(e)]
 
 
 async def async_eventos(hass: HomeAssistant, cfg: dict[str, Any]) -> list[dict[str, Any]]:

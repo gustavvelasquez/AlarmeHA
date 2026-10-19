@@ -1,7 +1,7 @@
 """Constantes da integração AlarmeHA."""
 
 DOMAIN = "alarmeha"
-VERSION = "0.5.6"
+VERSION = "0.5.7"
 
 CONF_HA_URL = "ha_url"
 # Chaves da versão 1 (uma entrada por celular), usadas só na migração.

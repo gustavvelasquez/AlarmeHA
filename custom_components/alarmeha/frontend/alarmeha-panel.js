@@ -327,6 +327,11 @@ class AlarmehaPanel extends HTMLElement {
       <form data-rasc-form>
         <h2 class="sub">Ajustes</h2>
         <div class="linha"><b>Dia sem compromisso</b><br><input type="text" inputmode="numeric" size="6" data-k="sem_compromisso" placeholder="não toca" value="${esc(r.sem_compromisso || "")}"> <span class="muted">vazio = não toca; ou um horário, ex.: 08:00</span></div>
+        <div class="linha"><b>Agendas deste celular</b><br><span class="muted">Só as marcadas viram alarme neste celular (além das que algum tipo usa). Agenda nova não entra sozinha.</span><br>
+          ${a.calendarios.length ? a.calendarios.map((k) => {
+            const doTipo = a.config.tipos.some((t) => (t.agendas || []).includes(k.entity_id));
+            return `<label><input type="checkbox" data-k="cal" value="${esc(k.entity_id)}" ${doTipo || (r.calendarios || []).includes(k.entity_id) ? "checked" : ""} ${doTipo ? "disabled" : ""}> ${esc(k.nome)}${doTipo ? ` <span class="muted">(usada por um tipo)</span>` : ""}</label>`;
+          }).join("<br>") : `<span class="muted">nenhuma agenda no HA</span>`}</div>
         <div class="linha"><b>Toque padrão</b><br><span class="muted">Vale para os tipos que não têm toque próprio.</span><br>${this._seletorToque(a, r.som_padrao, "Padrão do celular")}</div>
         <div class="linha"><b>Semanas alternadas</b><br><span class="muted">Se você trabalha semana sim, semana não, informe o primeiro dia de uma semana de trabalho. Vazio = toda semana.</span><br><input type="date" data-k="escala_inicio" value="${esc(r.escala_inicio || "")}"></div>
         ${rodape}
@@ -358,7 +363,7 @@ class AlarmehaPanel extends HTMLElement {
     const hm = (v) => { const t = String(v || "").trim(); if (!t) return null; const [hh, mm = "0"] = t.split(/[:h]/); return `${pad(Math.min(Number(hh) || 0, 23))}:${pad(Math.min(Number(mm) || 0, 59))}`; };
     const v = (k) => { const el = root.querySelector(`[data-rasc-form] [data-k=${k}]`); return el ? el.value : null; };
     const somDe = () => { const el = root.querySelector("[data-rasc-form] [data-k=som]"); return el && el.value ? { uri: el.value, titulo: el.selectedOptions[0].textContent } : null; };
-    if (r.ajustes) { r.sem_compromisso = hm(v("sem_compromisso")); r.escala_inicio = v("escala_inicio") || null; r.som_padrao = somDe(); return r; }
+    if (r.ajustes) { r.sem_compromisso = hm(v("sem_compromisso")); r.escala_inicio = v("escala_inicio") || null; r.som_padrao = somDe(); r.calendarios = [...root.querySelectorAll("[data-rasc-form] [data-k=cal]:checked:not(:disabled)")].map((x) => x.value); return r; }
     const t = r.tipo;
     if (v("nome") !== null) t.nome = v("nome").trim();
     if (v("palavras") !== null) t.palavras = v("palavras").split(",").map((x) => x.trim()).filter(Boolean);
@@ -423,11 +428,11 @@ class AlarmehaPanel extends HTMLElement {
     on("[data-aba-alarmes]", () => { this._agenda = null; this._render(); });
     if (this._agenda && this._agenda.config) {
       const A = this._agenda, c = A.config;
-      const salvarTudo = (mudanca) => this._abrirAgenda(A.celular, { ligado: c.ligado, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao, tipos: c.tipos, ...mudanca });
+      const salvarTudo = (mudanca) => this._abrirAgenda(A.celular, { ligado: c.ligado, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao, calendarios: c.calendarios || [], tipos: c.tipos, ...mudanca });
       on("[data-ligado]", (el) => salvarTudo({ ligado: el.checked }), "change");
       on("[data-tipo-abrir]", (el) => { const i = Number(el.dataset.tipoAbrir); A.rasc = { i, tipo: JSON.parse(JSON.stringify(c.tipos[i])) }; A.salvo = false; this._render(); });
       on("[data-tipo-add]", () => { A.rasc = { novo: true, tipo: { nome: "", agendas: [], palavras: [], alarmes: [{ antes: 0 }], minimo: null } }; A.salvo = false; this._render(); });
-      on("[data-ajustes]", () => { A.rasc = { ajustes: true, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao }; A.salvo = false; this._render(); });
+      on("[data-ajustes]", () => { A.rasc = { ajustes: true, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao, calendarios: c.calendarios || [] }; A.salvo = false; this._render(); });
       on("[data-toques]", async () => {
         this._lerAgenda(); A.buscandoToques = true; this._render();
         try {
@@ -445,7 +450,7 @@ class AlarmehaPanel extends HTMLElement {
       if (rf) rf.addEventListener("submit", (ev) => {
         ev.preventDefault();
         const r = this._lerAgenda();
-        if (r.ajustes) { A.rasc = null; return salvarTudo({ sem_compromisso: r.sem_compromisso, escala_inicio: r.escala_inicio, som_padrao: r.som_padrao }); }
+        if (r.ajustes) { A.rasc = null; return salvarTudo({ sem_compromisso: r.sem_compromisso, escala_inicio: r.escala_inicio, som_padrao: r.som_padrao, calendarios: r.calendarios }); }
         if (!r.tipo.nome) { alert("Dê um nome ao tipo."); return; }
         const tipos = [...c.tipos];
         if (r.novo) tipos.push(r.tipo); else tipos[r.i] = r.tipo;
