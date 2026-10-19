@@ -305,9 +305,19 @@ class AlarmehaPanel extends HTMLElement {
       <h2 class="sub">Tipos de evento</h2>
       ${c.tipos.map((t, i) => `<button class="item" data-tipo-abrir="${i}"><b>${esc(t.nome)}</b><span class="muted">${this._resumoTipo(t)}</span><span class="vai">›</span></button>`).join("")}
       <button class="btn sec" data-tipo-add>+ Novo tipo</button>
-      <button class="item" data-ajustes><b>Ajustes</b><span class="muted">Dia sem compromisso: ${c.sem_compromisso ? esc(c.sem_compromisso) : "não toca"} · ${c.escala_inicio ? "semanas alternadas" : "toda semana"}</span><span class="vai">›</span></button>
+      <button class="item" data-ajustes><b>Ajustes</b><span class="muted">Dia sem compromisso: ${c.sem_compromisso ? esc(c.sem_compromisso) : "não toca"} · ${c.escala_inicio ? "semanas alternadas" : "toda semana"} · Toque: ${esc(c.som_padrao ? c.som_padrao.titulo : "padrão do celular")}</span><span class="vai">›</span></button>
       <h2 class="sub">Próximos ${a.previa.length} dias</h2>
       ${a.previa.map((d) => `<div class="alarme ${d.horarios.length ? "" : "off"}"><div><b>${dia(d.dia)}</b> <span class="hora mini">${d.horarios.join(" · ") || "—"}</span><div class="muted">${esc(d.motivo)}</div></div></div>`).join("")}`;
+  }
+
+  _seletorToque(a, som, rotuloVazio) {
+    const cel = (this._status.celulares || []).find((x) => x.id === a.celular) || {};
+    const toques = [...(cel.toques || [])];
+    som = som || {};
+    if (som.uri && !toques.some((x) => x.uri === som.uri)) toques.unshift({ uri: som.uri, titulo: som.titulo || som.uri });
+    return `<select data-k="som"><option value="">${esc(rotuloVazio)}</option>${toques.map((x) => `<option value="${esc(x.uri)}" ${x.uri === som.uri ? "selected" : ""}>${esc(x.titulo)}</option>`).join("")}</select>
+      <button type="button" class="btn mini sec" data-toques ${a.buscandoToques ? "disabled" : ""}>${a.buscandoToques ? "Buscando…" : toques.length ? "Atualizar lista" : "Buscar toques do celular"}</button>
+      <div class="muted">Para usar uma música sua: escolha ela uma vez em qualquer alarme no app AlarmeHA e toque em Atualizar lista.</div>`;
   }
 
   _editorAgenda(a) {
@@ -317,6 +327,7 @@ class AlarmehaPanel extends HTMLElement {
       <form data-rasc-form>
         <h2 class="sub">Ajustes</h2>
         <div class="linha"><b>Dia sem compromisso</b><br><input type="text" inputmode="numeric" size="6" data-k="sem_compromisso" placeholder="não toca" value="${esc(r.sem_compromisso || "")}"> <span class="muted">vazio = não toca; ou um horário, ex.: 08:00</span></div>
+        <div class="linha"><b>Toque padrão</b><br><span class="muted">Vale para os tipos que não têm toque próprio.</span><br>${this._seletorToque(a, r.som_padrao, "Padrão do celular")}</div>
         <div class="linha"><b>Semanas alternadas</b><br><span class="muted">Se você trabalha semana sim, semana não, informe o primeiro dia de uma semana de trabalho. Vazio = toda semana.</span><br><input type="date" data-k="escala_inicio" value="${esc(r.escala_inicio || "")}"></div>
         ${rodape}
       </form>`;
@@ -334,15 +345,7 @@ class AlarmehaPanel extends HTMLElement {
             <input type="text" inputmode="numeric" size="2" data-k="m" value="${pad(al.antes % 60)}"> min
             ${t.alarmes.length > 1 ? `<button type="button" class="x" data-al-rm="${ai}" title="Remover">✕</button>` : ""}</div>`).join("")}
           <button type="button" class="btn mini sec" data-al-add>+ Alarme</button></div>
-        <div class="linha"><b>Toque</b><br>${(() => {
-          const cel = (this._status.celulares || []).find((x) => x.id === a.celular) || {};
-          const toques = [...(cel.toques || [])];
-          const som = t.som || {};
-          if (som.uri && !toques.some((x) => x.uri === som.uri)) toques.unshift({ uri: som.uri, titulo: som.titulo || som.uri });
-          return `<select data-k="som"><option value="">Padrão do celular</option>${toques.map((x) => `<option value="${esc(x.uri)}" ${x.uri === som.uri ? "selected" : ""}>${esc(x.titulo)}</option>`).join("")}</select>
-            <button type="button" class="btn mini sec" data-toques ${a.buscandoToques ? "disabled" : ""}>${a.buscandoToques ? "Buscando…" : toques.length ? "Atualizar lista" : "Buscar toques do celular"}</button>
-            <div class="muted">Para usar uma música sua: escolha ela uma vez em qualquer alarme no app AlarmeHA e toque em Atualizar lista.</div>`;
-        })()}</div>
+        <div class="linha"><b>Toque</b><br>${this._seletorToque(a, t.som, a.config.som_padrao ? `Toque padrão (${a.config.som_padrao.titulo})` : "Toque padrão (Ajustes)")}</div>
         <div class="linha"><b>Nunca antes de</b> <span class="muted">(opcional)</span><br><input type="text" inputmode="numeric" size="6" data-k="minimo" placeholder="ex.: 05:00" value="${esc(t.minimo || "")}"></div>
         ${t.id === "padrao" || r.novo ? "" : `<button type="button" class="btn mini sec perigo" data-tipo-rm>Apagar este tipo</button>`}
         ${rodape}
@@ -354,15 +357,15 @@ class AlarmehaPanel extends HTMLElement {
     const root = this.shadowRoot, r = this._agenda.rasc;
     const hm = (v) => { const t = String(v || "").trim(); if (!t) return null; const [hh, mm = "0"] = t.split(/[:h]/); return `${pad(Math.min(Number(hh) || 0, 23))}:${pad(Math.min(Number(mm) || 0, 59))}`; };
     const v = (k) => { const el = root.querySelector(`[data-rasc-form] [data-k=${k}]`); return el ? el.value : null; };
-    if (r.ajustes) { r.sem_compromisso = hm(v("sem_compromisso")); r.escala_inicio = v("escala_inicio") || null; return r; }
+    const somDe = () => { const el = root.querySelector("[data-rasc-form] [data-k=som]"); return el && el.value ? { uri: el.value, titulo: el.selectedOptions[0].textContent } : null; };
+    if (r.ajustes) { r.sem_compromisso = hm(v("sem_compromisso")); r.escala_inicio = v("escala_inicio") || null; r.som_padrao = somDe(); return r; }
     const t = r.tipo;
     if (v("nome") !== null) t.nome = v("nome").trim();
     if (v("palavras") !== null) t.palavras = v("palavras").split(",").map((x) => x.trim()).filter(Boolean);
     t.agendas = [...root.querySelectorAll("[data-rasc-form] [data-k=agenda]:checked")].map((x) => x.value);
     t.alarmes = [...root.querySelectorAll("[data-al]")].map((x) => ({ antes: (Number(x.querySelector("[data-k=h]").value) || 0) * 60 + (Number(x.querySelector("[data-k=m]").value) || 0) }));
     t.minimo = hm(v("minimo"));
-    const somEl = root.querySelector("[data-rasc-form] [data-k=som]");
-    if (somEl) t.som = somEl.value ? { uri: somEl.value, titulo: somEl.selectedOptions[0].textContent } : null;
+    t.som = somDe();
     return r;
   }
 
@@ -420,11 +423,11 @@ class AlarmehaPanel extends HTMLElement {
     on("[data-aba-alarmes]", () => { this._agenda = null; this._render(); });
     if (this._agenda && this._agenda.config) {
       const A = this._agenda, c = A.config;
-      const salvarTudo = (mudanca) => this._abrirAgenda(A.celular, { ligado: c.ligado, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, tipos: c.tipos, ...mudanca });
+      const salvarTudo = (mudanca) => this._abrirAgenda(A.celular, { ligado: c.ligado, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao, tipos: c.tipos, ...mudanca });
       on("[data-ligado]", (el) => salvarTudo({ ligado: el.checked }), "change");
       on("[data-tipo-abrir]", (el) => { const i = Number(el.dataset.tipoAbrir); A.rasc = { i, tipo: JSON.parse(JSON.stringify(c.tipos[i])) }; A.salvo = false; this._render(); });
       on("[data-tipo-add]", () => { A.rasc = { novo: true, tipo: { nome: "", agendas: [], palavras: [], alarmes: [{ antes: 0 }], minimo: null } }; A.salvo = false; this._render(); });
-      on("[data-ajustes]", () => { A.rasc = { ajustes: true, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio }; A.salvo = false; this._render(); });
+      on("[data-ajustes]", () => { A.rasc = { ajustes: true, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao }; A.salvo = false; this._render(); });
       on("[data-toques]", async () => {
         this._lerAgenda(); A.buscandoToques = true; this._render();
         try {
@@ -442,7 +445,7 @@ class AlarmehaPanel extends HTMLElement {
       if (rf) rf.addEventListener("submit", (ev) => {
         ev.preventDefault();
         const r = this._lerAgenda();
-        if (r.ajustes) { A.rasc = null; return salvarTudo({ sem_compromisso: r.sem_compromisso, escala_inicio: r.escala_inicio }); }
+        if (r.ajustes) { A.rasc = null; return salvarTudo({ sem_compromisso: r.sem_compromisso, escala_inicio: r.escala_inicio, som_padrao: r.som_padrao }); }
         if (!r.tipo.nome) { alert("Dê um nome ao tipo."); return; }
         const tipos = [...c.tipos];
         if (r.novo) tipos.push(r.tipo); else tipos[r.i] = r.tipo;

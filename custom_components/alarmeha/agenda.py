@@ -33,6 +33,7 @@ PADRAO: dict[str, Any] = {
     "sem_compromisso": None,  # None = não toca; "HH:MM" = horário fixo
     "escala_inicio": None,  # "AAAA-MM-DD" do início de uma semana de trabalho (semanas alternadas)
     "tipos": [],
+    "som_padrao": None,  # {"uri", "titulo"} para tipos sem toque próprio; None = padrão do celular
 }
 
 TIPO_PADRAO = {"id": PADRAO_ID, "nome": "Padrão", "agendas": [], "palavras": [], "alarmes": [{"antes": 0}], "minimo": None}
@@ -199,7 +200,7 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
             if prox and cfg.get("ligado"):
                 plano[ref] = {"hora": prox.hour, "minuto": prox.minute, "dias": -1 if prox.date() == hoje else -2,
                               "rotulo": rotulo, "ativo": True}
-                som = t.get("som") or {}
+                som = t.get("som") or cfg.get("som_padrao") or {}
                 if som.get("uri"):
                     plano[ref] |= {"som_uri": str(som["uri"])[:512], "som_titulo": str(som.get("titulo") or "")[:64]}
             else:
