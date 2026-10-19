@@ -180,6 +180,11 @@ class AlarmehaPanel extends HTMLElement {
         .chave { display: flex; align-items: center; gap: 10px; font-size: 16px; white-space: normal; margin: 8px 0; }
         .chave input { width: 22px; height: 22px; }
         .chave span { display: none; }
+        .seg { display: flex; gap: 0; margin: 6px 0 4px; border: 1px solid var(--divider-color, #ccc); border-radius: 10px; overflow: hidden; }
+        .seg label { flex: 1; text-align: center; padding: 10px 6px; cursor: pointer; font-size: 15px; }
+        .seg label + label { border-left: 1px solid var(--divider-color, #ccc); }
+        .seg input { position: absolute; opacity: 0; pointer-events: none; }
+        .seg label:has(input:checked) { background: var(--primary-color, #03a9f4); color: var(--text-primary-color, #fff); font-weight: 600; }
         .rodape { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 8px; background: var(--card-background-color, #fff); padding: 10px 0; margin-top: 12px; border-top: 1px solid var(--divider-color); }
         .x { background: transparent; border: 0; color: var(--secondary-text-color); font-size: 18px; cursor: pointer; padding: 4px 10px; }
         .perigo { color: var(--error-color, #db4437); border-color: var(--error-color, #db4437); }
@@ -289,7 +294,8 @@ class AlarmehaPanel extends HTMLElement {
     const as = t.alarmes.map((x) => x.antes).sort((x, y) => y - x);
     const quando = as.length === 1 ? fmt(as[0]) : `de ${fmt(as[0])} até ${as[as.length - 1] === 0 ? "a hora" : fmt(as[as.length - 1])}`;
     const como = t.id === "padrao" ? "qualquer outro evento" : [...(t.palavras || []).map((w) => `"${w}"`), ...(t.agendas || []).map((k) => (this._agenda.calendarios.find((x) => x.entity_id === k) || { nome: k }).nome)].join(", ") || "sem regra: não reconhece nada";
-    return `${as.length} alarme${as.length > 1 ? "s" : ""}, ${quando} · ${esc(como)}`;
+    const todos = t.eventos === "todos" ? " em todos os eventos" : "";
+    return `${as.length} alarme${as.length > 1 ? "s" : ""}, ${quando}${todos} · ${esc(como)}`;
   }
 
   _cartaoAgenda(a) {
@@ -344,6 +350,12 @@ class AlarmehaPanel extends HTMLElement {
         <div class="linha"><b>Nome</b><input class="rot" type="text" data-k="nome" value="${esc(t.nome)}" placeholder="ex.: Plantão"></div>
         <div class="linha"><b>Como reconhecer</b><br><span class="muted">Palavras no título do evento (separe por vírgula)</span><input class="rot" type="text" data-k="palavras" value="${esc((t.palavras || []).join(", "))}" placeholder="ex.: plantão, turno">
           ${cal.length ? `<span class="muted">ou todos os eventos destas agendas</span><br>${cal.map((k) => `<label><input type="checkbox" data-k="agenda" value="${esc(k.entity_id)}" ${(t.agendas || []).includes(k.entity_id) ? "checked" : ""}> ${esc(k.nome)}</label>`).join("<br>")}` : ""}</div>`}
+        <div class="linha"><b>Quais eventos</b>
+          <div class="seg" role="radiogroup">
+            <label><input type="radio" name="eventos" data-k="eventos" value="primeiro" ${t.eventos === "todos" ? "" : "checked"}>Só o primeiro do dia</label>
+            <label><input type="radio" name="eventos" data-k="eventos" value="todos" ${t.eventos === "todos" ? "checked" : ""}>Todos os eventos</label>
+          </div>
+          <span class="muted">Para acordar, use só o primeiro. Para remédios, todos: toca em cada evento, mesmo nos dias que têm outro compromisso.</span></div>
         <div class="linha"><b>Alarmes</b> <span class="muted">quanto tempo antes do evento</span>
           ${t.alarmes.map((al, ai) => `<div class="al" data-al="${ai}">
             <input type="text" inputmode="numeric" size="2" data-k="h" value="${Math.floor(al.antes / 60)}"> h
@@ -370,6 +382,8 @@ class AlarmehaPanel extends HTMLElement {
     t.agendas = [...root.querySelectorAll("[data-rasc-form] [data-k=agenda]:checked")].map((x) => x.value);
     t.alarmes = [...root.querySelectorAll("[data-al]")].map((x) => ({ antes: (Number(x.querySelector("[data-k=h]").value) || 0) * 60 + (Number(x.querySelector("[data-k=m]").value) || 0) }));
     t.minimo = hm(v("minimo"));
+    const ev = root.querySelector("[data-rasc-form] [data-k=eventos]:checked");
+    if (ev) t.eventos = ev.value;
     t.som = somDe();
     return r;
   }
@@ -431,7 +445,7 @@ class AlarmehaPanel extends HTMLElement {
       const salvarTudo = (mudanca) => this._abrirAgenda(A.celular, { ligado: c.ligado, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao, calendarios: c.calendarios || [], tipos: c.tipos, ...mudanca });
       on("[data-ligado]", (el) => salvarTudo({ ligado: el.checked }), "change");
       on("[data-tipo-abrir]", (el) => { const i = Number(el.dataset.tipoAbrir); A.rasc = { i, tipo: JSON.parse(JSON.stringify(c.tipos[i])) }; A.salvo = false; this._render(); });
-      on("[data-tipo-add]", () => { A.rasc = { novo: true, tipo: { nome: "", agendas: [], palavras: [], alarmes: [{ antes: 0 }], minimo: null } }; A.salvo = false; this._render(); });
+      on("[data-tipo-add]", () => { A.rasc = { novo: true, tipo: { nome: "", agendas: [], palavras: [], alarmes: [{ antes: 0 }], minimo: null, eventos: "primeiro" } }; A.salvo = false; this._render(); });
       on("[data-ajustes]", () => { A.rasc = { ajustes: true, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao, calendarios: c.calendarios || [] }; A.salvo = false; this._render(); });
       on("[data-toques]", async () => {
         this._lerAgenda(); A.buscandoToques = true; this._render();

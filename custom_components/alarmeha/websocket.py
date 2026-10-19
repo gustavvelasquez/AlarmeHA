@@ -161,6 +161,8 @@ async def ws_agenda(hass: HomeAssistant, connection: websocket_api.ActiveConnect
                 base = agenda.slug(t.get("nome", "tipo"))
                 t["id"] = base if base not in ids and base != agenda.PADRAO_ID else f"{base}_{len(ids)}"
             ids.add(t["id"])
+            if t.get("eventos") not in agenda.EVENTOS:
+                t["eventos"] = "primeiro"
         phone.agenda = {**phone.agenda, **novo}
         hub.async_save()
         hass.async_create_task(agenda.async_sincronizar(hass, phone))
