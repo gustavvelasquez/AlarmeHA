@@ -240,6 +240,15 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
     for ref in list(enviados):  # tipos/alarmes removidos: desliga o alarme antigo
         if ref not in plano and enviados[ref].get("ativo"):
             plano[ref] = {"ativo": False}
+    # Quem manda é a agenda: se o alarme foi mexido no celular, reenvia o planejado.
+    no_celular = {a.get("ref"): a for a in (phone.alarms or []) if isinstance(a, dict) and a.get("ref")}
+    if no_celular:
+        for ref, ant in list(enviados.items()):
+            if not ant.get("ativo"):
+                continue
+            atual = no_celular.get(ref)
+            if atual is None or (atual.get("hora"), atual.get("minuto"), bool(atual.get("ativo"))) != (ant.get("hora"), ant.get("minuto"), True):
+                enviados.pop(ref)
     mudou = False
     for ref, alvo in plano.items():
         if enviados.get(ref) == alvo:

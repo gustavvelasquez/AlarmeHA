@@ -185,6 +185,7 @@ class AlarmehaPanel extends HTMLElement {
         .perigo { color: var(--error-color, #db4437); border-color: var(--error-color, #db4437); }
         .topo { display: flex; align-items: center; gap: 4px; } .topo h1 { margin: 8px 0; }
         .menu { background: transparent; border: 0; color: inherit; font-size: 26px; padding: 4px 12px 4px 0; cursor: pointer; }
+        .selo { display: inline-block; background: var(--primary-color); color: var(--text-primary-color, #fff); border-radius: 10px; padding: 0 8px; font-size: 12px; }
         .tipo { border: 1px solid var(--divider-color); border-radius: 10px; padding: 10px; margin: 8px 0; }
         .al { margin: 6px 0; }
         select, input[type=date] { font-size: 16px; padding: 6px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: inherit; }
@@ -257,8 +258,8 @@ class AlarmehaPanel extends HTMLElement {
         ${alarmes.map((al) => `
           <div class="alarme ${al.ativo ? "" : "off"}">
             <div><div class="hora">${pad(al.hora)}:${pad(al.minuto)}</div>
-              <div class="muted">${esc(al.rotulo || "")} ${al.rotulo ? "· " : ""}${diasTexto(al.dias)}${al.ref ? "" : " · criado no celular"}</div></div>
-            <div>${al.ref ? `
+              <div class="muted">${esc(al.rotulo || "")} ${al.rotulo ? "· " : ""}${diasTexto(al.dias)}${al.ref ? "" : " · criado no celular"}${(al.ref || "").startsWith("ag_") ? ` <span class="selo">pela agenda</span>` : ""}</div></div>
+            <div>${(al.ref || "").startsWith("ag_") ? `<button class="btn mini sec" data-agenda="${esc(c.id)}">Mudar na Agenda</button>` : al.ref ? `
               <button class="btn mini sec" data-cel="${esc(c.id)}" data-op="${al.ativo ? "desligar" : "ligar"}" data-ref="${esc(al.ref)}" ${this._ocupado ? "disabled" : ""}>${al.ativo ? "Desligar" : "Ligar"}</button>
               <button class="btn mini sec" data-editar="${esc(c.id)}" data-ref="${esc(al.ref)}">Editar</button>
               <button class="btn mini sec" data-cel="${esc(c.id)}" data-op="apagar" data-ref="${esc(al.ref)}" ${this._ocupado ? "disabled" : ""}>Apagar</button>` : ""}
