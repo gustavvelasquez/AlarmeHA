@@ -61,6 +61,53 @@ object HaListOrder {
         else -> GroupButton.NONE
     }
 
+    /** Na lista principal cada grupo aparece uma vez (cartão): fica o primeiro membro da ordem. */
+    fun cards(order: List<Int>, groupOf: Map<Int, String?>, groups: Set<String>): List<Int> {
+        val seen = HashSet<String>()
+        return order.filter { id -> val g = groupOf[id]?.takeIf { it in groups }; g == null || seen.add(g) }
+    }
+
+    data class Summary(val nextRing: Long?, val on: Int, val off: Int)
+
+    /** Resumo do cartão: próximo toque do grupo e quantos ligados (vão tocar) / desligados. */
+    fun summary(members: List<Item>, now: Long, tz: TimeZone = TimeZone.getDefault()): Summary {
+        val on = members.count { it.enabled && !HaSkipLogic.isSkipActive(it.skippedAt, now) }
+        val next = members.filter { it.enabled }.mapNotNull { HaSkipLogic.effectiveNext(it.timeInMinutes, it.days, it.skippedAt, now, tz) }.minOrNull()
+        return Summary(next, on, members.size - on)
+    }
+
+    /** Grupo misto mostra os dois botões; todo ligado só "Desativar tudo"; todo desligado só "Ativar tudo"
+     * (se houver pulo a desfazer); tudo encerrado (já tocou) nenhum. */
+    fun cardButtons(members: List<Item>, now: Long, tz: TimeZone = TimeZone.getDefault()): Pair<Boolean, Boolean> {
+        val canOff = members.any { nextRing(it, now, tz)?.let { n -> n > now } == true && !HaSkipLogic.isSkipActive(it.skippedAt, now) }
+        val canOn = members.any { it.enabled && HaSkipLogic.isSkipActive(it.skippedAt, now) }
+        return canOff to canOn
+    }
+
+    enum class Ended { RUNG, SKIPPED }
+
+    /** Do grupo e já passou: "Pulado" se aquela ocorrência tinha sido pulada, senão "Tocou às". */
+    fun ended(item: Item, groups: Set<String>, now: Long, tz: TimeZone = TimeZone.getDefault()): Ended? {
+        if (!isRung(item, groups)) return null
+        val skipped = item.skippedAt ?: return Ended.RUNG
+        if (HaSkipLogic.isSkipActive(skipped, now)) return Ended.SKIPPED
+        val cal = java.util.Calendar.getInstance(tz).apply { timeInMillis = skipped }
+        val sameTime = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE) == item.timeInMinutes
+        return if (sameTime && now - skipped < 36 * 60 * 60 * 1000L) Ended.SKIPPED else Ended.RUNG
+    }
+
+    /** "qua., 21 de out." (pt-BR). */
+    fun longDate(ms: Long, tz: TimeZone = TimeZone.getDefault()): String =
+        java.text.SimpleDateFormat("EEE, d 'de' MMM", java.util.Locale("pt", "BR")).apply { timeZone = tz }.format(java.util.Date(ms))
+
+    /** Texto do dia de um alarme do HA: data por extenso; recorrente = "Toda ter, qua · qua., 21 de out.". */
+    fun dayText(item: Item, recurringDays: String?, now: Long, tz: TimeZone = TimeZone.getDefault()): String {
+        val at = (if (item.enabled) HaSkipLogic.effectiveNext(item.timeInMinutes, item.days, item.skippedAt, now, tz) else null)
+            ?: HaSkipLogic.nextOccurrence(item.timeInMinutes, item.days, now, tz)
+        val date = at?.let { longDate(it, tz) } ?: ""
+        return if (item.days > 0 && recurringDays != null) "Toda ${recurringDays.lowercase()} · $date" else date
+    }
+
     /** Alarme do grupo que já tocou (o HA o mantém desligado no bloco até o grupo acabar). */
     fun isRung(item: Item, groups: Set<String>): Boolean = !item.enabled && item.group != null && item.group in groups
 }

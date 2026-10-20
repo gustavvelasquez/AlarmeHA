@@ -72,9 +72,9 @@ object HaSkipLogic {
         return pending.filter { it.next!! <= limit }.map { it.alarmId }.toSet()
     }
 
-    /** O grupo só existe com 2 ou mais alarmes. */
+    /** 0.8.0: todo compromisso do HA com grupo vira cartão, inclusive os de 1 alarme (remédios). */
     fun groupsOf(groupByAlarm: Map<Int, String?>): Map<String, List<Int>> =
-        groupByAlarm.entries.filter { it.value != null }.groupBy({ it.value!! }, { it.key }).filterValues { it.size >= 2 }
+        groupByAlarm.entries.filter { it.value != null }.groupBy({ it.value!! }, { it.key })
 
     const val GROUP_WINDOW_MS = 12 * 60 * 60 * 1000L
 }

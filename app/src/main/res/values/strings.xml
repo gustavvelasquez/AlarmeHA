@@ -67,6 +67,11 @@
 
     <string name="ha_group_off" translatable="false">Desligar o grupo</string>
     <string name="ha_group_on" translatable="false">Religar o grupo</string>
+    <string name="ha_card_count" translatable="false">%1$d ligados · %2$d desligados</string>
+    <string name="ha_skipped_past" translatable="false">Pulado</string>
+    <string name="ha_group_all_off" translatable="false">Desativar tudo</string>
+    <string name="ha_group_all_on" translatable="false">Ativar tudo</string>
+    <string name="ha_alarm_from_agenda" translatable="false">Alarme da agenda: horário e nome vêm do Home Assistant</string>
     <string name="ha_rung_at" translatable="false">Tocou às %s</string>
     <string name="ha_skipped_today" translatable="false">Pulado hoje</string>
     <string name="ha_skipped_tomorrow" translatable="false">Pulado amanhã</string>

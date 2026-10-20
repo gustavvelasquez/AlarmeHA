@@ -9,6 +9,7 @@ import java.security.SecureRandom
 /** Configuração do pareamento com o Home Assistant (AlarmeHA). O token nunca é guardado, só o hash SHA-256.
  * Na ativação pelo painel o token vem do HA; no modo avançado (QR v1) ele é gerado aqui e mostrado uma vez. */
 class HaConfig(context: Context) {
+    private val appContext = context.applicationContext
     private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     var haUrl: String
@@ -31,7 +32,28 @@ class HaConfig(context: Context) {
 
     var webhookId: String
         get() = prefs.getString(KEY_WEBHOOK, "") ?: ""
-        set(value) = prefs.edit().putString(KEY_WEBHOOK, value).apply()
+        set(value) {
+            // Webhook novo (pareado de novo): a fila do webhook antigo não vale mais.
+            if (value != webhookId) HaWebhook.clear(appContext)
+            prefs.edit().putString(KEY_WEBHOOK, value).commit()
+        }
+
+    // ---- diagnóstico do envio (Sobre / tela do HA) ----
+    var lastOkAt: Long
+        get() = prefs.getLong(KEY_OK_AT, 0L)
+        set(value) = prefs.edit().putLong(KEY_OK_AT, value).apply()
+    var lastOkUrl: String
+        get() = prefs.getString(KEY_OK_URL, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_OK_URL, value).apply()
+    var lastError: String
+        get() = prefs.getString(KEY_ERROR, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_ERROR, value.take(1000)).apply()
+    var lastErrorAt: Long
+        get() = prefs.getLong(KEY_ERROR_AT, 0L)
+        set(value) = prefs.edit().putLong(KEY_ERROR_AT, value).apply()
+    var droppedEvents: Int
+        get() = prefs.getInt(KEY_DROPPED, 0)
+        set(value) = prefs.edit().putInt(KEY_DROPPED, value).apply()
 
     var personName: String
         get() = prefs.getString(KEY_NAME, "") ?: ""
@@ -83,6 +105,7 @@ class HaConfig(context: Context) {
     }
 
     fun unpair() {
+        HaWebhook.clear(appContext)
         val activated = everActivated
         prefs.edit().clear().putBoolean(KEY_EVER_ACTIVATED, activated).apply()
     }
@@ -96,6 +119,11 @@ class HaConfig(context: Context) {
         private const val KEY_TOKEN_HASH = "token_sha256"
         private const val KEY_REJECTED = "rejected_commands"
         private const val KEY_EVER_ACTIVATED = "ever_activated"
+        private const val KEY_OK_AT = "envio_ok_em"
+        private const val KEY_OK_URL = "envio_ok_url"
+        private const val KEY_ERROR = "envio_erro"
+        private const val KEY_ERROR_AT = "envio_erro_em"
+        private const val KEY_DROPPED = "envio_descartados"
 
         fun sha256(text: String): String =
             MessageDigest.getInstance("SHA-256").digest(text.toByteArray(Charsets.UTF_8))

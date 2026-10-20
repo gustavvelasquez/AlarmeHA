@@ -93,8 +93,9 @@ class HaSkipLogicTest {
     }
 
     @Test
-    fun grupo_so_com_dois_ou_mais_remedio_sozinho() {
+    fun todo_grupo_conta_inclusive_de_um_alarme_sem_grupo_fica_solto() {
         val g = HaSkipLogic.groupsOf(mapOf(1 to "t_manha", 2 to "t_manha", 3 to "t_tarde", 4 to "t_tarde", 5 to null, 6 to "r"))
-        assertEquals(setOf("t_manha", "t_tarde"), g.keys)
+        assertEquals(setOf("t_manha", "t_tarde", "r"), g.keys)
+        assertEquals(listOf(6), g["r"])
     }
 }

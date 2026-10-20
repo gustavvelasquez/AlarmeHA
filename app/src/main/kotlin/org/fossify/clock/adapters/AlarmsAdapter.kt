@@ -19,6 +19,7 @@ import org.fossify.clock.models.Alarm
 import org.fossify.clock.models.AlarmEvent
 import org.fossify.commons.adapters.MyRecyclerViewAdapter
 import org.fossify.commons.dialogs.ConfirmationDialog
+import org.fossify.commons.extensions.adjustAlpha
 import org.fossify.commons.extensions.applyColorFilter
 import org.fossify.commons.extensions.beVisibleIf
 import org.fossify.commons.extensions.getSelectedDaysString
@@ -44,11 +45,19 @@ class AlarmsAdapter(
     /** AlarmeHA: alarmId -> ref/grupo/pulo dos alarmes da agenda (manuais não entram). */
     private var haInfo: Map<Int, org.fossify.clock.ha.HaRefStore.Info> = emptyMap()
     private var haGroups: Map<String, List<Int>> = emptyMap()
+    /** Todos os alarmes (a lista mostra só um cartão por grupo; o cartão resume os membros). */
+    private var allAlarms: List<Alarm> = emptyList()
 
-    fun updateHaInfo(info: Map<Int, org.fossify.clock.ha.HaRefStore.Info>) {
+    fun updateHaInfo(info: Map<Int, org.fossify.clock.ha.HaRefStore.Info>, all: List<Alarm> = alarms) {
         haInfo = info
+        allAlarms = all
         haGroups = org.fossify.clock.ha.HaSkipLogic.groupsOf(info.mapValues { it.value.group })
     }
+
+    /** Grupo (cartão) do alarme, ou null para alarme solto. */
+    fun haGroupOf(alarm: Alarm): String? = haInfo[alarm.id]?.group?.takeIf { haGroups.containsKey(it) }
+
+    fun isHaAlarm(alarm: Alarm): Boolean = haInfo.containsKey(alarm.id)
 
     init {
         setupDragListener(true)
@@ -78,7 +87,8 @@ class AlarmsAdapter(
 
     override fun getSelectableItemCount() = alarms.size
 
-    override fun getIsItemSelectable(position: Int) = true
+    // Alarmes do HA não entram na seleção (apagar/arrastar): quem manda é a agenda.
+    override fun getIsItemSelectable(position: Int) = alarms.getOrNull(position)?.let { !isHaAlarm(it) } ?: false
 
     override fun getItemSelectionKey(position: Int) = alarms.getOrNull(position)?.id
 
@@ -154,27 +164,35 @@ class AlarmsAdapter(
                 false
             }
             val info = haInfo[alarm.id]
-            val group = info?.group?.takeIf { haGroups.containsKey(it) }
-            val position = alarms.indexOf(alarm)
-            val previousGroup = alarms.getOrNull(position - 1)?.let { haInfo[it.id]?.group }
-            alarmGroupHeader.beVisibleIf(group != null && previousGroup != group)
+            val group = haGroupOf(alarm)
             val now = System.currentTimeMillis()
-            val rung = group != null && !alarm.isEnabled
+            alarmGroupHeader.beVisibleIf(false)
+            styleCard(alarmHolder, group != null)
             if (group != null) {
-                val members = alarms.filter { haInfo[it.id]?.group == group }.map { haItem(it) }
-                val button = org.fossify.clock.ha.HaListOrder.groupButton(members, now)
-                alarmGroupOff.beVisibleIf(button == org.fossify.clock.ha.HaListOrder.GroupButton.OFF)
-                alarmGroupOn.beVisibleIf(button == org.fossify.clock.ha.HaListOrder.GroupButton.ON)
-                alarmGroupName.text = info.groupName ?: group
-                alarmGroupName.setTextColor(textColor)
-                alarmGroupOff.setTextColor(properPrimaryColor)
-                alarmGroupOn.setTextColor(properPrimaryColor)
-                alarmGroupOff.setOnClickListener { org.fossify.clock.ha.HaSkip.setGroup(activity, group, on = false) }
-                alarmGroupOn.setOnClickListener { org.fossify.clock.ha.HaSkip.setGroup(activity, group, on = true) }
+                // Cartão do compromisso: nome, próximo toque e quantos ligados/desligados. Toque abre o grupo.
+                val members = allAlarms.filter { haInfo[it.id]?.group == group }.map { haItem(it) }
+                val sum = org.fossify.clock.ha.HaListOrder.summary(members, now)
+                val shown = sum.nextRing?.let { java.util.Calendar.getInstance().apply { timeInMillis = it } }
+                val minutes = shown?.let { it.get(java.util.Calendar.HOUR_OF_DAY) * 60 + it.get(java.util.Calendar.MINUTE) } ?: alarm.timeInMinutes
+                alarmTime.text = activity.getFormattedTime(passedSeconds = minutes * 60, showSeconds = false, makeAmPmSmaller = true)
+                alarmTime.setTextColor(textColor)
+                val countText = activity.getString(R.string.ha_card_count, sum.on, sum.off)
+                alarmDays.text = (sum.nextRing?.let { org.fossify.clock.ha.HaListOrder.longDate(it) + " · " } ?: "") + countText
+                alarmDays.setTextColor(textColor)
+                alarmLabel.text = info?.groupName ?: group
+                alarmLabel.setTextColor(textColor)
+                alarmLabel.beVisibleIf(true)
+                alarmLabel.setTypeface(null, android.graphics.Typeface.BOLD)
+                val fade = if (sum.on == 0) FADE_OFF else 1f
+                alarmTime.alpha = fade
+                alarmDays.alpha = fade
+                alarmLabel.alpha = fade
+                alarmSwitch.beVisibleIf(false)
+                return@apply
             }
-            val skippedAt = info?.skippedAt?.takeIf {
-                org.fossify.clock.ha.HaSkipLogic.isSkipActive(it, System.currentTimeMillis())
-            }
+            alarmLabel.setTypeface(null, android.graphics.Typeface.NORMAL)
+            alarmSwitch.beVisibleIf(true)
+            val skippedAt = info?.skippedAt?.takeIf { org.fossify.clock.ha.HaSkipLogic.isSkipActive(it, now) }
 
             alarmTime.text = activity.getFormattedTime(
                 passedSeconds = alarm.timeInMinutes * 60,
@@ -184,17 +202,16 @@ class AlarmsAdapter(
             alarmTime.setTextColor(textColor)
 
             alarmDays.text = when {
-                rung -> activity.getString(R.string.ha_rung_at, activity.getFormattedTime(alarm.timeInMinutes * 60, false, false))
                 skippedAt != null -> skippedText(skippedAt)
+                info != null -> org.fossify.clock.ha.HaListOrder.dayText(haItem(alarm), dayNames(alarm), now)
                 else -> getAlarmSelectedDaysString(alarm)
             }
-            // Do grupo e já tocou: esmaecido e não volta a tocar (quem manda é a agenda).
-            val fade = if (rung) 0.5f else 1f
+            val fade = if (alarm.isEnabled && skippedAt == null) 1f else if (info != null) FADE_OFF else 1f
             alarmTime.alpha = fade
             alarmDays.alpha = fade
             alarmLabel.alpha = fade
-            alarmSwitch.alpha = fade
-            alarmSwitch.isEnabled = !rung
+            alarmSwitch.alpha = 1f
+            alarmSwitch.isEnabled = true
             alarmDays.setTextColor(textColor)
 
             alarmLabel.text = alarm.label
@@ -212,6 +229,26 @@ class AlarmsAdapter(
                 }
             }
         }
+    }
+
+    private fun dayNames(alarm: Alarm): String? = if (alarm.days > 0) activity.getSelectedDaysString(alarm.days) else null
+
+    /** Cartão de cantos arredondados para grupo do HA; alarme solto volta ao fundo original. */
+    private fun styleCard(view: View, card: Boolean) {
+        if (view.getTag(R.id.alarm_holder) == null) view.setTag(R.id.alarm_holder, view.background ?: android.graphics.drawable.ColorDrawable(0))
+        val params = view.layoutParams as? ViewGroup.MarginLayoutParams
+        val margin = (8 * activity.resources.displayMetrics.density).toInt()
+        if (card) {
+            view.background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = 20 * activity.resources.displayMetrics.density
+                setColor(textColor.adjustAlpha(0.08f))
+            }
+            params?.setMargins(margin, margin / 2, margin, margin / 2)
+        } else {
+            view.background = view.getTag(R.id.alarm_holder) as android.graphics.drawable.Drawable
+            params?.setMargins(0, 0, 0, 0)
+        }
+        view.layoutParams = params ?: view.layoutParams
     }
 
     private fun toggleAlarm(binding: ItemAlarmBinding, alarm: Alarm) {
@@ -295,5 +332,9 @@ class AlarmsAdapter(
         val alarmsCustomSortingIds = alarms.map { it.id }
 
         activity.config.alarmsCustomSorting = alarmsCustomSortingIds.joinToString { it.toString() }
+    }
+
+    companion object {
+        const val FADE_OFF = 0.35f
     }
 }

@@ -8,6 +8,7 @@ import androidx.fragment.app.Fragment
 import org.fossify.clock.activities.MainActivity
 import org.fossify.clock.activities.SimpleActivity
 import org.fossify.clock.adapters.AlarmsAdapter
+import org.fossify.clock.R
 import org.fossify.clock.databinding.FragmentAlarmBinding
 import org.fossify.clock.dialogs.ChangeAlarmSortDialog
 import org.fossify.clock.dialogs.EditAlarmDialog
@@ -30,6 +31,7 @@ import org.fossify.commons.extensions.beVisibleIf
 import org.fossify.commons.extensions.getProperBackgroundColor
 import org.fossify.commons.extensions.getProperTextColor
 import org.fossify.commons.extensions.toast
+import org.fossify.commons.extensions.getProperPrimaryColor
 import org.fossify.commons.extensions.updateTextColors
 import org.fossify.commons.helpers.SORT_BY_CUSTOM
 import org.fossify.commons.helpers.SORT_BY_DATE_CREATED
@@ -146,8 +148,12 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
                     )
                 }
                 val byId = sorted.associateBy { it.id }
-                ArrayList(org.fossify.clock.ha.HaListOrder.order(items, groups, System.currentTimeMillis()).mapNotNull { byId[it] })
+                val order = org.fossify.clock.ha.HaListOrder.order(items, groups, System.currentTimeMillis())
+                // Um cartão por compromisso (grupo); manuais soltos.
+                val cards = org.fossify.clock.ha.HaListOrder.cards(order, info.mapValues { it.value.group }, groups)
+                ArrayList(cards.mapNotNull { byId[it] })
             }
+            allAlarms = sorted
 
             activity?.runOnUiThread {
                 callback(ordered)
@@ -156,8 +162,20 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
     }
 
     private var haInfo: Map<Int, org.fossify.clock.ha.HaRefStore.Info> = emptyMap()
+    private var allAlarms: List<Alarm> = emptyList()
 
     private fun setupAlarms() {
+        val ctx = context
+        if (ctx != null) {
+            val banner = org.fossify.clock.ha.HaDiagnostics.banner(ctx)
+            binding.alarmsHaBanner.beVisibleIf(banner != null)
+            binding.alarmsHaBanner.text = banner ?: ""
+            binding.alarmsHaBanner.setTextColor(ctx.getProperPrimaryColor())
+            binding.alarmsHaBanner.setOnClickListener {
+                val battery = org.fossify.clock.ha.HaDiagnostics.batteryProblem(ctx) != null
+                startActivity(android.content.Intent(ctx, if (battery) org.fossify.clock.ha.HaPermissionsActivity::class.java else org.fossify.clock.ha.HaPairingActivity::class.java))
+            }
+        }
         getSortedAlarms { sortedAlarms ->
             alarms = sortedAlarms
             val safeActivity = activity as? SimpleActivity ?: return@getSortedAlarms
@@ -169,9 +187,9 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
                     toggleAlarmInterface = this,
                     recyclerView = binding.alarmsList
                 ) {
-                    openEditAlarm(it as Alarm)
+                    openAlarm(it as Alarm)
                 }.apply {
-                    updateHaInfo(haInfo)
+                    updateHaInfo(haInfo, allAlarms)
                     binding.alarmsList.adapter = this
                 }
             } else {
@@ -179,11 +197,22 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
                     updatePrimaryColor()
                     updateBackgroundColor(safeActivity.getProperBackgroundColor())
                     updateTextColor(safeActivity.getProperTextColor())
-                    updateHaInfo(haInfo)
+                    updateHaInfo(haInfo, allAlarms)
                     updateItems(alarms)
                 }
             }
             binding.alarmsPlaceholder.beVisibleIf(alarms.isEmpty())
+        }
+    }
+
+    /** Grupo do HA abre a tela do grupo; alarme do HA solto não é editável; manual abre a edição. */
+    private fun openAlarm(alarm: Alarm) {
+        val info = haInfo[alarm.id]
+        val group = info?.group
+        when {
+            group != null -> startActivity(org.fossify.clock.ha.HaGroupActivity.intent(requireContext(), group))
+            info != null -> context?.toast(R.string.ha_alarm_from_agenda)
+            else -> openEditAlarm(alarm)
         }
     }
 

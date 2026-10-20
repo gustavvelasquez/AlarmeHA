@@ -86,7 +86,7 @@ object HaSkip {
         val db = context.dbHelper
         val members = HaRefStore.get(context).allInfo().filter { it.group == group }
             .mapNotNull { info -> db.getAlarmWithId(info.alarmId)?.let { info to it } }
-        if (members.size < 2) return@ensureBackgroundThread
+        if (members.isEmpty()) return@ensureBackgroundThread
         if (on) {
             members.forEach { (info, alarm) -> if (HaSkipLogic.isSkipActive(info.skippedAt, now)) unskipNow(context, alarm) }
         } else {

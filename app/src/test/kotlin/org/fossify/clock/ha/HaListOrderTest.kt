@@ -90,3 +90,52 @@ class HaListOrderTest {
         assertFalse(HaListOrder.isRung(item(1, 13, 0, -1, null, enabled = false), g))
     }
 }
+
+class HaCardsTest {
+    private val tz = java.util.TimeZone.getTimeZone("America/Sao_Paulo")
+    private fun at(day: Int, h: Int, m: Int): Long = java.util.Calendar.getInstance(tz).apply {
+        clear(); set(2026, java.util.Calendar.OCTOBER, day, h, m, 0)
+    }.timeInMillis
+    private fun item(id: Int, h: Int, m: Int, days: Int, group: String? = null, enabled: Boolean = true, skipped: Long? = null) =
+        HaListOrder.Item(id, h * 60 + m, days, enabled, group, skipped)
+
+    @Test
+    fun um_cartao_por_grupo_inclusive_de_um_alarme_manual_solto() {
+        val groupOf = mapOf(1 to "t", 2 to "t", 3 to "remedio_q", 4 to null)
+        val groups = HaSkipLogic.groupsOf(groupOf).keys
+        assertEquals(listOf(1, 3, 4), HaListOrder.cards(listOf(1, 2, 3, 4), groupOf, groups))
+    }
+
+    @Test
+    fun resumo_do_cartao_e_botoes() {
+        val now = at(20, 13, 15)
+        val m = listOf(
+            item(1, 13, 0, -1, "t", enabled = false), item(2, 13, 20, -1, "t"),
+            item(3, 13, 30, -1, "t", skipped = at(20, 13, 30)),
+        )
+        val s = HaListOrder.summary(m, now, tz)
+        assertEquals(at(20, 13, 20), s.nextRing)
+        assertEquals(1, s.on); assertEquals(2, s.off)
+        assertEquals(true to true, HaListOrder.cardButtons(m, now, tz)) // misto: os dois
+        assertEquals(true to false, HaListOrder.cardButtons(m.take(2), now, tz)) // todo ligado: só Desativar
+        assertEquals(false to true, HaListOrder.cardButtons(listOf(m[2]), now, tz)) // só pulado: só Ativar
+        assertEquals(false to false, HaListOrder.cardButtons(listOf(m[0]), now, tz)) // encerrado: nenhum
+    }
+
+    @Test
+    fun pulado_versus_tocou() {
+        val g = setOf("t")
+        val now = at(20, 14, 0)
+        assertEquals(HaListOrder.Ended.SKIPPED, HaListOrder.ended(item(1, 13, 30, -1, "t", enabled = false, skipped = at(20, 13, 30)), g, now, tz))
+        assertEquals(HaListOrder.Ended.RUNG, HaListOrder.ended(item(1, 13, 30, -1, "t", enabled = false), g, now, tz))
+        assertEquals(HaListOrder.Ended.RUNG, HaListOrder.ended(item(1, 13, 30, -1, "t", enabled = false, skipped = at(19, 9, 0)), g, now, tz))
+        assertEquals(null, HaListOrder.ended(item(1, 13, 30, -1, "t"), g, now, tz))
+    }
+
+    @Test
+    fun data_por_extenso() {
+        assertEquals("qua., 21 de out.", HaListOrder.longDate(at(21, 9, 0), tz))
+        val rec = HaListOrder.dayText(item(1, 21, 0, (1 shl 1) or (1 shl 2)), "Ter, Qua", at(20, 22, 0), tz)
+        assertEquals("Toda ter, qua · qua., 21 de out.", rec)
+    }
+}

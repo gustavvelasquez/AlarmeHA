@@ -182,6 +182,11 @@
             android:label="AlarmeHA" />
 
         <activity
+            android:name=".ha.HaGroupActivity"
+            android:exported="false"
+            android:label="Grupo" />
+
+        <activity
             android:name=".ha.HaPermissionsActivity"
             android:exported="false"
             android:label="AlarmeHA" />

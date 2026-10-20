@@ -183,6 +183,7 @@ class HaPairingActivity : SimpleActivity() {
             if (config.hasWebhook) {
                 append("\nHA: ${config.haUrl}")
                 if (config.personName.isNotEmpty()) append("\nPessoa: ${config.personName}")
+                append("\n\n").append(HaDiagnostics.sendStatus(this@HaPairingActivity))
             }
             HaCrashLog.last(this@HaPairingActivity)?.let { append("\n\nÚltimo erro do app (para diagnóstico):\n").append(it.take(1500)) }
             if (config.rejectedCommands > 0) append("\nComandos recusados (token errado): ${config.rejectedCommands}")
