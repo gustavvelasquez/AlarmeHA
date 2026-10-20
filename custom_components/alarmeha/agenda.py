@@ -245,27 +245,45 @@ def _dias(grupo: list[dict[str, Any]], hoje: date) -> int:
 
 def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -> dict[str, dict[str, Any]]:
     """Para cada alarme fixo (ref) decide os disparos dentro de hoje/amanhã, ou desligado.
-    Disparo único vai como hoje (-1) ou amanhã (-2). Se hoje e amanhã têm o mesmo horário e o
-    mesmo nome, um só alarme cobre os dois, marcado nos dois dias da semana (bits do app)."""
+    Disparo único vai como hoje (-1) ou amanhã (-2).
+    - Tipo de um alarme só (ex.: remédio) e "Sem compromisso": se hoje e amanhã têm o mesmo
+      horário e o mesmo nome, um só alarme cobre os dois, marcado nos dias da semana (bits do app).
+    - Compromisso com vários alarmes: nunca mescla dias. Cada ocorrência é (grupo, n), com o grupo
+      do seu próprio compromisso. Quem do grupo já tocou continua na vaga, desligado e com
+      "tocou" (HH:MM), até o último alarme do grupo passar; não volta a tocar."""
     plano: dict[str, dict[str, Any]] = {}
     hoje = agora.date()
     amanha = hoje + timedelta(days=1)
     livre = {"id": LIVRE_ID, "nome": "Sem compromisso", "som": None}
     for t in cfg["tipos"] + [livre]:
-        futuros = sorted(
-            (a for d in dias if d["dia"] <= amanha for a in d["alarmes"] if a.get("tipo") == t["id"] and a["horario"] > agora),
+        do_tipo = sorted(
+            (a for d in dias if d["dia"] <= amanha for a in d["alarmes"] if a.get("tipo") == t["id"]),
             key=lambda a: a["horario"],
         )
-        # Mesmo horário e mesmo nome hoje e amanhã: um alarme só, nos dois dias da semana.
+        com_grupo = t is not livre and len(t.get("alarmes") or []) > 1
+        if com_grupo:
+            # Grupo vivo = algum alarme dele ainda por tocar; os que já tocaram ficam (esmaecidos).
+            vivos = {a.get("grupo") for a in do_tipo if a["horario"] > agora}
+            candidatos = [a for a in do_tipo if a["horario"] > agora or (a.get("grupo") and a.get("grupo") in vivos)]
+        else:
+            candidatos = [a for a in do_tipo if a["horario"] > agora]
         grupos: dict[tuple, list[dict[str, Any]]] = {}
-        for a in futuros:
-            chave = (a["horario"].hour, a["horario"].minute, rotulo_alarme(a, t["nome"]) if t is not livre else a["horario"].date())  # sem compromisso: igual antes
+        for a in candidatos:
+            if com_grupo:
+                chave = (a.get("grupo") or a["horario"].isoformat(), a.get("n"))
+            else:
+                # Mesmo horário e mesmo nome hoje e amanhã: um alarme só, nos dois dias da semana.
+                chave = (a["horario"].hour, a["horario"].minute, rotulo_alarme(a, t["nome"]) if t is not livre else a["horario"].date())
             grupos.setdefault(chave, []).append(a)
         # Os grupos ocupam os alarmes fixos 1..N, na ordem do primeiro disparo.
         if len(grupos) > MAX_TODOS:
             _LOGGER.warning("AlarmeHA agenda: tipo %s tem %d alarmes até amanhã; só os %d primeiros vão para o celular",
                             t["nome"], len(grupos), MAX_TODOS)
         usados = list(grupos.values())[:MAX_TODOS]
+        inicio_grupo: dict[str, date] = {}
+        for a in candidatos:
+            if a.get("grupo"):
+                inicio_grupo.setdefault(a["grupo"], a["horario"].date())
         for i in range(MAX_TODOS if t is not livre else 1):
             grupo = usados[i] if i < len(usados) else []
             prox = grupo[0]["horario"] if grupo else None
@@ -277,12 +295,18 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
             else:
                 rotulo = "📅 " + t["nome"]
             if prox and cfg.get("ligado"):
+                tocou = prox <= agora
                 plano[ref] = {"hora": prox.hour, "minuto": prox.minute, "dias": _dias(grupo, hoje),
-                              "rotulo": rotulo, "ativo": True}
+                              "rotulo": rotulo, "ativo": not tocou}
+                if tocou:
+                    plano[ref]["tocou"] = f"{prox:%H:%M}"
                 # Compromisso com mais de um alarme: o app agrupa (desligar/religar o grupo).
                 # Com um alarme só (ex.: remédio) não vai grupo: fica sozinho e nunca é desligado junto.
-                if t is not livre and int(grupo[0].get("total") or 1) > 1 and grupo[0].get("grupo"):
-                    plano[ref] |= {"grupo": grupo[0]["grupo"], "grupo_nome": nome_do_grupo(grupo[0], t["nome"])}
+                if com_grupo and int(grupo[0].get("total") or 1) > 1 and grupo[0].get("grupo"):
+                    nome = nome_do_grupo(grupo[0], t["nome"])
+                    if inicio_grupo.get(grupo[0]["grupo"]) == amanha:
+                        nome = nome[: 64 - len(" · amanhã")] + " · amanhã"
+                    plano[ref] |= {"grupo": grupo[0]["grupo"], "grupo_nome": nome}
                 som = t.get("som") or cfg.get("som_padrao") or {}
                 if som.get("uri"):
                     plano[ref] |= {"som_uri": str(som["uri"])[:512], "som_titulo": str(som.get("titulo") or "")[:64]}
@@ -464,7 +488,8 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
             _LOGGER.debug("AlarmeHA agenda: %s perto do disparo, ajuste adiado", ref)
             continue
         try:
-            if alvo["ativo"]:
+            if alvo["ativo"] or alvo.get("tocou"):
+                # "tocou": desligado, mas fica no grupo do app (esmaecido) até o grupo acabar.
                 await phone.async_command("criar", {"ref": ref, "vibrar": True, **alvo}, 30)
             else:
                 await phone.async_command("desligar", {"ref": ref}, 30)

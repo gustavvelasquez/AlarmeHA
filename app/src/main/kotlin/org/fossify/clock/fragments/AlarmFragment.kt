@@ -131,21 +131,22 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
                 }
             }
 
-            // AlarmeHA: alarmes do mesmo compromisso ficam juntos, na posição do primeiro.
+            // AlarmeHA: com alarmes do HA, a lista segue o próximo toque; cada compromisso é um bloco.
             val info = runCatching { org.fossify.clock.ha.HaRefStore.get(safeContext).allInfo().associateBy { it.alarmId } }
                 .getOrDefault(emptyMap())
             haInfo = info
-            val groups = org.fossify.clock.ha.HaSkipLogic.groupsOf(info.mapValues { it.value.group })
             val sorted = newAlarms!!
-            val ordered = ArrayList<Alarm>()
-            val done = HashSet<String>()
-            sorted.forEach { alarm ->
-                val g = info[alarm.id]?.group?.takeIf { groups.containsKey(it) }
-                if (g == null) {
-                    ordered.add(alarm)
-                } else if (done.add(g)) {
-                    ordered.addAll(sorted.filter { info[it.id]?.group == g })
+            val ordered = if (info.isEmpty()) {
+                sorted
+            } else {
+                val groups = org.fossify.clock.ha.HaSkipLogic.groupsOf(info.mapValues { it.value.group }).keys
+                val items = sorted.map {
+                    org.fossify.clock.ha.HaListOrder.Item(
+                        it.id, it.timeInMinutes, it.days, it.isEnabled, info[it.id]?.group, info[it.id]?.skippedAt
+                    )
                 }
+                val byId = sorted.associateBy { it.id }
+                ArrayList(org.fossify.clock.ha.HaListOrder.order(items, groups, System.currentTimeMillis()).mapNotNull { byId[it] })
             }
 
             activity?.runOnUiThread {

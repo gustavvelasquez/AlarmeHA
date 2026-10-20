@@ -158,7 +158,13 @@ class AlarmsAdapter(
             val position = alarms.indexOf(alarm)
             val previousGroup = alarms.getOrNull(position - 1)?.let { haInfo[it.id]?.group }
             alarmGroupHeader.beVisibleIf(group != null && previousGroup != group)
+            val now = System.currentTimeMillis()
+            val rung = group != null && !alarm.isEnabled
             if (group != null) {
+                val members = alarms.filter { haInfo[it.id]?.group == group }.map { haItem(it) }
+                val button = org.fossify.clock.ha.HaListOrder.groupButton(members, now)
+                alarmGroupOff.beVisibleIf(button == org.fossify.clock.ha.HaListOrder.GroupButton.OFF)
+                alarmGroupOn.beVisibleIf(button == org.fossify.clock.ha.HaListOrder.GroupButton.ON)
                 alarmGroupName.text = info.groupName ?: group
                 alarmGroupName.setTextColor(textColor)
                 alarmGroupOff.setTextColor(properPrimaryColor)
@@ -177,7 +183,18 @@ class AlarmsAdapter(
             )
             alarmTime.setTextColor(textColor)
 
-            alarmDays.text = if (skippedAt != null) skippedText(skippedAt) else getAlarmSelectedDaysString(alarm)
+            alarmDays.text = when {
+                rung -> activity.getString(R.string.ha_rung_at, activity.getFormattedTime(alarm.timeInMinutes * 60, false, false))
+                skippedAt != null -> skippedText(skippedAt)
+                else -> getAlarmSelectedDaysString(alarm)
+            }
+            // Do grupo e já tocou: esmaecido e não volta a tocar (quem manda é a agenda).
+            val fade = if (rung) 0.5f else 1f
+            alarmTime.alpha = fade
+            alarmDays.alpha = fade
+            alarmLabel.alpha = fade
+            alarmSwitch.alpha = fade
+            alarmSwitch.isEnabled = !rung
             alarmDays.setTextColor(textColor)
 
             alarmLabel.text = alarm.label
@@ -224,6 +241,13 @@ class AlarmsAdapter(
                 toggleAlarmInterface.alarmToggled(alarm.id, binding.alarmSwitch.isChecked)
             }
         }
+    }
+
+    private fun haItem(alarm: Alarm): org.fossify.clock.ha.HaListOrder.Item {
+        val info = haInfo[alarm.id]
+        return org.fossify.clock.ha.HaListOrder.Item(
+            alarm.id, alarm.timeInMinutes, alarm.days, alarm.isEnabled, info?.group, info?.skippedAt
+        )
     }
 
     private fun skippedText(at: Long): String {
