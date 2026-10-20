@@ -3,10 +3,11 @@
 O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app Companion → AlarmeHA**, pelo comando `command_broadcast_intent`. O AlarmeHA responde por um **webhook** do HA.
 
 - **Ida:** o HA pede para criar, editar, ligar, desligar, apagar ou listar alarmes.
-- **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca ou foi desligado, confirma as mudanças e manda a lista de alarmes.
+- **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca, foi desligado, pulado ou religado, confirma as mudanças e manda a lista de alarmes.
+- **Versão:** este guia descreve a **0.7.0** (app e integração com o mesmo número). O que está planejado para a 0.8.0 fica na seção 7.
 - **Segurança:** todo comando leva um **token** (gerado pelo HA na ativação pelo painel, ou pelo app no modo manual). Comando sem o token certo é ignorado em silêncio.
 - **Regra:** o HA só edita ou apaga alarmes que ele mesmo criou (com `ref`). Alarmes criados à mão no celular aparecem só na lista.
-- **Som:** sempre o padrão do app.
+- **Som:** o padrão do app, a não ser que o comando traga `som_uri` (toque por tipo de evento na agenda).
 - **Webhook:** um por pessoa (ex.: um para o Usuario e outro para a Segunda pessoa).
 
 ## 0. Jeito recomendado: integração HACS "AlarmeHA" + painel Despertador
@@ -31,7 +32,9 @@ Enquanto o celular nunca foi ativado, o AlarmeHA mostra só a tela **Ativar o Al
 
 **Quem vê o quê:** usuários comuns só veem e controlam o próprio celular, no painel e nas ações. Admins veem todos. Automações (sem usuário) podem mirar qualquer celular.
 
-**Ativar de novo** (troca de celular, reinstalação ou token perdido): repita o passo 5 a partir do app. O mesmo dispositivo é reaproveitado e o webhook e o token antigos deixam de valer. No painel, **Desvincular** remove o celular do HA.
+**Ativar de novo** (troca de celular, reinstalação ou token perdido): repita o passo 5 a partir do app. O mesmo dispositivo é reaproveitado, o HA cria token e webhook novos (os antigos deixam de valer) e reenvia o plano da agenda. No painel, **Desvincular** remove o celular do HA.
+
+> **Problema conhecido (0.7.0):** depois de ativar de novo, as entidades do celular podem continuar presas ao pareamento antigo. Os eventos chegam ao HA, mas os sensores param de atualizar e as ações dão "não confirmou após 3 tentativas". **Contorno:** Configurações → Dispositivos e serviços → AlarmeHA → ⋮ → **Recarregar** (sem reiniciar o HA). Correção prevista na 0.8.0. Veja a seção 6.
 
 ### Vindo da 0.2.x (uma entrada por celular)
 - A **primeira** entrada antiga vira a entrada única e mantém o celular dela, com o mesmo webhook, token, dispositivo e entidades. Esse celular aparece só para admins (não tem usuário). Para ligá-lo à pessoa, ative de novo pelo painel e depois desvincule o celular antigo duplicado, se aparecer.
@@ -51,6 +54,22 @@ Os nomes dos ids seguem o idioma do HA; em inglês, por exemplo, `..._next_alarm
 A integração pede a lista de alarmes 30 s depois de iniciar, a cada 12 h e depois de cada alarme desligado. Isso mantém os sensores atualizados e funciona como "batimento".
 
 Todo evento do celular também vira o evento `alarmeha_evento` no barramento do HA, com `phone_id`, `user_id`, `pessoa` e os campos da seção 4.
+
+### Agenda (alarmes automáticos)
+Na aba **Agenda** do painel, o admin liga agendas do HA (ex.: o iCal secreto do Google adicionado pela integração **Remote Calendar**) a **tipos de evento** (ex.: Trabalho, Remédio).
+
+- **Escolha do tipo:** o tipo vale se a agenda do evento está nele e, se o tipo tem palavras-chave, o título tem uma delas. Tipo com palavra que bate vence o tipo sem palavras; o tipo sem palavras pega o resto; empate fica com o primeiro da lista.
+- **Alarmes fixos:** cada tipo tem até 12 alarmes no celular, com ref `ag_<tipo>_<n>`, rótulo com 📅 e o título do evento como nome. O HA só reajusta horário, nome, toque e liga/desliga esses alarmes. O plano cobre **hoje e amanhã**.
+- **Grupos:** um compromisso com mais de um alarme vira um grupo (`grupo`, `grupo_nome`). Cada dia é um grupo separado; o de amanhã leva " · amanhã". Tipos com um alarme só (ex.: remédios) não têm grupo e se mesclam por dia da semana quando o horário se repete.
+- **Já tocou:** alarme do grupo que já tocou fica desligado e esmaecido no app, com "Tocou às HH:MM", até o último alarme do grupo passar.
+- **Quando sincroniza:** nos minutos 00, 15, 30 e 45, 5 s depois de a integração carregar e logo depois de um alarme ser desligado.
+- **Guarda:** o HA não mexe num alarme tocando ou em soneca, nem num alarme com toque entre 5 min à frente e 10 min atrás; depois da janela, sincroniza de novo.
+
+### No app
+- A lista é ordenada pelo próximo toque.
+- Desligar um alarme do HA no celular **pula só o próximo toque** (evento `pulado`); religar desfaz (evento `religado`). Só aparece o botão pertinente.
+- Num grupo, **Desligar o grupo** / **Religar o grupo** vale para todos os alarmes dele.
+- Soneca padrão: 5 min.
 
 ### Ações (serviços)
 `alarmeha.criar`, `alarmeha.editar`, `alarmeha.ligar`, `alarmeha.desligar`, `alarmeha.apagar` e `alarmeha.listar`.
@@ -166,6 +185,11 @@ Botões do app:
 | `ativo` | boolean | padrão `true` ao criar |
 | `vibrar` | boolean | padrão `false` |
 | `unico` | boolean | apaga o alarme depois de tocar (só para alarme sem repetição) |
+| `grupo` | String.urlencoded | id do grupo do compromisso (`a-z 0-9 _ -`); vazio ou ausente no plano completo = sem grupo |
+| `grupo_nome` | String.urlencoded | nome do grupo mostrado no app (ex.: `Reunião · amanhã`) |
+| `som_uri`, `som_titulo` | String.urlencoded | toque do alarme (o HA usa a lista de `op: toques`) |
+
+`op` também aceita `toques`, que devolve o evento `toques` com os sons disponíveis no celular.
 
 `criar` com um `ref` que já existe vira `editar`.
 
@@ -263,11 +287,13 @@ Todos os eventos têm: `origem` (`"alarmeha"`), `evento`, `dispositivo`, `pessoa
 | `evento` | Campos |
 |---|---|
 | `tocou` | `ref` (null se manual), `id`, `rotulo`, `hora`, `minuto` |
-| `soneca` | idem + `minutos` |
+| `soneca` | idem + `minutos` (padrão 5) |
 | `desligado` | idem |
 | `criado` / `alterado` | `pedido`, `ref`, `id`, `origem_mudanca` (`"ha"`), `alarme` (objeto completo) |
 | `apagado` | `pedido`, `ref`, `id`, `origem_mudanca` |
-| `lista` | `pedido`, `alarmes`: lista de `{ref, id, hora, minuto, dias, rotulo, ativo, vibrar, unico, criado_pelo_ha, proximo_disparo}` |
+| `pulado` / `religado` | `ref`, `id`, `origem_mudanca` (`"app"`), `ocorrencia` (toque pulado, ou null), `alarme` |
+| `lista` | `pedido`, `alarmes`: lista de `{ref, id, hora, minuto, dias, rotulo, ativo, vibrar, som_titulo, unico, criado_pelo_ha, proximo_disparo}`; alarmes do HA também têm `pulado` (toque pulado, ISO 8601, ou null), `grupo` e `grupo_nome` |
+| `toques` | `pedido`, `toques`: lista de `{uri, titulo}` |
 | `erro` | `pedido`, `op`, `ref`, `motivo` (`ref_inexistente`, `ref_invalida`, `ref_ausente`, `horario_invalido`, `dias_invalido`, `hora_ausente`, `op_invalida`, `erro_interno`...) |
 | `pareado` | `token_definido` |
 
@@ -275,10 +301,11 @@ Exemplo:
 
 ```json
 {"origem":"alarmeha","evento":"alterado","dispositivo":"Celular do Usuário","pessoa":"Usuario",
- "versao":"0.2.0","quando":"2026-10-17T21:00:03-03:00","pedido":"17607456031234",
+ "versao":"0.7.0","quando":"2026-10-17T21:00:03-03:00","pedido":"17607456031234",
  "ref":"usuario_aula","id":12,"origem_mudanca":"ha",
  "alarme":{"ref":"usuario_aula","id":12,"hora":7,"minuto":0,"dias":31,"rotulo":"Aula 07:45",
- "ativo":true,"vibrar":false,"unico":false,"criado_pelo_ha":true,"proximo_disparo":"2026-10-19T07:00:00-03:00"}}
+ "ativo":true,"vibrar":false,"unico":false,"criado_pelo_ha":true,"proximo_disparo":"2026-10-19T07:00:00-03:00",
+ "pulado":null,"grupo":null,"grupo_nome":null}}
 ```
 
 ## 5. Limites conhecidos
@@ -286,3 +313,25 @@ Exemplo:
 - O comando viaja como push (FCM), que aceita no máximo uns 4 KB; mantenha os comandos curtos.
 - Na primeira vez, o app precisa ser aberto manualmente. Também convém tirar o AlarmeHA da otimização de bateria.
 - Alarmes criados à mão não são alterados pelo HA, só listados.
+
+`tocou` também aparece no plano interno da agenda (horário em que um alarme do grupo já tocou), mas não é um extra de comando: o app mostra "Tocou às" para alarme do grupo desligado cujo toque já passou.
+
+## 6. Solução de problemas
+
+| Sintoma | O que fazer |
+|---|---|
+| Sensores do celular parados depois de ativar de novo; ações dão "não confirmou após 3 tentativas" | Problema conhecido da 0.7.0. Recarregue a integração (Dispositivos e serviços → AlarmeHA → ⋮ → Recarregar). Não precisa ativar de novo nem reiniciar o HA. |
+| Nenhum evento chega ao HA | Confira `sensor.alarmeha_<pessoa>_ultimo_evento` e a versão nos atributos. Abra a URL externa no navegador do celular, fora do Wi-Fi. Deixe o AlarmeHA em bateria **Sem restrição** e abra o app uma vez. |
+| Comandos não chegam ao celular | Mande uma notificação comum para `notify.mobile_app_<celular>`. Se ela não chegar, o problema é no Companion/FCM, não no AlarmeHA. |
+| Alarmes duplicados desligados (`ag_<tipo>_<n>` com os mesmos horários) | Sobra do re-pareamento. A limpeza automática está prevista na 0.8.0; até lá podem ficar desligados. |
+| Alarme da agenda não mudou | O HA não mexe em alarme tocando, em soneca ou entre 5 min à frente e 10 min atrás; espere a próxima sincronização (00/15/30/45). |
+
+## 7. Próxima versão (0.8.0) — PLANEJADO, ainda não publicado
+
+- **Cartões de grupo** (estilo Samsung): todo compromisso do HA vira um cartão na lista, inclusive os de um alarme só; alarmes manuais ficam soltos, sem agrupamento manual.
+- **Tela do grupo:** "Ativar tudo" / "Desativar tudo" e chave em cada alarme; desativar o grupo pula só aquele dia.
+- **Datas por extenso** em cada alarme (ex.: "qua., 21 de out.") no lugar de "Amanhã" ou "Ter, Qua".
+- **"Pulado"** no lugar de "Tocou às" para alarmes pulados.
+- **Envio confiável celular → HA:** envio imediato, fila de até 24 h, aviso quando a bateria restringe o app, sensor e alerta no HA após mais de 30 min sem eventos, último erro e código HTTP no Sobre.
+- **Re-pareamento:** religa entidades e sinais ao pareamento novo, desregistra webhooks antigos e limpa refs órfãos (inclusive alarmes duplicados).
+- **Em decisão:** forma dos remédios — um cartão "Remédios" com todos ou um cartão por remédio.

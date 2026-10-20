@@ -4,24 +4,27 @@
 >
 > Identidade própria: versão atual em `gradle.properties` (versionCode no esquema X*10000+Y*100+Z), applicationId `br.casa.alarmeha` (o pacote Kotlin `org.fossify.clock` foi mantido para facilitar merges do upstream).
 
-**Objetivo:** ser o mesmo app de relógio do Fossify, com integração ao Home Assistant:
+**Objetivo:** ser o mesmo app de relógio do Fossify, controlado pelo Home Assistant (HA) da casa:
 
-- controle externo de alarmes (criar, ligar, desligar) protegido por token;
-- webhooks para o Home Assistant (alarme disparou, soneca, confirmação etc.).
+- **HA → app:** comandos (criar, editar, ligar, desligar, apagar, listar) pelo app Home Assistant (Companion), com `command_broadcast_intent`, protegidos por token;
+- **app → HA:** eventos por webhook (`lista`, `criado`, `alterado`, `apagado`, `tocou`, `soneca`, `desligado`, `pulado`, `religado`, `erro`), enviados em segundo plano (WorkManager);
+- **agenda:** a integração lê a agenda (ex.: iCal secreto do Google pela Remote Calendar) e mantém no celular alarmes fixos `ag_<tipo>_<n>` (marcados com 📅), agrupados por compromisso.
 
-**Status:** em desenvolvimento.
+**Status:** em uso na casa. Versão publicada: **0.7.0**. Desde a 0.7.0 o app e a integração usam o mesmo número de versão.
 
 **Integração com o Home Assistant (HACS):** este repositório também contém a integração `custom_components/alarmeha`. O fluxo é:
 1. o admin instala pelo HACS (Repositórios personalizados → `https://github.com/gustavvelasquez/AlarmeHA`, tipo Integração), reinicia o HA e adiciona a integração **AlarmeHA** uma única vez;
-2. cada pessoa abre o painel **Despertador** no app Home Assistant do próprio celular;
+2. cada pessoa abre o painel **Despertador** (`/despertador`) no app Home Assistant do próprio celular;
 3. toca em **Baixar e instalar** (o próprio HA entrega o APK da última release);
 4. abre o app AlarmeHA, toca em **Ativar**, confirma no painel (**Confirmar ativação**) e depois no app. Não há token para copiar.
 
-Guia completo: [docs/integracao-home-assistant.md](docs/integracao-home-assistant.md). A versão da integração (`custom_components/alarmeha/manifest.json`) acompanha as tags de release do GitHub (ex.: release `v0.3.4` = integração 0.3.4); a versão do app Android fica em `gradle.properties` e pode ser diferente.
+Guia completo (instalação, pareamento, agenda, protocolo, solução de problemas): [docs/integracao-home-assistant.md](docs/integracao-home-assistant.md). Histórico: [CHANGELOG.md](CHANGELOG.md).
+
+**Problema conhecido (0.7.0):** depois de ativar o celular de novo (reinstalação, troca de celular), os sensores do celular no HA podem ficar presos ao pareamento antigo e parar de atualizar. Contorno: Configurações → Dispositivos e serviços → AlarmeHA → ⋮ → **Recarregar**. A correção definitiva está prevista para a 0.8.0.
 
 **Atualizações do upstream:** as mudanças do Fossify Clock só são trazidas para cá por decisão deliberada, nunca de forma automática.
 
-**Instalação:** baixe `AlarmeHA.apk` da [última release](https://github.com/gustavvelasquez/AlarmeHA/releases/latest) (ou pelo painel Despertador). A release é assinada com a chave própria do AlarmeHA; builds de teste (`.debug`) são distribuídos pelo Firebase App Distribution.
+**Instalação:** pelo painel Despertador ou baixando `AlarmeHA.apk` da [última release](https://github.com/gustavvelasquez/AlarmeHA/releases/latest). A release (`br.casa.alarmeha`) é assinada com a chave própria do AlarmeHA. O Firebase App Distribution recebe só os builds de teste `br.casa.alarmeha.debug`.
 
 **Créditos e licença:** todo o mérito do app original é do projeto [Fossify](https://github.com/FossifyOrg). Este fork mantém a licença GPL-3.0 (veja `LICENSE`). O texto original do Fossify Clock segue abaixo.
 
