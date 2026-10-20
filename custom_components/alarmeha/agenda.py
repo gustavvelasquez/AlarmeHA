@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING, Any
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
+from .const import GUARDA_ANTES_MIN, GUARDA_DEPOIS_MIN, GUARDA_RESYNC_FOLGA_S
+
 if TYPE_CHECKING:
     from .phone import AlarmeHaPhone
 
@@ -275,6 +277,61 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
 
 
 _TRAVAS: dict[str, asyncio.Lock] = {}
+_RESYNC: dict[str, Any] = {}  # phone_id -> cancelamento da ressincronização agendada
+
+
+def _disparos(alarme: dict[str, Any] | None, agora: datetime) -> list[datetime]:
+    """Disparos possíveis de um alarme ativo (enviado ou da lista do celular) de ontem a amanhã.
+    dias -1/-2 (ou desconhecido): qualquer um dos três dias (não sabemos quando foi enviado);
+    bitmask: só os dias da semana marcados (seg=1 … dom=64)."""
+    if not isinstance(alarme, dict) or not alarme.get("ativo"):
+        return []
+    try:
+        h, m = int(alarme["hora"]), int(alarme["minuto"])
+    except (KeyError, TypeError, ValueError):
+        return []
+    try:
+        dias = int(alarme.get("dias") if alarme.get("dias") is not None else -1)
+    except (TypeError, ValueError):
+        dias = -1
+    saida = []
+    for d in (-1, 0, 1):
+        dia = agora.date() + timedelta(days=d)
+        if dias > 0 and not dias & (1 << dia.weekday()):
+            continue
+        saida.append(datetime.combine(dia, time(h, m), tzinfo=agora.tzinfo))
+    return saida
+
+
+def fim_da_guarda(alarmes: list[dict[str, Any] | None], agora: datetime) -> datetime | None:
+    """Se algum disparo cai em [agora - GUARDA_DEPOIS_MIN, agora + GUARDA_ANTES_MIN], devolve
+    quando a guarda acaba (disparo + GUARDA_DEPOIS_MIN); senão None."""
+    fim = None
+    for a in alarmes:
+        for h in _disparos(a, agora):
+            if agora - timedelta(minutes=GUARDA_DEPOIS_MIN) <= h <= agora + timedelta(minutes=GUARDA_ANTES_MIN):
+                f = h + timedelta(minutes=GUARDA_DEPOIS_MIN)
+                fim = f if fim is None or f > fim else fim
+    return fim
+
+
+def _agendar_resync(hass: HomeAssistant, phone: AlarmeHaPhone, quando: datetime, agora: datetime) -> None:
+    """Uma ressincronização por celular, logo depois do fim da guarda (substitui a anterior)."""
+    from homeassistant.helpers.event import async_call_later  # noqa: PLC0415
+
+    cancelar = _RESYNC.pop(phone.phone_id, None)
+    if callable(cancelar):
+        cancelar()
+    atraso = max(1.0, (quando - agora).total_seconds()) + GUARDA_RESYNC_FOLGA_S
+
+    async def _rodar(_now: Any = None) -> None:
+        _RESYNC.pop(phone.phone_id, None)
+        try:
+            await async_sincronizar(hass, phone)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("AlarmeHA agenda: falha ao sincronizar %s: %s", phone.phone_id, err)
+
+    _RESYNC[phone.phone_id] = async_call_later(hass, atraso, _rodar)
 
 
 async def async_atualizar_agendas(hass: HomeAssistant, entidades: list[str]) -> None:
@@ -312,9 +369,20 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
             plano[ref] = {"ativo": False}
     # Quem manda é a agenda: se o alarme foi mexido no celular, reenvia o planejado.
     no_celular = {a.get("ref"): a for a in (phone.alarms or []) if isinstance(a, dict) and a.get("ref")}
+    adiar: datetime | None = None
+
+    def guarda(ref: str) -> bool:
+        """Alarme prestes a tocar / tocando / que acabou de tocar: não mexe, ressincroniza depois."""
+        nonlocal adiar
+        fim = fim_da_guarda([enviados.get(ref), no_celular.get(ref)], agora)
+        if fim is None:
+            return False
+        adiar = fim if adiar is None or fim < adiar else adiar
+        return True
+
     if no_celular:
         for ref, ant in list(enviados.items()):
-            if not ant.get("ativo") or phone.ocupado(ref):
+            if not ant.get("ativo") or phone.ocupado(ref) or guarda(ref):
                 continue
             atual = no_celular.get(ref)
             if atual is None or (atual.get("hora"), atual.get("minuto"), bool(atual.get("ativo"))) != (ant.get("hora"), ant.get("minuto"), True):
@@ -329,6 +397,9 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
             # Tocando ou em soneca: mexer agora cancelaria a soneca. Fica para depois.
             _LOGGER.debug("AlarmeHA agenda: %s tocando/em soneca, ajuste adiado", ref)
             continue
+        if guarda(ref):
+            _LOGGER.debug("AlarmeHA agenda: %s perto do disparo, ajuste adiado", ref)
+            continue
         try:
             if alvo["ativo"]:
                 await phone.async_command("criar", {"ref": ref, "vibrar": True, **alvo}, 30)
@@ -341,3 +412,5 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
     if mudou:
         phone.agenda = {**migrar(phone.agenda), "_enviados": enviados}
         phone.hub.async_save()
+    if adiar is not None:
+        _agendar_resync(hass, phone, adiar, agora)
