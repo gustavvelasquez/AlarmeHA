@@ -1,7 +1,7 @@
 """Constantes da integração AlarmeHA."""
 
 DOMAIN = "alarmeha"
-VERSION = "0.5.13"
+VERSION = "0.5.14"
 
 CONF_HA_URL = "ha_url"
 # Chaves da versão 1 (uma entrada por celular), usadas só na migração.
@@ -38,3 +38,10 @@ CONNECTED_MAX_AGE_HOURS = 26
 HEARTBEAT_HOURS = 12
 
 OPS = ["criar", "editar", "ligar", "desligar", "apagar", "listar"]
+
+# Agenda: não mexer num alarme cujo disparo atual no celular está perto de agora
+# (de GUARDA_DEPOIS_MIN atrás até GUARDA_ANTES_MIN à frente). Cobre o furo de o
+# aviso "tocou" chegar depois da sincronização. Depois da janela, sincroniza de novo.
+GUARDA_ANTES_MIN = 5
+GUARDA_DEPOIS_MIN = 10  # o app toca até 5 min; folga para aviso atrasado (Doze)
+GUARDA_RESYNC_FOLGA_S = 5
