@@ -4,7 +4,7 @@ O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app
 
 - **Ida:** o HA pede para criar, editar, ligar, desligar, apagar ou listar alarmes.
 - **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca, foi desligado, pulado ou religado, confirma as mudanças e manda a lista de alarmes.
-- **Versão:** este guia descreve a **0.7.0** (app e integração com o mesmo número). O que está planejado para a 0.8.0 fica na seção 7.
+- **Versão:** este guia descreve a **0.8.0** (app e integração com o mesmo número). O que mudou na 0.8.0 está resumido na seção 7.
 - **Segurança:** todo comando leva um **token** (gerado pelo HA na ativação pelo painel, ou pelo app no modo manual). Comando sem o token certo é ignorado em silêncio.
 - **Regra:** o HA só edita ou apaga alarmes que ele mesmo criou (com `ref`). Alarmes criados à mão no celular aparecem só na lista.
 - **Som:** o padrão do app, a não ser que o comando traga `som_uri` (toque por tipo de evento na agenda).
@@ -34,7 +34,7 @@ Enquanto o celular nunca foi ativado, o AlarmeHA mostra só a tela **Ativar o Al
 
 **Ativar de novo** (troca de celular, reinstalação ou token perdido): repita o passo 5 a partir do app. O mesmo dispositivo é reaproveitado, o HA cria token e webhook novos (os antigos deixam de valer) e reenvia o plano da agenda. No painel, **Desvincular** remove o celular do HA.
 
-> **Problema conhecido (0.7.0):** depois de ativar de novo, as entidades do celular podem continuar presas ao pareamento antigo. Os eventos chegam ao HA, mas os sensores param de atualizar e as ações dão "não confirmou após 3 tentativas". **Contorno:** Configurações → Dispositivos e serviços → AlarmeHA → ⋮ → **Recarregar** (sem reiniciar o HA). Correção prevista na 0.8.0. Veja a seção 6.
+> **0.7.0:** depois de ativar de novo, as entidades podiam ficar presas ao pareamento antigo (contorno: recarregar a integração). **Corrigido na 0.8.0:** o celular recebe as credenciais novas no mesmo objeto, os webhooks antigos são desregistrados e a fila do app do webhook antigo é descartada.
 
 ### Vindo da 0.2.x (uma entrada por celular)
 - A **primeira** entrada antiga vira a entrada única e mantém o celular dela, com o mesmo webhook, token, dispositivo e entidades. Esse celular aparece só para admins (não tem usuário). Para ligá-lo à pessoa, ative de novo pelo painel e depois desvincule o celular antigo duplicado, se aparecer.
@@ -320,18 +320,18 @@ Exemplo:
 
 | Sintoma | O que fazer |
 |---|---|
-| Sensores do celular parados depois de ativar de novo; ações dão "não confirmou após 3 tentativas" | Problema conhecido da 0.7.0. Recarregue a integração (Dispositivos e serviços → AlarmeHA → ⋮ → Recarregar). Não precisa ativar de novo nem reiniciar o HA. |
-| Nenhum evento chega ao HA | Confira `sensor.alarmeha_<pessoa>_ultimo_evento` e a versão nos atributos. Abra a URL externa no navegador do celular, fora do Wi-Fi. Deixe o AlarmeHA em bateria **Sem restrição** e abra o app uma vez. |
+| Sensores do celular parados depois de ativar de novo; ações dão "não confirmou após 3 tentativas" | Era o problema da 0.7.0, corrigido na 0.8.0. Em versão antiga: recarregue a integração (Dispositivos e serviços → AlarmeHA → ⋮ → Recarregar). |
+| Nenhum evento chega ao HA | Veja `sensor.alarmeha_<pessoa>_ultimo_evento_recebido` e a notificação "AlarmeHA: celular sem resposta". No app, abra a tela **Home Assistant**: último envio ok, último erro (URL e HTTP/exceção) e itens na fila. Abra a URL externa no navegador do celular, fora do Wi-Fi. Deixe o AlarmeHA em bateria **Sem restrição**. |
 | Comandos não chegam ao celular | Mande uma notificação comum para `notify.mobile_app_<celular>`. Se ela não chegar, o problema é no Companion/FCM, não no AlarmeHA. |
-| Alarmes duplicados desligados (`ag_<tipo>_<n>` com os mesmos horários) | Sobra do re-pareamento. A limpeza automática está prevista na 0.8.0; até lá podem ficar desligados. |
+| Alarmes duplicados desligados (`ag_<tipo>_<n>` com os mesmos horários) | Sobra de re-pareamento na 0.7.0. Na 0.8.0 o HA apaga as vagas `ag_*` sem uso na sincronização seguinte (00/15/30/45), fora da janela de 5/10 min. |
 | Alarme da agenda não mudou | O HA não mexe em alarme tocando, em soneca ou entre 5 min à frente e 10 min atrás; espere a próxima sincronização (00/15/30/45). |
 
-## 7. Próxima versão (0.8.0) — PLANEJADO, ainda não publicado
+## 7. Novidades da 0.8.0
 
-- **Cartões de grupo** (estilo Samsung): todo compromisso do HA vira um cartão na lista, inclusive os de um alarme só; alarmes manuais ficam soltos, sem agrupamento manual.
-- **Tela do grupo:** "Ativar tudo" / "Desativar tudo" e chave em cada alarme; desativar o grupo pula só aquele dia.
-- **Datas por extenso** em cada alarme (ex.: "qua., 21 de out.") no lugar de "Amanhã" ou "Ter, Qua".
-- **"Pulado"** no lugar de "Tocou às" para alarmes pulados.
-- **Envio confiável celular → HA:** envio imediato, fila de até 24 h, aviso quando a bateria restringe o app, sensor e alerta no HA após mais de 30 min sem eventos, último erro e código HTTP no Sobre.
-- **Re-pareamento:** religa entidades e sinais ao pareamento novo, desregistra webhooks antigos e limpa refs órfãos (inclusive alarmes duplicados).
-- **Em decisão:** forma dos remédios — um cartão "Remédios" com todos ou um cartão por remédio.
+- **Cartões de grupo:** todo compromisso do HA vira um cartão na lista (nome, próximo toque, ligados/desligados), inclusive os de um alarme só; alarmes manuais ficam soltos. Ordem pelo próximo toque.
+- **Tela do grupo** (tocar no cartão): "Desativar tudo" / "Ativar tudo" (os dois quando misto) e a chave de cada alarme. Desativar pula só aquele toque e cancela soneca em andamento; Ativar desfaz. Horário e nome vêm da agenda e não se editam no app.
+- **Datas por extenso** ("qua., 21 de out."; recorrente "Toda ter, qua · …"), desligados bem esmaecidos, e **"Pulado"** no lugar de "Tocou às" quando o toque tinha sido pulado.
+- **Remédios:** cada remédio é um cartão próprio. Para juntar todos num cartão só, a integração tem a opção `AGRUPAR_UM_ALARME = "por_tipo"` em `agenda.py`.
+- **Envio celular → HA:** envio na hora, WorkManager só de reserva, fila de até 24 h em ordem (`quando` original), `lista` repetida colapsa na mais recente. A tela Home Assistant do app mostra último envio ok, último erro e a fila; um aviso fixo na lista aparece com bateria restrita, app em espera ou envio falhando.
+- **No HA:** sensor `ultimo_evento_recebido` e alerta (notificação persistente + evento `alarmeha_silencio`) após 30 min de silêncio com comando sem resposta ou alarme que deveria ter tocado.
+- **Re-pareamento:** mesmo objeto do celular (sensores e pendências seguem), webhooks antigos desregistrados e vagas `ag_*` órfãs apagadas.

@@ -8,20 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarmeha`). Até a 0.6.0 o app e a integração tinham números próprios; desde a 0.7.0 usam o mesmo número. As versões do Fossify Clock (upstream) seguem abaixo.
 
-### Próxima versão (0.8.0, em desenvolvimento, ainda não publicada)
-- Planejado: cada compromisso do HA vira um cartão de grupo na lista; alarmes manuais ficam soltos.
-- Planejado: tela do grupo com "Ativar tudo" / "Desativar tudo" (desativar pula só o dia) e chave em cada alarme.
-- Planejado: data por extenso em cada alarme e "Pulado" no lugar de "Tocou às" para alarmes pulados.
-- Planejado: envio confiável celular → HA (fila de até 24 h, aviso de restrição de bateria, alerta no HA após 30 min sem eventos, último erro no Sobre).
-- Planejado: re-pareamento religa as entidades ao pareamento novo, desregistra webhooks antigos e limpa refs órfãos (corrige o problema conhecido da 0.7.0).
-- Em decisão: forma dos remédios (um cartão "Remédios" com todos ou um cartão por remédio).
+### 0.8.0 - 2026-10-20 (app e integração)
+- Lista do app em cartões: todo compromisso do HA vira um cartão de grupo (cantos arredondados) com nome, próximo toque e quantos alarmes estão ligados/desligados, inclusive os de um alarme só. Alarmes manuais continuam soltos. Ordem pelo próximo toque.
+- Tocar no cartão abre a tela do grupo: nome grande, "Desativar tudo" / "Ativar tudo" (os dois quando o grupo está misto) e a chave de cada alarme. Desativar pula só aquele toque (e cancela soneca em andamento); Ativar desfaz o pulo. Horário e nome dos alarmes do HA não se editam no app.
+- Datas por extenso ("qua., 21 de out."; recorrente: "Toda ter, qua · qua., 21 de out."); desligados bem esmaecidos; "Pulado" no lugar de "Tocou às" quando o toque tinha sido pulado.
+- Remédios (tipo com um alarme só): cada remédio é um cartão próprio, estável entre os dias (`AGRUPAR_UM_ALARME = "por_evento"`; `"por_tipo"` junta todos num cartão só).
+- Envio celular → HA: o envio começa na hora; o WorkManager (expedited) fica só de reserva. Fila em disco de até 24 h, sem descartar por número de tentativas, em ordem e com o `quando` original; uma `lista` nova substitui as pendentes; a fila do webhook antigo é descartada ao ativar de novo.
+- Tela do Home Assistant no app: último envio ok (hora e URL), último erro (URL e HTTP/exceção), itens na fila e descartados. Aviso fixo na lista quando a bateria está restrita, o Android pôs o app em espera ou o envio está falhando.
+- HA: sensor `ultimo_evento_recebido` por celular e alerta (notificação persistente + evento `alarmeha_silencio`) quando o celular fica mais de 30 min calado tendo comando sem resposta ou alarme que deveria ter tocado. Some no próximo evento.
+- HA: a URL de fora de casa conhecida pelo HA (externa ou Nabu Casa) entra na lista de URLs do app na ativação.
+- Corrigido: ativar de novo deixava sensores e pendências presos ao pareamento antigo. Agora o mesmo celular recebe as credenciais novas no mesmo objeto; webhooks antigos são desregistrados; o HA registra só um webhook por celular.
+- Corrigido: alarmes `ag_*` sem uso que sobravam no celular (ex.: duplicados desligados depois de ativar de novo) são apagados, respeitando a guarda de 5/10 min e alarmes tocando/em soneca.
 
 ### 0.7.0 - 2026-10-20 (app e integração)
 - Compromisso não se mescla mais entre dias: cada dia é um grupo; o de amanhã leva " · amanhã" no nome.
 - Remédios (tipo com um alarme só) continuam se mesclando por dia da semana quando o horário se repete.
 - Lista do app ordenada pelo próximo toque; só aparece o botão pertinente (desligar ou religar).
 - Alarmes do grupo que já tocaram ficam esmaecidos, com "Tocou às HH:MM", até o grupo acabar.
-- Problema conhecido: depois de ativar de novo, as entidades ficam presas ao pareamento antigo. Contorno: recarregar a integração.
+- Problema conhecido: depois de ativar de novo, as entidades ficam presas ao pareamento antigo. Contorno: recarregar a integração. Corrigido na 0.8.0.
 
 ### App 0.4.0 e integração 0.6.0 - 2026-10-20
 - Grupos por compromisso (`grupo` e `grupo_nome` nos comandos); "Desligar o grupo" / "Religar o grupo".
