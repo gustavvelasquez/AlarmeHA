@@ -18,7 +18,7 @@ async def async_setup_entry(
 ) -> None:
     setup_dynamic(
         hass, entry, async_add_entities,
-        lambda phone: [NextAlarmSensor(phone), LastEventSensor(phone), AlarmsSensor(phone)],
+        lambda phone: [NextAlarmSensor(phone), LastEventSensor(phone), LastReceivedSensor(phone), AlarmsSensor(phone)],
     )
 
 
@@ -48,6 +48,24 @@ class LastEventSensor(AlarmeHaEntity, SensorEntity):
         attrs = {k: v for k, v in self.phone.last_event.items() if k != "alarmes"}
         attrs["recebido_em"] = self.phone.last_seen.isoformat() if self.phone.last_seen else None
         return attrs
+
+
+class LastReceivedSensor(AlarmeHaEntity, SensorEntity):
+    """Quando chegou o último evento do celular (qualquer um)."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, phone) -> None:
+        super().__init__(phone, "ultimo_evento_recebido")
+
+    @property
+    def native_value(self) -> datetime | None:
+        return self.phone.last_seen
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        enviado = self.phone.last_command_at
+        return {"ultimo_comando": enviado.isoformat() if enviado else None, "alerta_silencio": self.phone.alerta_silencio}
 
 
 class AlarmsSensor(AlarmeHaEntity, SensorEntity):

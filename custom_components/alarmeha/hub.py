@@ -68,6 +68,7 @@ class AlarmeHaHub:
         self.phones: dict[str, AlarmeHaPhone] = {}
         self._codes: dict[str, PendingCode] = {}
         self._failures: deque[float] = deque()
+        self._webhooks: set[str] = set()  # ids registrados por este hub
 
     @property
     def external_url(self) -> str:
@@ -91,6 +92,21 @@ class AlarmeHaHub:
 
     # ---- webhooks ------------------------------------------------------------------
 
+    def _regs(self) -> set[str]:
+        return self.__dict__.setdefault("_webhooks", set())
+
+    @callback
+    def sync_webhooks(self) -> None:
+        """Deixa registrados exatamente os webhooks dos celulares atuais (os antigos saem)."""
+        atuais = {p.webhook_id: p for p in self.phones.values()}
+        for wid in list(self._regs()):
+            if wid not in atuais:
+                webhook.async_unregister(self.hass, wid)
+                self._regs().discard(wid)
+        for wid, phone in atuais.items():
+            if wid not in self._regs():
+                self.register_webhook(phone)
+
     @callback
     def register_webhook(self, phone: AlarmeHaPhone) -> None:
         async def handle(hass: HomeAssistant, webhook_id: str, request: web.Request) -> web.Response:
@@ -102,15 +118,19 @@ class AlarmeHaHub:
                 phone.handle_event(payload)
             return web.Response(status=200)
 
+        if phone.webhook_id in self._regs():
+            webhook.async_unregister(self.hass, phone.webhook_id)
         webhook.async_register(
             self.hass, DOMAIN, f"AlarmeHA {phone.person}", phone.webhook_id, handle,
             local_only=False, allowed_methods=["POST"],
         )
+        self._regs().add(phone.webhook_id)
 
     @callback
     def unregister_webhooks(self) -> None:
-        for phone in self.phones.values():
-            webhook.async_unregister(self.hass, phone.webhook_id)
+        for wid in set(self._regs()) | {p.webhook_id for p in self.phones.values()}:
+            webhook.async_unregister(self.hass, wid)
+        self._regs().clear()
 
     # ---- usuários e celulares do Companion -----------------------------------------
 
@@ -150,10 +170,20 @@ class AlarmeHaHub:
         except NoURLAvailableError:
             return None
 
+    @property
+    def remote_url(self) -> str | None:
+        """URL de fora de casa que o HA conhece (externa configurada ou Nabu Casa), se houver."""
+        try:
+            return get_url(self.hass, allow_internal=False, allow_ip=False, prefer_cloud=True).rstrip("/")
+        except NoURLAvailableError:
+            return None
+        except Exception:  # noqa: BLE001
+            return None
+
     def urls_for(self, origin: str | None) -> list[str]:
         """URLs que o app pode usar, na ordem de tentativa: a da ativação, a externa e a interna."""
         urls: list[str] = []
-        for url in (origin, self.external_url, self.internal_url):
+        for url in (origin, self.external_url, self.remote_url, self.internal_url):
             url = clean_url(url)
             if url and url not in urls:
                 urls.append(url)
@@ -215,36 +245,34 @@ class AlarmeHaHub:
         existing = same[0] if same else None
         for stale in same[1:]:
             await self.async_remove_phone(stale.phone_id)
+        dados = {
+            "user_id": pending.user_id,
+            "person": self.person_name(user, pending.user_id),
+            "device_name": device_label[:60] or mobile["nome"],
+            "mobile_entry_id": pending.mobile_entry_id,
+            "notify_service": mobile["notify_service"],
+            "package": package,
+            "webhook_id": "alarmeha_" + secrets.token_urlsafe(24),
+            "token": secrets.token_urlsafe(32),
+            # Pareado de novo (ex.: app reinstalado): a lista, os envios, os pulos e os
+            # "ocupados" do aparelho antigo não valem mais. A configuração da agenda fica.
+            "alarms": [],
+            "agenda": {k: v for k, v in (existing.agenda if existing else {}).items() if k != "_enviados"},
+            "toques": existing.toques if existing else [],
+            "pulados": {},
+            "activated_at": dt_util.utcnow().isoformat(),
+        }
         if existing:
-            webhook.async_unregister(self.hass, existing.webhook_id)
-            phone_id = existing.phone_id
+            # O MESMO objeto: as entidades (sensores), sinais e temporizadores seguem ligados a ele.
+            phone = existing
+            antigo = phone.webhook_id
+            phone.repareado(dados)
+            webhook.async_unregister(self.hass, antigo)
+            self._regs().discard(antigo)
         else:
-            phone_id = secrets.token_hex(8)
-
-        phone = AlarmeHaPhone(
-            self.hass,
-            self,
-            phone_id,
-            {
-                "user_id": pending.user_id,
-                "person": self.person_name(user, pending.user_id),
-                "device_name": device_label[:60] or mobile["nome"],
-                "mobile_entry_id": pending.mobile_entry_id,
-                "notify_service": mobile["notify_service"],
-                "package": package,
-                "webhook_id": "alarmeha_" + secrets.token_urlsafe(24),
-                "token": secrets.token_urlsafe(32),
-                # Pareado de novo (ex.: app reinstalado): a lista, os envios, os pulos e os
-                # "ocupados" do aparelho antigo não valem mais. A configuração da agenda fica.
-                "alarms": [],
-                "agenda": {k: v for k, v in (existing.agenda if existing else {}).items() if k != "_enviados"},
-                "toques": existing.toques if existing else [],
-                "pulados": {},
-                "activated_at": dt_util.utcnow().isoformat(),
-            },
-        )
-        self.phones[phone_id] = phone
-        self.register_webhook(phone)
+            phone = AlarmeHaPhone(self.hass, self, secrets.token_hex(8), dados)
+            self.phones[phone.phone_id] = phone
+        self.sync_webhooks()
         self.async_save()
         if not existing:
             async_dispatcher_send(self.hass, SIGNAL_NEW_PHONE, phone)
@@ -270,6 +298,7 @@ class AlarmeHaHub:
         if phone is None:
             return
         webhook.async_unregister(self.hass, phone.webhook_id)
+        self._regs().discard(phone.webhook_id)
         registry = dr.async_get(self.hass)
         if device := registry.async_get_device(identifiers={(DOMAIN, phone_id)}):
             registry.async_remove_device(device.id)

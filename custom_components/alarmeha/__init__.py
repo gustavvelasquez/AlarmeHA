@@ -18,6 +18,7 @@ from homeassistant.exceptions import ServiceValidationError, Unauthorized
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_HA_URL,
@@ -40,7 +41,7 @@ from .const import (
 from .apk import AlarmeHaApkView, ApkCache
 from .http_api import AlarmeHaActivateView
 from .hub import AlarmeHaHub
-from .phone import AlarmeHaPhone
+from .phone import AlarmeHaPhone, verificar_silencio
 from .websocket import async_register_websocket
 
 _LOGGER = logging.getLogger(__name__)
@@ -176,8 +177,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmeHaConfigEntry) -> 
     entry.runtime_data = hub
     hass.data[DOMAIN] = hub
 
-    for phone in hub.phones.values():
-        hub.register_webhook(phone)
+    hub.sync_webhooks()
     entry.async_on_unload(hub.unregister_webhooks)
 
     # Acordar pela agenda: reajusta os alarmes fixos dos tipos de evento a cada 15 min.
@@ -201,6 +201,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: AlarmeHaConfigEntry) -> 
                 await agenda.async_sincronizar(hass, phone)
             except Exception as err:  # noqa: BLE001
                 _LOGGER.warning("AlarmeHA agenda: falha ao sincronizar %s: %s", phone.phone_id, err)
+        for phone in list(hub.phones.values()):
+            try:
+                verificar_silencio(hass, phone, dt_util.now())
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug("AlarmeHA: falha ao verificar silêncio de %s: %s", phone.phone_id, err)
 
     # Nos minutos 00/15/30/45 (hora local), não importa quando o HA reiniciou.
     entry.async_on_unload(async_track_time_change(hass, _agenda_tick, minute=[0, 15, 30, 45], second=0))

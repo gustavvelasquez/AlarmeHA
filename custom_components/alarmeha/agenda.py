@@ -128,6 +128,20 @@ def grupo_do_evento(ev: dict[str, Any], t: dict[str, Any]) -> str:
     return f'{slug(t["id"])}_{ev["inicio"]:%Y%m%d_%H%M}_{slug(ev.get("titulo") or "")[:16]}'[:64]
 
 
+# Tipos de um alarme só (ex.: remédios): como viram grupo (cartão) no app.
+#   "por_evento": um cartão por remédio (título do evento)  |  "por_tipo": um cartão só com todos do tipo
+AGRUPAR_UM_ALARME = "por_evento"
+
+
+def grupo_um_alarme(a: dict[str, Any], t: dict[str, Any], modo: str | None = None) -> tuple[str, str]:
+    """(id, nome) do grupo de um alarme de tipo com 1 alarme por evento. Sem data no id: hoje e
+    amanhã mesclados (dias da semana) continuam no mesmo grupo."""
+    if (modo or AGRUPAR_UM_ALARME) == "por_tipo":
+        return slug(t["id"])[:64], str(t["nome"])[:64]
+    titulo = slug(a.get("titulo") or "")[:40]
+    return (f'{slug(t["id"])}_{titulo}' if titulo else slug(t["id"]))[:64], nome_do_grupo(a, t["nome"])
+
+
 def nome_do_grupo(a: dict[str, Any], nome_tipo: str) -> str:
     titulo = " ".join((a.get("titulo") or "").split())
     return (f"{nome_tipo} · {titulo}" if titulo and titulo != nome_tipo else nome_tipo)[:64]
@@ -307,6 +321,9 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
                     if inicio_grupo.get(grupo[0]["grupo"]) == amanha:
                         nome = nome[: 64 - len(" · amanhã")] + " · amanhã"
                     plano[ref] |= {"grupo": grupo[0]["grupo"], "grupo_nome": nome}
+                elif t is not livre and not com_grupo:
+                    gid, gnome = grupo_um_alarme(grupo[0], t)
+                    plano[ref] |= {"grupo": gid, "grupo_nome": gnome}
                 som = t.get("som") or cfg.get("som_padrao") or {}
                 if som.get("uri"):
                     plano[ref] |= {"som_uri": str(som["uri"])[:512], "som_titulo": str(som.get("titulo") or "")[:64]}
@@ -471,6 +488,19 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
                 enviados.pop(ref)
     mudou = False
     for ref, alvo in plano.items():
+        if not alvo["ativo"] and not alvo.get("tocou") and ref.startswith("ag_") and ref in no_celular:
+            # Vaga sem uso que ainda existe no celular (ex.: duplicado de outro pareamento ou de um
+            # grupo que acabou): apaga, para não acumular alarmes desligados repetidos na lista.
+            if phone.ocupado(ref) or guarda(ref):
+                continue
+            try:
+                await phone.async_command("apagar", {"ref": ref}, 30)
+                no_celular.pop(ref, None)
+                enviados.pop(ref, None)
+                mudou = True
+            except Exception as err:  # noqa: BLE001 - tenta de novo no próximo ciclo
+                _LOGGER.warning("AlarmeHA agenda: não consegui apagar %s: %s", ref, err)
+            continue
         if enviados.get(ref) == alvo:
             continue
         if not alvo["ativo"] and ref not in enviados and not (no_celular.get(ref) or {}).get("ativo"):

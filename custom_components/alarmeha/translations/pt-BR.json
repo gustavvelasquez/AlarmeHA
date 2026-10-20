@@ -41,6 +41,9 @@
       },
       "alarmes": {
         "name": "Alarmes"
+      },
+      "ultimo_evento_recebido": {
+        "name": "Último evento recebido"
       }
     },
     "binary_sensor": {

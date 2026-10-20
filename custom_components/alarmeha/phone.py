@@ -39,6 +39,7 @@ STORED_FIELDS = (
     "agenda", "toques", "pulados",
     "user_id", "person", "device_name", "mobile_entry_id", "notify_service",
     "package", "webhook_id", "token", "alarms", "last_event", "last_seen", "activated_at",
+    "alerta_silencio",
 )
 
 
@@ -85,10 +86,33 @@ class AlarmeHaPhone:
         self.pulados: dict[str, dict[str, Any]] = {
             r: v for r, v in (data.get("pulados") or {}).items() if isinstance(v, dict)
         }
+        enviado = data.get("last_command_at")
+        # Último comando enviado ao celular (para o alerta de "celular calado").
+        self.last_command_at: datetime | None = dt_util.parse_datetime(enviado) if enviado else None
+        self.alerta_silencio: bool = bool(data.get("alerta_silencio"))
+
+    def repareado(self, data: dict[str, Any]) -> None:
+        """Pareado de novo: o MESMO objeto recebe as credenciais novas (entidades, sinais e
+        temporizadores continuam ligados a ele). Pendências do aparelho antigo são canceladas."""
+        for future in self._pending.values():
+            if not future.done():
+                future.cancel()
+        self._pending.clear()
+        self.ocupados.clear()
+        for key in ("user_id", "person", "device_name", "mobile_entry_id", "notify_service",
+                    "package", "webhook_id", "token", "activated_at"):
+            setattr(self, key, data[key])
+        self.alarms = list(data.get("alarms") or [])
+        self.agenda = dict(data.get("agenda") or {})
+        self.toques = list(data.get("toques") or [])
+        self.pulados = dict(data.get("pulados") or {})
+        self.last_command_at = None
+        self.alerta_silencio = False
 
     def as_dict(self) -> dict[str, Any]:
         data = {key: getattr(self, key) for key in STORED_FIELDS}
         data["last_seen"] = self.last_seen.isoformat() if self.last_seen else None
+        data["last_command_at"] = self.last_command_at.isoformat() if self.last_command_at else None
         return data
 
     @property
@@ -222,6 +246,9 @@ class AlarmeHaPhone:
             return
         self.last_event = payload
         self.last_seen = dt_util.utcnow()
+        if self.alerta_silencio:
+            self.alerta_silencio = False
+            _alerta(self.hass, self, None)
 
         if event in ("tocou", "soneca", "desligado"):
             self._marcar_toque(event, payload)
@@ -266,6 +293,7 @@ class AlarmeHaPhone:
     # ---- comandos para o celular ----------------------------------------------------
 
     async def _send(self, fields: dict[str, Any]) -> None:
+        self.last_command_at = dt_util.utcnow()
         service = self.notify_service.removeprefix("notify.")
         if not self.hass.services.has_service("notify", service):
             raise HomeAssistantError(f"Serviço notify.{service} não encontrado (app Companion do celular)")
@@ -314,3 +342,55 @@ class AlarmeHaPhone:
             await self._send({"token": self.token, "op": "listar", "pedido": secrets.token_hex(6)})
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("AlarmeHA %s: falha ao pedir lista: %s", self.person, err)
+
+
+# ---- celular calado ----------------------------------------------------------------
+
+SILENCIO_MIN = 30
+
+
+def motivo_silencio(phone: AlarmeHaPhone, agora: datetime) -> str | None:
+    """Por que o celular deveria ter falado e está calado há mais de SILENCIO_MIN, ou None.
+    Calado só não basta (celular parado não manda nada): precisa de comando enviado depois do
+    último evento, ou de alarme enviado pelo HA que deveria ter tocado depois dele."""
+    from .agenda import GUARDA_DEPOIS_MIN, _disparos  # noqa: PLC0415
+
+    visto = phone.last_seen
+    if visto is not None and agora - visto <= timedelta(minutes=SILENCIO_MIN):
+        return None
+    desde = visto or (dt_util.parse_datetime(phone.activated_at) if phone.activated_at else None)
+    if desde is None:
+        return None
+    if phone.last_command_at and phone.last_command_at > desde and agora - phone.last_command_at > timedelta(minutes=SILENCIO_MIN):
+        return "comando sem resposta"
+    for alvo in ((phone.agenda or {}).get("_enviados") or {}).values():
+        for quando in _disparos(alvo, agora):
+            if desde < quando <= agora - timedelta(minutes=GUARDA_DEPOIS_MIN):
+                return f"alarme das {quando:%H:%M} sem aviso de toque"
+    return None
+
+
+def _alerta(hass: HomeAssistant, phone: AlarmeHaPhone, motivo: str | None) -> None:
+    from homeassistant.components import persistent_notification  # noqa: PLC0415
+
+    nid = f"alarmeha_silencio_{phone.phone_id}"
+    if motivo is None:
+        persistent_notification.async_dismiss(hass, nid)
+        return
+    visto = dt_util.as_local(phone.last_seen).strftime("%d/%m %H:%M") if phone.last_seen else "nunca"
+    persistent_notification.async_create(
+        hass,
+        f"O AlarmeHA de **{phone.person}** não manda nada ao HA desde {visto} ({motivo}). "
+        "Abra o app no celular e veja Sobre → Home Assistant (último erro de envio).",
+        title="AlarmeHA: celular sem resposta",
+        notification_id=nid,
+    )
+    hass.bus.async_fire("alarmeha_silencio", {"phone_id": phone.phone_id, "pessoa": phone.person, "motivo": motivo})
+
+
+def verificar_silencio(hass: HomeAssistant, phone: AlarmeHaPhone, agora: datetime) -> None:
+    motivo = motivo_silencio(phone, agora)
+    if motivo and not phone.alerta_silencio:
+        phone.alerta_silencio = True
+        _alerta(hass, phone, motivo)
+        phone.hub.async_save()
