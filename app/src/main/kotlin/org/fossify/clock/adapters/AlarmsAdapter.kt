@@ -41,6 +41,15 @@ class AlarmsAdapter(
 
     private var startReorderDragListener: StartReorderDragListener
 
+    /** AlarmeHA: alarmId -> ref/grupo/pulo dos alarmes da agenda (manuais não entram). */
+    private var haInfo: Map<Int, org.fossify.clock.ha.HaRefStore.Info> = emptyMap()
+    private var haGroups: Map<String, List<Int>> = emptyMap()
+
+    fun updateHaInfo(info: Map<Int, org.fossify.clock.ha.HaRefStore.Info>) {
+        haInfo = info
+        haGroups = org.fossify.clock.ha.HaSkipLogic.groupsOf(info.mapValues { it.value.group })
+    }
+
     init {
         setupDragListener(true)
         val touchHelper = ItemTouchHelper(ItemMoveCallback(this))
@@ -144,6 +153,23 @@ class AlarmsAdapter(
                 }
                 false
             }
+            val info = haInfo[alarm.id]
+            val group = info?.group?.takeIf { haGroups.containsKey(it) }
+            val position = alarms.indexOf(alarm)
+            val previousGroup = alarms.getOrNull(position - 1)?.let { haInfo[it.id]?.group }
+            alarmGroupHeader.beVisibleIf(group != null && previousGroup != group)
+            if (group != null) {
+                alarmGroupName.text = info.groupName ?: group
+                alarmGroupName.setTextColor(textColor)
+                alarmGroupOff.setTextColor(properPrimaryColor)
+                alarmGroupOn.setTextColor(properPrimaryColor)
+                alarmGroupOff.setOnClickListener { org.fossify.clock.ha.HaSkip.setGroup(activity, group, on = false) }
+                alarmGroupOn.setOnClickListener { org.fossify.clock.ha.HaSkip.setGroup(activity, group, on = true) }
+            }
+            val skippedAt = info?.skippedAt?.takeIf {
+                org.fossify.clock.ha.HaSkipLogic.isSkipActive(it, System.currentTimeMillis())
+            }
+
             alarmTime.text = activity.getFormattedTime(
                 passedSeconds = alarm.timeInMinutes * 60,
                 showSeconds = false,
@@ -151,17 +177,22 @@ class AlarmsAdapter(
             )
             alarmTime.setTextColor(textColor)
 
-            alarmDays.text = getAlarmSelectedDaysString(alarm)
+            alarmDays.text = if (skippedAt != null) skippedText(skippedAt) else getAlarmSelectedDaysString(alarm)
             alarmDays.setTextColor(textColor)
 
             alarmLabel.text = alarm.label
             alarmLabel.setTextColor(textColor)
             alarmLabel.beVisibleIf(alarm.label.isNotEmpty())
 
-            alarmSwitch.isChecked = alarm.isEnabled
+            alarmSwitch.isChecked = alarm.isEnabled && skippedAt == null
             alarmSwitch.setColors(textColor, properPrimaryColor, backgroundColor)
             alarmSwitch.setOnClickListener {
-                toggleAlarm(binding = this, alarm = alarm)
+                if (info != null && (alarm.isEnabled || skippedAt != null)) {
+                    // Alarme da agenda: desligar = pular só o próximo toque; ligar = desfazer o pulo.
+                    org.fossify.clock.ha.HaSkip.toggle(activity, alarm.id, alarmSwitch.isChecked)
+                } else {
+                    toggleAlarm(binding = this, alarm = alarm)
+                }
             }
         }
     }
@@ -193,6 +224,19 @@ class AlarmsAdapter(
                 toggleAlarmInterface.alarmToggled(alarm.id, binding.alarmSwitch.isChecked)
             }
         }
+    }
+
+    private fun skippedText(at: Long): String {
+        val day = java.util.Calendar.getInstance().apply { timeInMillis = at }
+        val today = java.util.Calendar.getInstance()
+        fun same(a: java.util.Calendar, b: java.util.Calendar) =
+            a.get(java.util.Calendar.YEAR) == b.get(java.util.Calendar.YEAR) &&
+                a.get(java.util.Calendar.DAY_OF_YEAR) == b.get(java.util.Calendar.DAY_OF_YEAR)
+        if (same(day, today)) return activity.getString(R.string.ha_skipped_today)
+        today.add(java.util.Calendar.DAY_OF_MONTH, 1)
+        if (same(day, today)) return activity.getString(R.string.ha_skipped_tomorrow)
+        val fmt = java.text.SimpleDateFormat("dd/MM", java.util.Locale.getDefault())
+        return activity.getString(R.string.ha_skipped_on, fmt.format(day.time))
     }
 
     private fun getAlarmSelectedDaysString(

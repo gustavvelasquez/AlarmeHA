@@ -110,6 +110,7 @@ class AlarmController(
         }
 
         sendIntentToService(AlarmService.ACTION_START_ALARM, alarmId)
+        org.fossify.clock.ha.HaSkip.markSnoozed(context, alarmId, false)
         HaEvents.onRingEvent(context, "tocou", alarmId) // AlarmeHA
     }
 
@@ -132,6 +133,7 @@ class AlarmController(
     fun stopAlarm(alarmId: Int) {
         sendIntentToService(AlarmService.ACTION_STOP_ALARM, alarmId)
         bus.post(AlarmEvent.Stopped(alarmId))
+        org.fossify.clock.ha.HaSkip.markSnoozed(context, alarmId, false)
         HaEvents.onRingEvent(context, "desligado", alarmId) // AlarmeHA
 
         ensureBackgroundThread {
@@ -161,6 +163,7 @@ class AlarmController(
         sendIntentToService(AlarmService.ACTION_STOP_ALARM, alarmId)
         bus.post(AlarmEvent.Stopped(alarmId))
         HaEvents.onRingEvent(context, "soneca", alarmId) { put("minutos", snoozeMinutes) } // AlarmeHA
+        org.fossify.clock.ha.HaSkip.markSnoozed(context, alarmId, true)
 
         ensureBackgroundThread {
             val alarm = db.getAlarmWithId(alarmId)
@@ -198,7 +201,16 @@ class AlarmController(
     }
 
     private fun scheduleNextAlarm(alarm: Alarm, showToast: Boolean = false) {
-        val triggerTimeMillis = getTimeOfNextAlarm(alarm)?.timeInMillis ?: return
+        // AlarmeHA: alarme da agenda com o próximo toque pulado agenda o seguinte (ou nenhum).
+        val skipped = org.fossify.clock.ha.HaSkip.activeSkip(context, alarm.id)
+        val triggerTimeMillis = if (skipped != null) {
+            org.fossify.clock.ha.HaSkip.effectiveNext(context, alarm) ?: run {
+                context.cancelAlarmClock(alarm)
+                return
+            }
+        } else {
+            getTimeOfNextAlarm(alarm)?.timeInMillis ?: return
+        }
         context.setupAlarmClock(alarm = alarm, triggerTimeMillis = triggerTimeMillis)
 
         if (showToast) {

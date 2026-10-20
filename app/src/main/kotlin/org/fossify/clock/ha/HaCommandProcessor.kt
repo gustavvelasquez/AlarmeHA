@@ -36,7 +36,7 @@ class HaCommandProcessor(private val context: Context) {
         try {
             when (op) {
                 "criar" -> create(extras, requireRef(ref), pedido)
-                "editar" -> edit(extras, requireRef(ref), pedido)
+                "editar" -> edit(extras, requireRef(ref), pedido, fullPlan = false)
                 "ligar" -> setEnabled(ref, true, pedido)
                 "desligar" -> setEnabled(ref, false, pedido)
                 "apagar" -> delete(ref, pedido)
@@ -80,7 +80,7 @@ class HaCommandProcessor(private val context: Context) {
     private fun create(extras: Bundle, ref: String, pedido: String?) {
         val existingId = refs.getAlarmId(ref)
         if (existingId != null && db.getAlarmWithId(existingId) != null) {
-            edit(extras, ref, pedido)
+            edit(extras, ref, pedido, fullPlan = true)
             return
         }
 
@@ -97,13 +97,15 @@ class HaCommandProcessor(private val context: Context) {
         alarm.id = db.insertAlarm(alarm)
         if (alarm.id <= 0) throw CommandError("erro_ao_salvar")
         refs.put(ref, alarm.id)
+        applyGroup(extras, ref, fullPlan = true)
         applySchedule(alarm)
         HaEvents.sendAlarmChange(context, "criado", ref, alarm, pedido)
     }
 
-    private fun edit(extras: Bundle, ref: String, pedido: String?) {
+    private fun edit(extras: Bundle, ref: String, pedido: String?, fullPlan: Boolean) {
         val alarm = findAlarm(ref)
         context.cancelAlarmClock(alarm)
+        val oldTime = alarm.timeInMinutes
 
         val hour = extras.getAsInt("hora") ?: (alarm.timeInMinutes / 60)
         val minute = extras.getAsInt("minuto") ?: (alarm.timeInMinutes % 60)
@@ -116,8 +118,20 @@ class HaCommandProcessor(private val context: Context) {
         applySound(extras, alarm)
 
         if (!db.updateAlarm(alarm)) throw CommandError("erro_ao_salvar")
+        // Outro horário = outro compromisso: o pulo antigo não vale mais.
+        if (!HaSkipLogic.keepSkipAfterEdit(oldTime, alarm.timeInMinutes)) refs.setSkipped(alarm.id, null)
+        applyGroup(extras, ref, fullPlan)
         applySchedule(alarm)
         HaEvents.sendAlarmChange(context, "alterado", ref, alarm, pedido)
+    }
+
+    /** "grupo"/"grupo_nome" (integração 0.6+). No "criar" o plano vem completo: sem grupo = sozinho. */
+    private fun applyGroup(extras: Bundle, ref: String, fullPlan: Boolean) {
+        val raw = extras.getAsString("grupo")
+        if (raw == null && !fullPlan) return
+        val group = decoded(raw)?.trim()?.lowercase()?.takeIf { REF_REGEX.matches(it) }
+        val name = if (group == null) null else decoded(extras.getAsString("grupo_nome"))?.trim()?.take(MAX_TEXT)
+        refs.setGroup(ref, group, name)
     }
 
     private fun setEnabled(ref: String?, enabled: Boolean, pedido: String?) {

@@ -90,6 +90,7 @@ android {
 
     sourceSets {
         getByName("main").java.srcDirs("src/main/kotlin")
+        getByName("test").java.srcDirs("src/test/kotlin")
     }
 
     compileOptions {
@@ -140,6 +141,7 @@ detekt {
 
 dependencies {
     implementation(libs.fossify.commons)
+    testImplementation("junit:junit:4.13.2")
 
     implementation(libs.bundles.lifecycle)
     implementation(libs.androidx.constraintlayout)

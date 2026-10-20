@@ -11,7 +11,7 @@ import org.json.JSONObject
 
 /** Monta e envia os eventos do AlarmeHA para o webhook do HA. */
 object HaEvents {
-    fun alarmJson(alarm: Alarm, ref: String?): JSONObject = JSONObject().apply {
+    fun alarmJson(alarm: Alarm, ref: String?, info: HaRefStore.Info? = null): JSONObject = JSONObject().apply {
         put("ref", ref ?: JSONObject.NULL)
         put("id", alarm.id)
         put("hora", alarm.timeInMinutes / 60)
@@ -23,8 +23,20 @@ object HaEvents {
         put("som_titulo", alarm.soundTitle)
         put("unico", alarm.oneShot)
         put("criado_pelo_ha", ref != null)
-        val next = if (alarm.isEnabled) getTimeOfNextAlarm(alarm) else null
-        put("proximo_disparo", next?.let { HaWebhook.isoDate(it.time) } ?: JSONObject.NULL)
+        val now = System.currentTimeMillis()
+        val skipped = info?.skippedAt?.takeIf { HaSkipLogic.isSkipActive(it, now) }
+        val next = when {
+            !alarm.isEnabled -> null
+            ref != null -> HaSkipLogic.effectiveNext(alarm.timeInMinutes, alarm.days, skipped, now)
+            else -> getTimeOfNextAlarm(alarm)?.timeInMillis
+        }
+        put("proximo_disparo", next?.let { HaWebhook.isoDate(java.util.Date(it)) } ?: JSONObject.NULL)
+        if (ref != null) {
+            // 0.4.0: pulo (skip once) e grupo do compromisso. Integração antiga ignora.
+            put("pulado", skipped?.let { HaWebhook.isoDate(java.util.Date(it)) } ?: JSONObject.NULL)
+            put("grupo", info?.group ?: JSONObject.NULL)
+            put("grupo_nome", info?.groupName ?: JSONObject.NULL)
+        }
     }
 
     fun sendAlarmChange(context: Context, event: String, ref: String, alarm: Alarm, pedido: String?) {
@@ -33,14 +45,14 @@ object HaEvents {
             put("ref", ref)
             put("id", alarm.id)
             put("origem_mudanca", "ha")
-            if (event != "apagado") put("alarme", alarmJson(alarm, ref))
+            if (event != "apagado") put("alarme", alarmJson(alarm, ref, HaSkip.info(context, alarm.id)))
         })
     }
 
     fun sendList(context: Context, pedido: String?) {
-        val byId = HaRefStore.get(context).all().entries.associate { (ref, id) -> id to ref }
+        val infos = HaRefStore.get(context).allInfo().associateBy { it.alarmId }
         val alarms = JSONArray()
-        context.dbHelper.getAlarms().forEach { alarms.put(alarmJson(it, byId[it.id])) }
+        context.dbHelper.getAlarms().forEach { alarms.put(alarmJson(it, infos[it.id]?.ref, infos[it.id])) }
         HaWebhook.send(context, "lista", JSONObject().apply {
             put("pedido", pedido ?: JSONObject.NULL)
             put("alarmes", alarms)

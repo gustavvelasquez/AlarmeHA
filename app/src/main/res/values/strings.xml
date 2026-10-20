@@ -65,4 +65,9 @@
         https://github.com/FossifyOrg/Commons/tree/master/commons/src/main/res
     -->
 
+    <string name="ha_group_off" translatable="false">Desligar o grupo</string>
+    <string name="ha_group_on" translatable="false">Religar o grupo</string>
+    <string name="ha_skipped_today" translatable="false">Pulado hoje</string>
+    <string name="ha_skipped_tomorrow" translatable="false">Pulado amanhã</string>
+    <string name="ha_skipped_on" translatable="false">Pulado em %s</string>
 </resources>

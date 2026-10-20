@@ -32,10 +32,11 @@ _LOGGER = logging.getLogger(__name__)
 OCUPADO_TOCANDO_MIN = 10  # o app desliga sozinho após alarm_max_reminder_secs (padrão 5 min)
 OCUPADO_SONECA_FOLGA_MIN = 5
 SINCRONIZAR_APOS_DESLIGAR_S = 60
+SINCRONIZAR_APOS_PAREAR_S = 10  # dá tempo de a lista do celular chegar antes de reenviar o plano
 
 RESPONSE_EVENTS = {"criado", "alterado", "apagado", "lista", "toques", "erro"}
 STORED_FIELDS = (
-    "agenda", "toques",
+    "agenda", "toques", "pulados",
     "user_id", "person", "device_name", "mobile_entry_id", "notify_service",
     "package", "webhook_id", "token", "alarms", "last_event", "last_seen", "activated_at",
 )
@@ -80,6 +81,10 @@ class AlarmeHaPhone:
         self.toques: list[dict[str, Any]] = data.get("toques") or []
         self._pending: dict[str, asyncio.Future[dict[str, Any]]] = {}
         self.ocupados: dict[str, datetime] = {}  # ref -> até quando (só em memória)
+        # ref -> {"ocorrencia": ISO do toque pulado no app (None = religado), "quando": ISO do aviso}
+        self.pulados: dict[str, dict[str, Any]] = {
+            r: v for r, v in (data.get("pulados") or {}).items() if isinstance(v, dict)
+        }
 
     def as_dict(self) -> dict[str, Any]:
         data = {key: getattr(self, key) for key in STORED_FIELDS}
@@ -161,17 +166,52 @@ class AlarmeHaPhone:
             minutos = minutos or OCUPADO_TOCANDO_MIN
             self.ocupados[ref] = agora + timedelta(minutes=minutos + OCUPADO_SONECA_FOLGA_MIN)
         elif event == "desligado" and self.ocupados.pop(ref, None) is not None:
-            from homeassistant.helpers.event import async_call_later  # noqa: PLC0415
+            self.sincronizar_depois(SINCRONIZAR_APOS_DESLIGAR_S)
 
-            async def _sincronizar(_now: Any = None) -> None:
-                from . import agenda  # noqa: PLC0415
+    def sincronizar_depois(self, segundos: float) -> None:
+        from homeassistant.helpers.event import async_call_later  # noqa: PLC0415
 
-                try:
-                    await agenda.async_sincronizar(self.hass, self)
-                except Exception as err:  # noqa: BLE001
-                    _LOGGER.warning("AlarmeHA agenda: falha ao sincronizar %s: %s", self.phone_id, err)
+        async def _sincronizar(_now: Any = None) -> None:
+            from . import agenda  # noqa: PLC0415
 
-            async_call_later(self.hass, SINCRONIZAR_APOS_DESLIGAR_S, _sincronizar)
+            try:
+                await agenda.async_sincronizar(self.hass, self)
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.warning("AlarmeHA agenda: falha ao sincronizar %s: %s", self.phone_id, err)
+
+        async_call_later(self.hass, segundos, _sincronizar)
+
+    # ---- pulado / religado no app ----------------------------------------------------
+
+    def _registrar_pulo(self, ref: Any, ocorrencia: Any, quando: Any) -> None:
+        """Guarda o último estado de pulo de um ref. Avisos da fila offline podem chegar fora de
+        ordem: vale o mais recente ("quando" do celular)."""
+        if not isinstance(ref, str) or not ref:
+            return
+        quando = quando if isinstance(quando, str) else dt_util.utcnow().isoformat()
+        ant = self.pulados.get(ref)
+        if ant and isinstance(ant.get("quando"), str):
+            a, b = dt_util.parse_datetime(ant["quando"]), dt_util.parse_datetime(quando)
+            if a and b and b < a:
+                return
+        self.pulados[ref] = {"ocorrencia": ocorrencia if isinstance(ocorrencia, str) and ocorrencia else None,
+                             "quando": quando}
+
+    def _pulo_da_lista(self, alarm: Any, quando: Any) -> None:
+        """App 0.4+: cada alarme da lista traz "pulado" (ISO ou null). App antigo: sem o campo, nada muda."""
+        if isinstance(alarm, dict) and "pulado" in alarm and alarm.get("ref"):
+            atual = (self.pulados.get(alarm["ref"]) or {}).get("ocorrencia")
+            if atual != alarm.get("pulado"):
+                self._registrar_pulo(alarm["ref"], alarm.get("pulado"), quando)
+
+    def limpar_pulados(self, agora: datetime) -> None:
+        """Esquece pulos de ocorrências que já passaram (e religados antigos)."""
+        limite = agora - timedelta(days=2)
+        for ref, info in list(self.pulados.items()):
+            oc = dt_util.parse_datetime(info["ocorrencia"]) if info.get("ocorrencia") else None
+            q = dt_util.parse_datetime(info["quando"]) if info.get("quando") else None
+            if (oc is not None and oc < agora - timedelta(hours=1)) or (oc is None and (q is None or q < limite)):
+                self.pulados.pop(ref, None)
 
     # ---- eventos vindos do celular -------------------------------------------------
 
@@ -185,13 +225,21 @@ class AlarmeHaPhone:
 
         if event in ("tocou", "soneca", "desligado"):
             self._marcar_toque(event, payload)
+        quando = payload.get("quando")
+        if event == "pulado":
+            self._registrar_pulo(self._ref_do_evento(payload), payload.get("ocorrencia"), quando)
+        elif event == "religado":
+            self._registrar_pulo(self._ref_do_evento(payload), None, quando)
 
         if event == "toques" and isinstance(payload.get("toques"), list):
             self.toques = [t for t in payload["toques"] if isinstance(t, dict) and t.get("uri")][:150]
         elif event == "lista" and isinstance(payload.get("alarmes"), list):
             self.alarms = payload["alarmes"]
-        elif event in ("criado", "alterado") and isinstance(payload.get("alarme"), dict):
+            for a in self.alarms:
+                self._pulo_da_lista(a, quando)
+        elif event in ("criado", "alterado", "pulado", "religado") and isinstance(payload.get("alarme"), dict):
             alarm = payload["alarme"]
+            self._pulo_da_lista(alarm, quando)
             self.alarms = [a for a in self.alarms if a.get("id") != alarm.get("id")] + [alarm]
         elif event == "apagado":
             self.alarms = [a for a in self.alarms if a.get("id") != payload.get("id")]
@@ -211,6 +259,9 @@ class AlarmeHaPhone:
 
         if event in ("desligado", "pareado"):
             self.hass.async_create_task(self.async_request_list_silently())
+        if event == "pareado":
+            # Celular pareado (de novo): reenvia o plano completo sem esperar o próximo tick.
+            self.sincronizar_depois(SINCRONIZAR_APOS_PAREAR_S)
 
     # ---- comandos para o celular ----------------------------------------------------
 

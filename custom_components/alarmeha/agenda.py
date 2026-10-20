@@ -118,8 +118,19 @@ def _alarmes_do_evento(ev: dict[str, Any], t: dict[str, Any], dia: date) -> list
         if minimo and h < minimo:
             h = minimo
         saida.append({"n": i + 1, "total": len(t["alarmes"]), "titulo": (ev.get("titulo") or "").strip(),
-                      "tipo": t["id"], "horario": h, "agenda": ev.get("agenda_nome") or ev.get("agenda") or ""})
+                      "tipo": t["id"], "horario": h, "agenda": ev.get("agenda_nome") or ev.get("agenda") or "",
+                      "grupo": grupo_do_evento(ev, t)})
     return saida
+
+
+def grupo_do_evento(ev: dict[str, Any], t: dict[str, Any]) -> str:
+    """Id estável do compromisso (tipo + início + título), no formato de ref do app ([a-z0-9_-], até 64)."""
+    return f'{slug(t["id"])}_{ev["inicio"]:%Y%m%d_%H%M}_{slug(ev.get("titulo") or "")[:16]}'[:64]
+
+
+def nome_do_grupo(a: dict[str, Any], nome_tipo: str) -> str:
+    titulo = " ".join((a.get("titulo") or "").split())
+    return (f"{nome_tipo} · {titulo}" if titulo and titulo != nome_tipo else nome_tipo)[:64]
 
 
 def _motivo(t: dict[str, Any], ev: dict[str, Any], alarmes: list[dict[str, Any]]) -> str:
@@ -268,6 +279,10 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
             if prox and cfg.get("ligado"):
                 plano[ref] = {"hora": prox.hour, "minuto": prox.minute, "dias": _dias(grupo, hoje),
                               "rotulo": rotulo, "ativo": True}
+                # Compromisso com mais de um alarme: o app agrupa (desligar/religar o grupo).
+                # Com um alarme só (ex.: remédio) não vai grupo: fica sozinho e nunca é desligado junto.
+                if t is not livre and int(grupo[0].get("total") or 1) > 1 and grupo[0].get("grupo"):
+                    plano[ref] |= {"grupo": grupo[0]["grupo"], "grupo_nome": nome_do_grupo(grupo[0], t["nome"])}
                 som = t.get("som") or cfg.get("som_padrao") or {}
                 if som.get("uri"):
                     plano[ref] |= {"som_uri": str(som["uri"])[:512], "som_titulo": str(som.get("titulo") or "")[:64]}
@@ -301,6 +316,44 @@ def _disparos(alarme: dict[str, Any] | None, agora: datetime) -> list[datetime]:
             continue
         saida.append(datetime.combine(dia, time(h, m), tzinfo=agora.tzinfo))
     return saida
+
+
+def proximo_disparo(alarme: dict[str, Any], agora: datetime) -> datetime | None:
+    """Próximo disparo (>= agora - GUARDA_DEPOIS_MIN) de um alarme planejado/enviado, ou None."""
+    lim = agora - timedelta(minutes=GUARDA_DEPOIS_MIN)
+    try:
+        h, m = int(alarme["hora"]), int(alarme["minuto"])
+        dias = int(alarme.get("dias") if alarme.get("dias") is not None else -1)
+    except (KeyError, TypeError, ValueError):
+        return None
+    if dias in (-1, -2):
+        return datetime.combine(agora.date() + timedelta(days=0 if dias == -1 else 1), time(h, m), tzinfo=agora.tzinfo)
+    for d in range(-1, 8):
+        dia = agora.date() + timedelta(days=d)
+        quando = datetime.combine(dia, time(h, m), tzinfo=agora.tzinfo)
+        if dias & (1 << dia.weekday()) and quando >= lim:
+            return quando
+    return None
+
+
+def pulo_ativo(phone: AlarmeHaPhone, ref: str, agora: datetime, no_celular: dict[str, Any] | None = None) -> datetime | None:
+    """Ocorrência que o usuário pulou no app (ainda por vir ou acabou de passar), ou None.
+    Vale o que o HA guardou (eventos pulado/religado) e, se o aviso ainda não chegou, o campo
+    "pulado" da lista do celular."""
+    lim = agora - timedelta(minutes=GUARDA_DEPOIS_MIN)
+    candidatos = []
+    info = (getattr(phone, "pulados", None) or {}).get(ref)
+    if isinstance(info, dict) and info.get("ocorrencia"):
+        candidatos.append(info["ocorrencia"])
+    elif isinstance(info, dict) and "ocorrencia" in info:
+        return None  # religado no app depois do último pulo
+    if isinstance(no_celular, dict) and no_celular.get("pulado"):
+        candidatos.append(no_celular["pulado"])
+    for c in candidatos:
+        quando = dt_util.parse_datetime(c) if isinstance(c, str) else None
+        if quando is not None and quando >= lim:
+            return quando
+    return None
 
 
 def fim_da_guarda(alarmes: list[dict[str, Any] | None], agora: datetime) -> datetime | None:
@@ -364,11 +417,14 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
     agora = dt_util.now()
     dias = calcular(await async_eventos(hass, cfg), cfg, agora.date(), dias=1, desde=0)
     plano = planejar(dias, cfg, agora)
+    no_celular = {a.get("ref"): a for a in (phone.alarms or []) if isinstance(a, dict) and a.get("ref")}
     for ref in list(enviados):  # tipos/alarmes removidos: desliga o alarme antigo
         if ref not in plano and enviados[ref].get("ativo"):
             plano[ref] = {"ativo": False}
+    for ref, atual in no_celular.items():  # ligado no celular sem registro de envio (ex.: pareado de novo)
+        if ref.startswith("ag_") and ref not in plano and atual.get("ativo"):
+            plano[ref] = {"ativo": False}
     # Quem manda é a agenda: se o alarme foi mexido no celular, reenvia o planejado.
-    no_celular = {a.get("ref"): a for a in (phone.alarms or []) if isinstance(a, dict) and a.get("ref")}
     adiar: datetime | None = None
 
     def guarda(ref: str) -> bool:
@@ -384,6 +440,8 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
         for ref, ant in list(enviados.items()):
             if not ant.get("ativo") or phone.ocupado(ref) or guarda(ref):
                 continue
+            if pulo_ativo(phone, ref, agora, no_celular.get(ref)):
+                continue  # pulado no app: o "desligado" é do usuário, não reenvia
             atual = no_celular.get(ref)
             if atual is None or (atual.get("hora"), atual.get("minuto"), bool(atual.get("ativo"))) != (ant.get("hora"), ant.get("minuto"), True):
                 enviados.pop(ref)
@@ -391,8 +449,13 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
     for ref, alvo in plano.items():
         if enviados.get(ref) == alvo:
             continue
-        if not alvo["ativo"] and ref not in enviados:
+        if not alvo["ativo"] and ref not in enviados and not (no_celular.get(ref) or {}).get("ativo"):
             continue  # nunca criado e nada a ligar
+        pulo = pulo_ativo(phone, ref, agora, no_celular.get(ref))
+        if pulo is not None and alvo["ativo"] and proximo_disparo(alvo, agora) == pulo:
+            # O usuário pulou essa ocorrência no app: não religa nem reedita. Depois dela, segue normal.
+            _LOGGER.debug("AlarmeHA agenda: %s pulado no app até %s", ref, pulo)
+            continue
         if phone.ocupado(ref):
             # Tocando ou em soneca: mexer agora cancelaria a soneca. Fica para depois.
             _LOGGER.debug("AlarmeHA agenda: %s tocando/em soneca, ajuste adiado", ref)
@@ -409,6 +472,8 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
             mudou = True
         except Exception as err:  # noqa: BLE001 - tenta de novo no próximo ciclo
             _LOGGER.warning("AlarmeHA agenda: não consegui ajustar %s: %s", ref, err)
+    if getattr(phone, "limpar_pulados", None):
+        phone.limpar_pulados(agora)
     if mudou:
         phone.agenda = {**migrar(phone.agenda), "_enviados": enviados}
         phone.hub.async_save()

@@ -131,11 +131,30 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
                 }
             }
 
+            // AlarmeHA: alarmes do mesmo compromisso ficam juntos, na posição do primeiro.
+            val info = runCatching { org.fossify.clock.ha.HaRefStore.get(safeContext).allInfo().associateBy { it.alarmId } }
+                .getOrDefault(emptyMap())
+            haInfo = info
+            val groups = org.fossify.clock.ha.HaSkipLogic.groupsOf(info.mapValues { it.value.group })
+            val sorted = newAlarms!!
+            val ordered = ArrayList<Alarm>()
+            val done = HashSet<String>()
+            sorted.forEach { alarm ->
+                val g = info[alarm.id]?.group?.takeIf { groups.containsKey(it) }
+                if (g == null) {
+                    ordered.add(alarm)
+                } else if (done.add(g)) {
+                    ordered.addAll(sorted.filter { info[it.id]?.group == g })
+                }
+            }
+
             activity?.runOnUiThread {
-                callback(newAlarms)
+                callback(ordered)
             }
         }
     }
+
+    private var haInfo: Map<Int, org.fossify.clock.ha.HaRefStore.Info> = emptyMap()
 
     private fun setupAlarms() {
         getSortedAlarms { sortedAlarms ->
@@ -151,6 +170,7 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
                 ) {
                     openEditAlarm(it as Alarm)
                 }.apply {
+                    updateHaInfo(haInfo)
                     binding.alarmsList.adapter = this
                 }
             } else {
@@ -158,6 +178,7 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
                     updatePrimaryColor()
                     updateBackgroundColor(safeActivity.getProperBackgroundColor())
                     updateTextColor(safeActivity.getProperTextColor())
+                    updateHaInfo(haInfo)
                     updateItems(alarms)
                 }
             }

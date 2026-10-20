@@ -234,7 +234,12 @@ class AlarmeHaHub:
                 "package": package,
                 "webhook_id": "alarmeha_" + secrets.token_urlsafe(24),
                 "token": secrets.token_urlsafe(32),
-                "alarms": existing.alarms if existing else [],
+                # Pareado de novo (ex.: app reinstalado): a lista, os envios, os pulos e os
+                # "ocupados" do aparelho antigo não valem mais. A configuração da agenda fica.
+                "alarms": [],
+                "agenda": {k: v for k, v in (existing.agenda if existing else {}).items() if k != "_enviados"},
+                "toques": existing.toques if existing else [],
+                "pulados": {},
                 "activated_at": dt_util.utcnow().isoformat(),
             },
         )
@@ -245,6 +250,8 @@ class AlarmeHaHub:
             async_dispatcher_send(self.hass, SIGNAL_NEW_PHONE, phone)
         else:
             async_dispatcher_send(self.hass, phone.signal)
+        # Reserva caso o aviso "pareado" do app se perca: reenvia o plano logo após parear.
+        phone.sincronizar_depois(30)
         return phone, urls
 
     @callback

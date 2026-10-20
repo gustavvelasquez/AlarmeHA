@@ -35,8 +35,17 @@ class App : FossifyApp(), LifecycleObserver {
         org.fossify.clock.ha.HaCrashLog.install(this)
         super.onCreate()
         org.fossify.clock.ha.HaCrashLog.reportPending(this)
+        migrateSnoozeDefault()
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
         EventBus.getDefault().register(this)
+    }
+
+    /** AlarmeHA 0.4.0: soneca padrão de 5 min. Uma vez só: 10 (padrão antigo) vira 5; depois vale o que o usuário escolher. */
+    private fun migrateSnoozeDefault() {
+        val prefs = getSharedPreferences("alarmeha_migracoes", MODE_PRIVATE)
+        if (prefs.getBoolean("soneca_5", false)) return
+        runCatching { if (config.snoozeTime == 10) config.snoozeTime = 5 }
+        prefs.edit().putBoolean("soneca_5", true).apply()
     }
 
     override fun onTerminate() {
