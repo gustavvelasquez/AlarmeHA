@@ -63,9 +63,21 @@ def migrar(dados: dict[str, Any] | None) -> dict[str, Any]:
     return dados
 
 
+AGRUPAR_OPCOES = ("por_evento", "por_tipo")
+
+
+def agrupar_padrao(t: dict[str, Any]) -> str:
+    """Tipo salvo antes da opção (0.8.0): remédios num cartão só; o resto, um cartão por evento."""
+    nome = sem_acento(str(t.get("nome") or "")) + " " + str(t.get("id") or "")
+    return "por_tipo" if "remedio" in nome else "por_evento"
+
+
 def config(dados: dict[str, Any] | None) -> dict[str, Any]:
     cfg = {**PADRAO, **migrar(dados)}
     cfg["tipos"] = [{**TIPO_BASE, **t} for t in cfg.get("tipos") or []]
+    for t in cfg["tipos"]:
+        if t.get("agrupar") not in AGRUPAR_OPCOES:
+            t["agrupar"] = agrupar_padrao(t)
     return cfg
 
 
@@ -128,18 +140,18 @@ def grupo_do_evento(ev: dict[str, Any], t: dict[str, Any]) -> str:
     return f'{slug(t["id"])}_{ev["inicio"]:%Y%m%d_%H%M}_{slug(ev.get("titulo") or "")[:16]}'[:64]
 
 
-# Tipos de um alarme só (ex.: remédios): como viram grupo (cartão) no app.
-#   "por_evento": um cartão por remédio (título do evento)  |  "por_tipo": um cartão só com todos do tipo
-AGRUPAR_UM_ALARME = "por_evento"
-
-
 def grupo_um_alarme(a: dict[str, Any], t: dict[str, Any], modo: str | None = None) -> tuple[str, str]:
-    """(id, nome) do grupo de um alarme de tipo com 1 alarme por evento. Sem data no id: hoje e
-    amanhã mesclados (dias da semana) continuam no mesmo grupo."""
-    if (modo or AGRUPAR_UM_ALARME) == "por_tipo":
-        return slug(t["id"])[:64], str(t["nome"])[:64]
+    """(id, nome) do grupo de um alarme de tipo com 1 alarme por evento ("por_evento": um cartão por
+    título, sem data no id, para hoje e amanhã mesclados ficarem juntos) ou do tipo inteiro ("por_tipo")."""
+    if (modo or t.get("agrupar") or "por_evento") == "por_tipo":
+        return grupo_do_tipo(t)
     titulo = slug(a.get("titulo") or "")[:40]
     return (f'{slug(t["id"])}_{titulo}' if titulo else slug(t["id"]))[:64], nome_do_grupo(a, t["nome"])
+
+
+def grupo_do_tipo(t: dict[str, Any]) -> tuple[str, str]:
+    """Um cartão para o tipo inteiro."""
+    return f'tipo_{slug(t["id"])}'[:64], str(t["nome"])[:64]
 
 
 def nome_do_grupo(a: dict[str, Any], nome_tipo: str) -> str:
@@ -316,7 +328,12 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
                     plano[ref]["tocou"] = f"{prox:%H:%M}"
                 # Compromisso com mais de um alarme: o app agrupa (desligar/religar o grupo).
                 # Com um alarme só (ex.: remédio) não vai grupo: fica sozinho e nunca é desligado junto.
-                if com_grupo and int(grupo[0].get("total") or 1) > 1 and grupo[0].get("grupo"):
+                # Cartão do app: "por_tipo" junta o tipo inteiro; "por_evento" = um por compromisso
+                # (vários alarmes: por dia) ou por remédio (um alarme). A vaga (ref) não muda com a opção.
+                if t is not livre and t.get("agrupar") == "por_tipo":
+                    gid, gnome = grupo_do_tipo(t)
+                    plano[ref] |= {"grupo": gid, "grupo_nome": gnome}
+                elif com_grupo and int(grupo[0].get("total") or 1) > 1 and grupo[0].get("grupo"):
                     nome = nome_do_grupo(grupo[0], t["nome"])
                     if inicio_grupo.get(grupo[0]["grupo"]) == amanha:
                         nome = nome[: 64 - len(" · amanhã")] + " · amanhã"

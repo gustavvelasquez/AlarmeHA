@@ -351,6 +351,9 @@ class AlarmehaPanel extends HTMLElement {
             ${t.alarmes.length > 1 ? `<button type="button" class="x" data-al-rm="${ai}" title="Remover">✕</button>` : ""}</div>`).join("")}
           <button type="button" class="btn mini sec" data-al-add>+ Alarme</button></div>
         <div class="linha"><b>Toque</b><br>${this._seletorToque(a, t.som, a.config.som_padrao ? `Toque padrão (${a.config.som_padrao.titulo})` : "Toque padrão (Ajustes)")}</div>
+        <div class="linha"><b>Agrupar no app</b><br>
+          <label><input type="radio" name="agrupar" data-k="agrupar" value="por_evento" ${(t.agrupar || "por_evento") === "por_evento" ? "checked" : ""}> Um cartão por evento</label><br>
+          <label><input type="radio" name="agrupar" data-k="agrupar" value="por_tipo" ${t.agrupar === "por_tipo" ? "checked" : ""}> Um cartão para o tipo inteiro</label></div>
         <div class="linha"><b>Nunca antes de</b> <span class="muted">(opcional)</span><br><input type="text" inputmode="numeric" size="6" data-k="minimo" placeholder="ex.: 05:00" value="${esc(t.minimo || "")}"></div>
         ${r.novo ? "" : `<button type="button" class="btn mini sec perigo" data-tipo-rm>Apagar este tipo</button>`}
         ${rodape}
@@ -370,6 +373,8 @@ class AlarmehaPanel extends HTMLElement {
     t.agendas = [...root.querySelectorAll("[data-rasc-form] [data-k=agenda]:checked")].map((x) => x.value);
     t.alarmes = [...root.querySelectorAll("[data-al]")].map((x) => ({ antes: (Number(x.querySelector("[data-k=h]").value) || 0) * 60 + (Number(x.querySelector("[data-k=m]").value) || 0) }));
     t.minimo = hm(v("minimo"));
+    const ag = root.querySelector("[data-rasc-form] [data-k=agrupar]:checked");
+    if (ag) t.agrupar = ag.value;
     t.som = somDe();
     return r;
   }
@@ -434,7 +439,7 @@ class AlarmehaPanel extends HTMLElement {
         return this._abrirAgenda(A.celular, { ligado: c.ligado, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao, tipos: c.tipos, ...mudanca }); };
       on("[data-ligado]", (el) => salvarTudo({ ligado: el.checked }), "change");
       on("[data-tipo-abrir]", (el) => { const i = Number(el.dataset.tipoAbrir); A.rasc = { i, tipo: JSON.parse(JSON.stringify(c.tipos[i])) }; A.salvo = false; this._render(); });
-      on("[data-tipo-add]", () => { A.rasc = { novo: true, tipo: { nome: "", agendas: [], palavras: [], alarmes: [{ antes: 0 }], minimo: null } }; A.salvo = false; this._render(); });
+      on("[data-tipo-add]", () => { A.rasc = { novo: true, tipo: { nome: "", agendas: [], palavras: [], alarmes: [{ antes: 0 }], minimo: null, agrupar: "por_evento" } }; A.salvo = false; this._render(); });
       on("[data-ajustes]", () => { A.rasc = { ajustes: true, sem_compromisso: c.sem_compromisso, escala_inicio: c.escala_inicio, som_padrao: c.som_padrao }; A.salvo = false; this._render(); });
       on("[data-toques]", async () => {
         this._lerAgenda(); A.buscandoToques = true; this._render();
