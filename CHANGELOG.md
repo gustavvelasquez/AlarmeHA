@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarmeha`). Até a 0.6.0 o app e a integração tinham números próprios; desde a 0.7.0 usam o mesmo número. As versões do Fossify Clock (upstream) seguem abaixo.
 
-### 0.9.0 - 2026-10-21 (app; a integração segue 0.8.1)
+### 0.9.0 - 2026-10-21 (app e integração)
 - Visual novo no estilo do Relógio da Samsung (One UI, escuro):
   - Aba Alarme com cabeçalho grande "Alarme em X horas e Y minutos" e a data/hora do próximo toque; + e ⋮ logo abaixo (a barra de cima some nessa aba).
   - Cartão de grupo em pílula: ícone roxo, só o nome do tipo ("Trabalho", "Remédio") e o total de alarmes; sem chave; tocar abre o grupo. Se dois grupos do mesmo tipo aparecem juntos (ex.: Trabalho de hoje e de amanhã), uma linha pequena com o dia diferencia.
@@ -17,7 +17,7 @@ Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarm
   - Tela do grupo: título centralizado, "Ativar tudo" / "Desativar tudo" (só o que faz sentido; os dois quando misto), barra ‹ ⋮ e um cartão com rótulo acima da hora e chave por alarme. Grupo do HA não tem + nem editar/renomear; o ⋮ leva às configurações.
   - Barra de abas em pílula, só ícones.
 - Sem mudança de lógica: pular o próximo toque, soneca, eventos ao HA e ordem por próximo toque continuam iguais.
-- A integração não mudou: continua 0.8.1.
+- Integração 0.9.0 sem mudança funcional em relação à 0.8.1 (só o número, para app e integração seguirem iguais).
 
 ### 0.8.1 - 2026-10-21 (só integração; o app continua 0.8.0)
 - Agenda indisponível não apaga mais alarmes: se uma agenda de um tipo não puder ser lida (indisponível, sem estado, ainda carregando depois de reiniciar ou com erro na leitura), as vagas desse tipo ficam como estão até ela voltar, com aviso (WARNING) no log. Com várias agendas no tipo, uma falhando já congela o tipo. Caso real: `calendar.remedio` indisponível por 3 min apagou os remédios na 0.8.0.

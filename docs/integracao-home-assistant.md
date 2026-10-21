@@ -4,7 +4,7 @@ O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app
 
 - **Ida:** o HA pede para criar, editar, ligar, desligar, apagar ou listar alarmes.
 - **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca, foi desligado, pulado ou religado, confirma as mudanças e manda a lista de alarmes.
-- **Versão:** este guia descreve o **app 0.9.0** com a **integração 0.8.1** (a 0.9.0 só mudou o visual do app). O que mudou nas últimas versões está resumido na seção 7.
+- **Versão:** este guia descreve a **0.9.0** (app e integração com o mesmo número; na 0.9.0 só o visual do app mudou, a integração é igual à 0.8.1). O que mudou nas últimas versões está resumido na seção 7.
 - **Segurança:** todo comando leva um **token** (gerado pelo HA na ativação pelo painel, ou pelo app no modo manual). Comando sem o token certo é ignorado em silêncio.
 - **Regra:** o HA só edita ou apaga alarmes que ele mesmo criou (com `ref`). Alarmes criados à mão no celular aparecem só na lista.
 - **Som:** o padrão do app, a não ser que o comando traga `som_uri` (toque por tipo de evento na agenda).
@@ -327,7 +327,7 @@ Exemplo:
 | Alarmes duplicados desligados (`ag_<tipo>_<n>` com os mesmos horários) | Sobra de re-pareamento na 0.7.0. Na 0.8.0 o HA apaga as vagas `ag_*` sem uso na sincronização seguinte (00/15/30/45), fora da janela de 5/10 min. |
 | Alarme da agenda não mudou | O HA não mexe em alarme tocando, em soneca ou entre 5 min à frente e 10 min atrás; espere a próxima sincronização (00/15/30/45). |
 
-## 7. Novidades da 0.9.0 (app)
+## 7. Novidades da 0.9.0 (app; integração sem mudança funcional)
 
 - **Visual do Relógio da Samsung.** A aba Alarme mostra no alto "Alarme em X horas e Y minutos" e a data do próximo toque, com + e ⋮ logo abaixo.
 - **Cartão do grupo** (um por compromisso/tipo do HA): pílula com ícone roxo, o nome do tipo e o total de alarmes. Não tem chave: toque nele para abrir o grupo. Os alarmes manuais ficam embaixo, num cartão único.
