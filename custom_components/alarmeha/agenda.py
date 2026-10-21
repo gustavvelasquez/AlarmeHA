@@ -227,25 +227,64 @@ def agendas_para_ler(hass: HomeAssistant | None, cfg: dict[str, Any]) -> list[st
     return [e for e in usadas if hass.states.get(e)]
 
 
-async def async_eventos(hass: HomeAssistant, cfg: dict[str, Any]) -> list[dict[str, Any]]:
-    entidades = agendas_para_ler(hass, cfg)
+AGENDA_INDISPONIVEL = ("unavailable", "unknown")
+
+
+async def async_eventos(hass: HomeAssistant, cfg: dict[str, Any], falhas: set[str] | None = None) -> list[dict[str, Any]]:
+    """Eventos das agendas usadas. Agenda sem estado, indisponível ou com erro na leitura vai
+    para `falhas` (se dado): os tipos dela não podem ser sincronizados com dados incompletos."""
+    usadas = agendas_usadas(cfg)
+    entidades = []
+    for e in usadas:
+        estado = hass.states.get(e)
+        if estado is None or estado.state in AGENDA_INDISPONIVEL:
+            if falhas is not None:
+                falhas.add(e)
+        else:
+            entidades.append(e)
     if not entidades:
         return []
     inicio = dt_util.start_of_local_day()
-    resp = await hass.services.async_call(
-        "calendar", "get_events",
-        {"entity_id": entidades, "start_date_time": inicio.isoformat(),
-         "end_date_time": (inicio + timedelta(days=DIAS_PREVIA + 1)).isoformat()},
-        blocking=True, return_response=True,
-    )
     eventos = []
-    for entidade, dados in (resp or {}).items():
+    for entidade in entidades:  # uma por vez: uma agenda com erro não esconde as outras
+        try:
+            resp = await hass.services.async_call(
+                "calendar", "get_events",
+                {"entity_id": [entidade], "start_date_time": inicio.isoformat(),
+                 "end_date_time": (inicio + timedelta(days=DIAS_PREVIA + 1)).isoformat()},
+                blocking=True, return_response=True,
+            )
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("AlarmeHA agenda: não consegui ler %s: %s", entidade, err)
+            if falhas is not None:
+                falhas.add(entidade)
+            continue
+        dados = (resp or {}).get(entidade)
+        if not isinstance(dados, dict):
+            if falhas is not None:
+                falhas.add(entidade)
+            continue
         estado = hass.states.get(entidade)
         nome = estado.attributes.get("friendly_name", entidade) if estado else entidade
         for ev in dados.get("events", []):
             quando, dia_inteiro = _parse(ev["start"])
             eventos.append({"inicio": quando, "titulo": ev.get("summary", ""), "agenda": entidade, "agenda_nome": nome, "dia_inteiro": dia_inteiro})
     return eventos
+
+
+def tipos_congelados(cfg: dict[str, Any], falhas: set[str]) -> set[str]:
+    """Tipos com alguma agenda que não pôde ser lida (uma basta). O dia sem compromisso depende
+    de todas as agendas: congela junto se qualquer uma falhar."""
+    if not falhas:
+        return set()
+    return {t["id"] for t in cfg["tipos"] if set(t.get("agendas") or []) & falhas} | {LIVRE_ID}
+
+
+def tipo_da_vaga(ref: str, cfg: dict[str, Any]) -> str | None:
+    for tid in [t["id"] for t in cfg["tipos"]] + [LIVRE_ID, PADRAO_ID]:
+        if re.fullmatch(rf"ag_{re.escape(slug(tid))}_\d+", ref or ""):
+            return tid
+    return None
 
 
 def previa_json(dias: list[dict[str, Any]], cfg: dict[str, Any]) -> list[dict[str, Any]]:
@@ -347,6 +386,35 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
             else:
                 plano[ref] = {"ativo": False, "rotulo": rotulo}
     return plano
+
+
+RECONCILIAR_MIN = 15  # recriar um alarme sumido: no máx. 1 vez a cada 15 min por ref
+RECONCILIAR_MAX_MIN = 240  # e, se continuar sumindo, espaçando (15, 30, 60 ... até 4 h)
+
+
+def reconciliar_pode(phone: AlarmeHaPhone, ref: str, agora: datetime) -> bool:
+    reg = phone.__dict__.setdefault("reconciliados", {})
+    ultimo, vezes = reg.get(ref, (None, 0))
+    if ultimo is not None and agora < ultimo + timedelta(minutes=min(RECONCILIAR_MIN * 2 ** max(vezes - 1, 0), RECONCILIAR_MAX_MIN)):
+        return False
+    reg[ref] = (agora, vezes + 1)
+    return True
+
+
+def reconciliar_ok(phone: AlarmeHaPhone, ref: str) -> None:
+    """Alarme apareceu na lista como enviado: zera o espaçamento."""
+    phone.__dict__.setdefault("reconciliados", {}).pop(ref, None)
+
+
+def faltando_no_celular(phone: AlarmeHaPhone) -> list[str]:
+    """Refs que o HA enviou ativos e não estão na lista do celular."""
+    na_lista = {a.get("ref") for a in (phone.alarms or []) if isinstance(a, dict)}
+    return [r for r, v in ((phone.agenda or {}).get("_enviados") or {}).items()
+            if isinstance(v, dict) and v.get("ativo") and r not in na_lista]
+
+
+def _sem_confirmacao(err: Exception) -> bool:
+    return "não confirmou" in str(err) or "não encontrado" in str(err)
 
 
 _TRAVAS: dict[str, asyncio.Lock] = {}
@@ -473,14 +541,24 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
     if not cfg.get("ligado") and not any(v.get("ativo") for v in enviados.values()):
         return
     agora = dt_util.now()
-    dias = calcular(await async_eventos(hass, cfg), cfg, agora.date(), dias=1, desde=0)
-    plano = planejar(dias, cfg, agora)
+    falhas: set[str] = set()
+    eventos = await async_eventos(hass, cfg, falhas)
+    congelados = tipos_congelados(cfg, falhas)
+    if congelados:
+        _LOGGER.warning("AlarmeHA agenda: %s sem leitura (%s); tipos %s ficam como estão até a agenda voltar",
+                        phone.person, ", ".join(sorted(falhas)), ", ".join(sorted(congelados)))
+
+    def congelado(ref: str) -> bool:
+        return bool(congelados) and tipo_da_vaga(ref, cfg) in congelados
+
+    dias = calcular(eventos, cfg, agora.date(), dias=1, desde=0)
+    plano = {r: v for r, v in planejar(dias, cfg, agora).items() if not congelado(r)}
     no_celular = {a.get("ref"): a for a in (phone.alarms or []) if isinstance(a, dict) and a.get("ref")}
     for ref in list(enviados):  # tipos/alarmes removidos: desliga o alarme antigo
-        if ref not in plano and enviados[ref].get("ativo"):
+        if ref not in plano and enviados[ref].get("ativo") and not congelado(ref):
             plano[ref] = {"ativo": False}
     for ref, atual in no_celular.items():  # ligado no celular sem registro de envio (ex.: pareado de novo)
-        if ref.startswith("ag_") and ref not in plano and atual.get("ativo"):
+        if ref.startswith("ag_") and ref not in plano and atual.get("ativo") and not congelado(ref):
             plano[ref] = {"ativo": False}
     # Quem manda é a agenda: se o alarme foi mexido no celular, reenvia o planejado.
     adiar: datetime | None = None
@@ -494,17 +572,29 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
         adiar = fim if adiar is None or fim < adiar else adiar
         return True
 
+    recriando: dict[str, Any] = {}
     if no_celular:
         for ref, ant in list(enviados.items()):
-            if not ant.get("ativo") or phone.ocupado(ref) or guarda(ref):
+            if not ant.get("ativo") or congelado(ref) or phone.ocupado(ref) or guarda(ref):
                 continue
             if pulo_ativo(phone, ref, agora, no_celular.get(ref)):
                 continue  # pulado no app: o "desligado" é do usuário, não reenvia
             atual = no_celular.get(ref)
-            if atual is None or (atual.get("hora"), atual.get("minuto"), bool(atual.get("ativo"))) != (ant.get("hora"), ant.get("minuto"), True):
+            if atual is None:
+                # Sumiu do celular sem o HA mandar apagar: recria, com limite (1 por 15 min, depois espaçando).
+                if not reconciliar_pode(phone, ref, agora):
+                    continue
+                _LOGGER.warning("AlarmeHA agenda: %s sumiu do celular de %s; recriando", ref, phone.person)
+                recriando[ref] = enviados.pop(ref)
+            elif (atual.get("hora"), atual.get("minuto"), bool(atual.get("ativo"))) != (ant.get("hora"), ant.get("minuto"), True):
                 enviados.pop(ref)
+            else:
+                reconciliar_ok(phone, ref)
     mudou = False
+    sem_resposta = False
     for ref, alvo in plano.items():
+        if sem_resposta:
+            break  # celular não confirmou: não empilha mais comandos; tenta no próximo ciclo
         if not alvo["ativo"] and not alvo.get("tocou") and ref.startswith("ag_") and ref in no_celular:
             # Vaga sem uso que ainda existe no celular (ex.: duplicado de outro pareamento ou de um
             # grupo que acabou): apaga, para não acumular alarmes desligados repetidos na lista.
@@ -517,6 +607,7 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
                 mudou = True
             except Exception as err:  # noqa: BLE001 - tenta de novo no próximo ciclo
                 _LOGGER.warning("AlarmeHA agenda: não consegui apagar %s: %s", ref, err)
+                sem_resposta = _sem_confirmacao(err)
             continue
         if enviados.get(ref) == alvo:
             continue
@@ -544,6 +635,9 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
             mudou = True
         except Exception as err:  # noqa: BLE001 - tenta de novo no próximo ciclo
             _LOGGER.warning("AlarmeHA agenda: não consegui ajustar %s: %s", ref, err)
+            sem_resposta = _sem_confirmacao(err)
+            if ref in recriando:  # continua "sumido": a próxima tentativa respeita o limite
+                enviados[ref] = recriando[ref]
     if getattr(phone, "limpar_pulados", None):
         phone.limpar_pulados(agora)
     if mudou:

@@ -81,6 +81,8 @@ class AlarmeHaPhone:
         self.agenda: dict[str, Any] = data.get("agenda") or {}
         self.toques: list[dict[str, Any]] = data.get("toques") or []
         self._pending: dict[str, asyncio.Future[dict[str, Any]]] = {}
+        self._ops: dict[str, str] = {}  # pedido -> op (só em memória)
+        self.reconciliados: dict[str, tuple[datetime, int]] = {}  # ref -> (última recriação, vezes)
         self.ocupados: dict[str, datetime] = {}  # ref -> até quando (só em memória)
         # ref -> {"ocorrencia": ISO do toque pulado no app (None = religado), "quando": ISO do aviso}
         self.pulados: dict[str, dict[str, Any]] = {
@@ -99,6 +101,7 @@ class AlarmeHaPhone:
                 future.cancel()
         self._pending.clear()
         self.ocupados.clear()
+        self.reconciliados.clear()
         for key in ("user_id", "person", "device_name", "mobile_entry_id", "notify_service",
                     "package", "webhook_id", "token", "activated_at"):
             setattr(self, key, data[key])
@@ -244,7 +247,11 @@ class AlarmeHaPhone:
         event = payload.get("evento")
         if payload.get("origem") != "alarmeha" or not isinstance(event, str):
             return
-        self.last_event = payload
+        pedido = payload.get("pedido")
+        # "apagar" de algo que já não existe é sucesso: não vira "erro" no último evento.
+        benigno = event == "erro" and payload.get("motivo") == "ref_inexistente" and self._ops.get(pedido) == "apagar"
+        if not benigno:
+            self.last_event = payload
         self.last_seen = dt_util.utcnow()
         if self.alerta_silencio:
             self.alerta_silencio = False
@@ -264,6 +271,11 @@ class AlarmeHaPhone:
             self.alarms = payload["alarmes"]
             for a in self.alarms:
                 self._pulo_da_lista(a, quando)
+            from .agenda import faltando_no_celular  # noqa: PLC0415
+
+            if (self.agenda or {}).get("ligado") and (faltam := faltando_no_celular(self)):
+                _LOGGER.warning("AlarmeHA %s: lista sem %s; reconciliando", self.person, ", ".join(sorted(faltam)))
+                self.sincronizar_depois(SINCRONIZAR_APOS_DESLIGAR_S)
         elif event in ("criado", "alterado", "pulado", "religado") and isinstance(payload.get("alarme"), dict):
             alarm = payload["alarme"]
             self._pulo_da_lista(alarm, quando)
@@ -271,7 +283,6 @@ class AlarmeHaPhone:
         elif event == "apagado":
             self.alarms = [a for a in self.alarms if a.get("id") != payload.get("id")]
 
-        pedido = payload.get("pedido")
         if event in RESPONSE_EVENTS and pedido in self._pending:
             future = self._pending.pop(pedido)
             if not future.done():
@@ -319,9 +330,11 @@ class AlarmeHaPhone:
         payload = {"token": self.token, "op": op, "pedido": pedido, **fields}
         future: asyncio.Future[dict[str, Any]] = self.hass.loop.create_future()
         self._pending[pedido] = future
+        self._ops[pedido] = op
+        resumo = {k: v for k, v in fields.items() if k in ("ref", "hora", "minuto", "dias", "ativo", "grupo")}
         try:
             for attempt in range(1, MAX_ATTEMPTS + 1):
-                _LOGGER.debug("AlarmeHA %s: %s (pedido %s, tentativa %s)", self.person, op, pedido, attempt)
+                _LOGGER.info("AlarmeHA %s: %s %s (pedido %s, tentativa %s)", self.person, op, resumo, pedido, attempt)
                 await self._send(payload)
                 try:
                     async with asyncio.timeout(timeout):
@@ -329,6 +342,8 @@ class AlarmeHaPhone:
                 except TimeoutError:
                     continue
                 if result.get("evento") == "erro":
+                    if op == "apagar" and result.get("motivo") == "ref_inexistente":
+                        return result  # já não existe: o objetivo foi atingido
                     raise HomeAssistantError(f"AlarmeHA ({self.person}) recusou '{op}': {result.get('motivo')}")
                 return result
             raise HomeAssistantError(
@@ -336,6 +351,7 @@ class AlarmeHaPhone:
             )
         finally:
             self._pending.pop(pedido, None)
+            self._ops.pop(pedido, None)
 
     async def async_request_list_silently(self) -> None:
         try:
