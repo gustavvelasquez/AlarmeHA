@@ -148,12 +148,53 @@ class HaGroupActivity : SimpleActivity() {
             orientation = LinearLayout.VERTICAL
             background = HaStyle.rounded(this@HaGroupActivity, HaStyle.CARD, 26f)
         }
-        order.mapNotNull { byId[it] }.forEachIndexed { i, (info, alarm) ->
+        // 0.9.2: vagas com o mesmo horário e rótulo (ex.: qua e qui) viram uma linha com os dias.
+        val ordered = order.mapNotNull { byId[it] }
+        val lines = HaUi.lines(ordered.map { (info, a) ->
+            val it = item(info, a)
+            val ended = HaListOrder.ended(it, groups, now) != null
+            HaUi.Member(a.id, a.timeInMinutes, a.label, a.days, a.isEnabled && !HaSkipLogic.isSkipActive(info.skippedAt, now), ended,
+                HaSkipLogic.skipTarget(a.timeInMinutes, a.days, now) ?: HaSkipLogic.nextOccurrence(a.timeInMinutes, a.days, now))
+        })
+        lines.forEachIndexed { i, line ->
             if (i > 0) card.addView(View(this).apply { setBackgroundColor(HaStyle.DIVIDER) },
                 LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply { marginStart = dp(20); marginEnd = dp(20) })
-            card.addView(row(info, alarm, now))
+            val (info, alarm) = byId.getValue(line.ids.first())
+            card.addView(if (line.states == null) row(info, alarm, now) else mergedRow(line, alarm))
         }
         column.addView(card)
+    }
+
+    /** Linha de várias vagas (mesmo horário e rótulo): dias marcados; a chave age só na próxima ocorrência. */
+    private fun mergedRow(line: HaUi.Line, first: Alarm): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(30), dp(18), dp(14), dp(18))
+        }
+        val color = if (line.faded) HaStyle.DIM else HaStyle.TEXT
+        val texts = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        if (first.label.isNotEmpty()) {
+            TextView(this).apply { text = first.label; textSize = 15f; setTextColor(color); maxLines = 1 }.also { texts.addView(it) }
+        }
+        TextView(this).apply {
+            text = HaUi.hhmm(first.timeInMinutes)
+            textSize = 44f
+            typeface = HaStyle.boldTime()
+            includeFontPadding = false
+            setTextColor(color)
+        }.also { texts.addView(it) }
+        HaDaysView(this).apply { setStates(line.states!!); faded = line.faded }
+            .also { texts.addView(it, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) }) }
+        row.addView(texts, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        com.google.android.material.materialswitch.MaterialSwitch(this).apply {
+            isChecked = line.checked
+            HaStyle.paintSwitch(this)
+            isEnabled = line.target != null
+            alpha = if (line.target != null) 1f else 0.5f
+            setOnClickListener { _ -> line.target?.let { id -> HaSkip.toggle(this@HaGroupActivity, id, isChecked) } }
+        }.also { row.addView(it) }
+        return row
     }
 
     private fun row(info: HaRefStore.Info, alarm: Alarm, now: Long): View {

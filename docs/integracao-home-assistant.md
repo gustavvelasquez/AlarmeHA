@@ -60,7 +60,7 @@ Na aba **Agenda** do painel, o admin liga agendas do HA (ex.: o iCal secreto do 
 
 - **Escolha do tipo:** o tipo vale se a agenda do evento está nele e, se o tipo tem palavras-chave, o título tem uma delas. Tipo com palavra que bate vence o tipo sem palavras; o tipo sem palavras pega o resto; empate fica com o primeiro da lista.
 - **Alarmes fixos:** cada tipo tem até 12 alarmes no celular, com ref `ag_<tipo>_<n>`, rótulo com 📅 e o título do evento como nome. O HA só reajusta horário, nome, toque e liga/desliga esses alarmes. O plano cobre **hoje e amanhã**.
-- **Grupos:** um compromisso com mais de um alarme vira um grupo (`grupo`, `grupo_nome`). Cada dia é um grupo separado; o de amanhã leva " · amanhã". Tipos com um alarme só (ex.: remédios) não têm grupo e se mesclam por dia da semana quando o horário se repete.
+- **Grupos:** um compromisso com mais de um alarme vira um grupo (`grupo`, `grupo_nome`). Desde a 0.9.2 o grupo é o compromisso (tipo + título do evento), não o dia: o mesmo título hoje e amanhã fica num cartão só, com o título como nome (sem título, o nome do tipo). Tipos com um alarme só (ex.: remédios) não têm grupo e se mesclam por dia da semana quando o horário se repete.
 - **Já tocou:** alarme do grupo que já tocou fica desligado e esmaecido no app, com "Tocou às HH:MM", até o último alarme do grupo passar.
 - **Quando sincroniza:** nos minutos 00, 15, 30 e 45, 5 s depois de a integração carregar e logo depois de um alarme ser desligado.
 - **Guarda:** o HA não mexe num alarme tocando ou em soneca, nem num alarme com toque entre 5 min à frente e 10 min atrás; depois da janela, sincroniza de novo.
@@ -186,7 +186,7 @@ Botões do app:
 | `vibrar` | boolean | padrão `false` |
 | `unico` | boolean | apaga o alarme depois de tocar (só para alarme sem repetição) |
 | `grupo` | String.urlencoded | id do grupo do compromisso (`a-z 0-9 _ -`); vazio ou ausente no plano completo = sem grupo |
-| `grupo_nome` | String.urlencoded | nome do grupo mostrado no app (ex.: `Reunião · amanhã`) |
+| `grupo_nome` | String.urlencoded | nome do grupo mostrado no app (ex.: `Reunião`) |
 | `som_uri`, `som_titulo` | String.urlencoded | toque do alarme (o HA usa a lista de `op: toques`) |
 
 `op` também aceita `toques`, que devolve o evento `toques` com os sons disponíveis no celular.
@@ -346,7 +346,7 @@ Exemplo:
 - **Cartões de grupo:** todo compromisso do HA vira um cartão na lista (nome, próximo toque, ligados/desligados), inclusive os de um alarme só; alarmes manuais ficam soltos. Ordem pelo próximo toque.
 - **Tela do grupo** (tocar no cartão): "Desativar tudo" / "Ativar tudo" (os dois quando misto) e a chave de cada alarme. Desativar pula só aquele toque e cancela soneca em andamento; Ativar desfaz. Horário e nome vêm da agenda e não se editam no app.
 - **Datas por extenso** ("qua., 21 de out."; recorrente "Toda ter, qua · …"), desligados bem esmaecidos, e **"Pulado"** no lugar de "Tocou às" quando o toque tinha sido pulado.
-- **Agrupar no app** (opção de cada tipo, no editor do tipo): "Um cartão por evento" (padrão do Trabalho e de tipos novos) ou "Um cartão para o tipo inteiro" (padrão de Remédio/Remédios). Tipos salvos antes recebem o padrão. Trocar só reagrupa: as vagas `ag_<tipo>_<n>` e os horários ficam, e alarmes tocando, em soneca ou na janela de 5/10 min são ajustados depois. A chave de cada alarme continua dentro do grupo.
+- **Agrupar no app** (opção de cada tipo, no editor do tipo): "Um cartão por evento" (um cartão por compromisso, juntando os dias; padrão do Trabalho e de tipos novos) ou "Um cartão para o tipo inteiro" (padrão de Remédio/Remédios). Tipos salvos antes recebem o padrão. Trocar só reagrupa: as vagas `ag_<tipo>_<n>` e os horários ficam, e alarmes tocando, em soneca ou na janela de 5/10 min são ajustados depois. A chave de cada alarme continua dentro do grupo.
 - **Envio celular → HA:** envio na hora, WorkManager só de reserva, fila de até 24 h em ordem (`quando` original), `lista` repetida colapsa na mais recente. A tela Home Assistant do app mostra último envio ok, último erro e a fila; um aviso fixo na lista aparece com bateria restrita, app em espera ou envio falhando.
 - **No HA:** sensor `ultimo_evento_recebido` e alerta (notificação persistente + evento `alarmeha_silencio`) após 30 min de silêncio com comando sem resposta ou alarme que deveria ter tocado.
 - **Re-pareamento:** mesmo objeto do celular (sensores e pendências seguem), webhooks antigos desregistrados e vagas `ag_*` órfãs apagadas.

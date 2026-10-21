@@ -31,25 +31,37 @@
             android:id="@+id/view_pager"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_above="@+id/main_tabs_holder" />
+            android:layout_above="@+id/ha_tab_wrap" />
 
-        <!-- 0.9.0: barra de abas em pílula flutuante, só ícones (Relógio da Samsung). -->
+        <!-- TabLayout original fica escondido (só guarda as abas para o código do Fossify). -->
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/main_tabs_holder"
-            android:layout_width="264dp"
-            android:layout_height="64dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
-            android:layout_centerHorizontal="true"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="12dp"
-            android:paddingHorizontal="8dp"
-            app:tabGravity="center"
-            app:tabIndicator="@null"
-            app:tabMinWidth="0dp"
-            app:tabMode="fixed"
-            app:tabPaddingEnd="2dp"
-            app:tabPaddingStart="2dp"
-            app:tabRippleColor="@null" />
+            android:visibility="gone"
+            app:tabIndicator="@null" />
+
+        <!-- 0.9.2: barra de abas em pílula flutuante (Relógio da Samsung), 4 ícones. O recuo da
+             barra de navegação do sistema vai no contêiner, nunca na pílula (na 0.9.0/0.9.1 ia na
+             pílula de altura fixa e cortava os ícones). -->
+        <FrameLayout
+            android:id="@+id/ha_tab_wrap"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true">
+
+            <LinearLayout
+                android:id="@+id/ha_tab_pill"
+                android:layout_width="wrap_content"
+                android:layout_height="60dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="6dp" />
+        </FrameLayout>
 
     </RelativeLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

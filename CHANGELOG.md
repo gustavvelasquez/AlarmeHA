@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarmeha`). Até a 0.6.0 o app e a integração tinham números próprios; desde a 0.7.0 usam o mesmo número. As versões do Fossify Clock (upstream) seguem abaixo.
 
+### 0.9.2 - 2026-10-21 (app e integração)
+- Integração: no agrupamento "por evento", o grupo passa a ser o compromisso (tipo + título do evento), não o dia. "Teste Alarme" na quarta e na quinta vira um cartão só, chamado "Teste Alarme"; títulos diferentes = cartões separados. Sem título, o nome é o do tipo. As vagas (`ag_<tipo>_<n>`) e a lógica não mudam; quem atualiza só tem os alarmes editados (nada duplicado). "Por tipo" continua com o nome do tipo.
+- Tela do grupo: alarmes do mesmo horário e rótulo viram uma linha com D S T Q Q S S (dias com alarme em roxo com ponto; dia pulado/desligado apagado). A chave da linha age só no próximo toque (pular a quarta mantém a quinta). Linha esmaecida só quando todos estão desligados. Horários diferentes continuam em linhas separadas com a data por extenso. "Ativar/Desativar tudo" continua.
+- Barra de abas: refeita como pílula flutuante com os 4 ícones inteiros e a aba ativa destacada. Causa do defeito: o recuo da barra de navegação do sistema era aplicado na própria pílula de altura fixa, que cortava os ícones e deixava só um risco.
+- Cartão de grupo na lista: pílula mais baixa, ícone, nome e contador numa linha só (sem data embaixo), como na Samsung. Removido o espaço vazio extra acima da lista.
+
 ### 0.9.1 - 2026-10-21 (app e integração)
 - Só a numeração: app e integração com o mesmo número (0.9.1). Sem mudança funcional em relação à 0.9.0 (app) e à 0.8.1 (integração).
 - Observação: a tag/release v0.9.0 ficou com a integração marcando 0.8.1 no manifest (o app era 0.9.0). Use a 0.9.1.

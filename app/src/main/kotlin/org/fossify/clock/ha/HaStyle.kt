@@ -20,6 +20,7 @@ object HaStyle {
     const val TEXT = 0xFFFAFAFA.toInt()
     const val TEXT_2 = 0xFFBDBDC2.toInt()
     const val DIM = 0xFF6F6F73.toInt()
+    const val DAY_NONE = 0xFF8E8E93.toInt()
     const val DIVIDER = 0xFF2E2E31.toInt()
     const val BUTTON = 0xFF3A3A3C.toInt()
     const val PILL = 0xFF2A2B30.toInt()
@@ -57,12 +58,16 @@ object HaStyle {
 /** D S T Q Q S S com os dias ativos em roxo, negrito e um ponto em cima (alarme que repete). */
 class HaDaysView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
     private var days = 0
+    private var states: List<Int>? = null
     var faded = false
         set(value) { field = value; invalidate() }
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = HaStyle.dp(context, 14f) }
     private val dot = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    fun setDays(value: Int) { days = value; invalidate() }
+    fun setDays(value: Int) { days = value; states = null; invalidate() }
+
+    /** Linha da tela do grupo: HaUi.DAY_ON roxo com ponto, DAY_OFF apagado (pulado/desligado), DAY_NONE cinza. */
+    fun setStates(value: List<Int>) { states = value; invalidate() }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         setMeasuredDimension(resolveSize(HaStyle.dp(context, 120f).toInt(), widthMeasureSpec), HaStyle.dp(context, 24f).toInt())
@@ -71,12 +76,15 @@ class HaDaysView @JvmOverloads constructor(context: Context, attrs: AttributeSet
     override fun onDraw(canvas: Canvas) {
         val step = HaStyle.dp(context, 15f)
         val base = height - HaStyle.dp(context, 4f)
-        HaUi.weekLetters(days).forEachIndexed { i, (letter, on) ->
-            paint.typeface = if (on) HaStyle.boldTime() else Typeface.DEFAULT
+        HaUi.weekLetters(days).forEachIndexed { i, (letter, marked) ->
+            val st = states?.get(i) ?: if (marked) HaUi.DAY_ON else HaUi.DAY_NONE
+            val on = st == HaUi.DAY_ON
+            paint.typeface = if (st != HaUi.DAY_NONE) HaStyle.boldTime() else Typeface.DEFAULT
             paint.color = when {
                 faded -> HaStyle.DIM
                 on -> HaStyle.ACCENT
-                else -> HaStyle.DIM
+                st == HaUi.DAY_OFF -> 0x668C88F3
+                else -> HaStyle.DAY_NONE
             }
             val x = i * step + HaStyle.dp(context, 2f)
             canvas.drawText(letter, x, base, paint)

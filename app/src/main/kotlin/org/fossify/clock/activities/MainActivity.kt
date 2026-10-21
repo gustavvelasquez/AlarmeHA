@@ -77,7 +77,7 @@ class MainActivity : SimpleActivity() {
         setupOptionsMenu()
         refreshMenuItems()
 
-        setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.mainTabsHolder))
+        setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.haTabWrap))
 
         storeStateVariables()
         initFragments()
@@ -185,7 +185,14 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun updateAlarmTabChrome() {
-        binding.mainAppbar.beVisibleIf(binding.viewPager.currentItem != TAB_ALARM_INDEX)
+        val alarmTab = binding.viewPager.currentItem == TAB_ALARM_INDEX
+        binding.mainAppbar.beVisibleIf(!alarmTab)
+        // Sem a barra de cima, o conteúdo não pode ficar deslocado pela altura dela.
+        (binding.mainHolder.layoutParams as? androidx.coordinatorlayout.widget.CoordinatorLayout.LayoutParams)?.let {
+            it.behavior = if (alarmTab) null else com.google.android.material.appbar.AppBarLayout.ScrollingViewBehavior()
+            binding.mainHolder.layoutParams = it
+        }
+        if (alarmTab) binding.mainHolder.translationY = 0f
     }
 
     private fun setupOptionsMenu() {
@@ -273,6 +280,7 @@ class MainActivity : SimpleActivity() {
             binding.mainTabsHolder.getTabAt(it)?.select()
             refreshMenuItems()
             updateAlarmTabChrome()
+            updateTabPill()
         }
 
         val tabToOpen = intent.getIntExtra(OPEN_TAB, config.defaultTab)
@@ -292,6 +300,7 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun setupTabs() {
+        setupTabPill()
         binding.mainTabsHolder.removeAllTabs()
         val tabDrawables = arrayOf(
             R.drawable.ic_clock_vector,
@@ -335,7 +344,6 @@ class MainActivity : SimpleActivity() {
             },
             tabSelectedAction = {
                 it.customView?.background = org.fossify.clock.ha.HaStyle.rounded(this, org.fossify.clock.ha.HaStyle.PILL_ON, 25f)
-                binding.mainTabsHolder.post { whiteTabIcons() }
                 binding.viewPager.currentItem = it.position
                 updateBottomTabItemColors(
                     view = it.customView,
@@ -360,19 +368,37 @@ class MainActivity : SimpleActivity() {
         }
 
         binding.mainTabsHolder.getTabAt(binding.viewPager.currentItem)?.select()
-        binding.mainTabsHolder.background = org.fossify.clock.ha.HaStyle.rounded(this, org.fossify.clock.ha.HaStyle.PILL, 32f)
-        whiteTabIcons()
-        (0 until binding.mainTabsHolder.tabCount).forEach { i ->
-            binding.mainTabsHolder.getTabAt(i)?.customView?.background = if (i == binding.viewPager.currentItem)
-                org.fossify.clock.ha.HaStyle.rounded(this, org.fossify.clock.ha.HaStyle.PILL_ON, 25f) else null
-        }
+        updateTabPill()
     }
 
-    /** Ícones brancos na pílula (Samsung); a aba ativa ganha só o fundo mais claro. */
-    private fun whiteTabIcons() {
-        (0 until binding.mainTabsHolder.tabCount).forEach { i ->
-            binding.mainTabsHolder.getTabAt(i)?.customView?.findViewById<android.widget.ImageView>(org.fossify.commons.R.id.tab_item_icon)
-                ?.applyColorFilter(org.fossify.clock.ha.HaStyle.TEXT)
+    /** 0.9.2: pílula de abas da Samsung (4 ícones brancos; a ativa com fundo mais claro). */
+    private fun setupTabPill() {
+        val pill = binding.haTabPill
+        pill.removeAllViews()
+        pill.background = org.fossify.clock.ha.HaStyle.rounded(this, org.fossify.clock.ha.HaStyle.PILL, 30f)
+        val d = resources.displayMetrics.density
+        val icons = arrayOf(R.drawable.ic_clock_vector, R.drawable.ic_alarm_vector, R.drawable.ic_stopwatch_vector, R.drawable.ic_hourglass_vector)
+        val labels = arrayOf(R.string.clock, org.fossify.commons.R.string.alarm, R.string.stopwatch, R.string.timer)
+        icons.forEachIndexed { i, icon ->
+            android.widget.FrameLayout(this).apply {
+                contentDescription = getString(labels[i])
+                isClickable = true
+                setOnClickListener { binding.viewPager.currentItem = i }
+                addView(android.widget.ImageView(this@MainActivity).apply {
+                    setImageResource(icon)
+                    applyColorFilter(org.fossify.clock.ha.HaStyle.TEXT)
+                }, android.widget.FrameLayout.LayoutParams((24 * d).toInt(), (24 * d).toInt(), android.view.Gravity.CENTER))
+            }.also { pill.addView(it, android.widget.LinearLayout.LayoutParams((64 * d).toInt(), (46 * d).toInt()).apply { marginStart = (2 * d).toInt(); marginEnd = (2 * d).toInt() }) }
+        }
+        updateTabPill()
+    }
+
+    private fun updateTabPill() {
+        val pill = binding.haTabPill
+        for (i in 0 until pill.childCount) {
+            pill.getChildAt(i).background = if (i == binding.viewPager.currentItem)
+                org.fossify.clock.ha.HaStyle.rounded(this, org.fossify.clock.ha.HaStyle.PILL_ON, 23f) else null
+            pill.getChildAt(i).isSelected = i == binding.viewPager.currentItem
         }
     }
 

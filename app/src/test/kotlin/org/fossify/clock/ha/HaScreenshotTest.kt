@@ -20,12 +20,12 @@ import java.io.File
 import java.util.Calendar
 
 /**
- * Gera PNGs 1080x2340 do visual 0.9.0 com dados de exemplo. Roda só com
+ * Gera PNGs 1080x2340 (celular de referência: 393x851dp, 440dpi, barras do sistema simuladas) do visual 0.9.2 com dados de exemplo. Roda só com
  * ./gradlew :app:testFossDebugUnitTest -Palarmeha.shots=/pasta --tests '*HaScreenshotTest*'
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [30], qualifiers = "w360dp-h780dp-night-xxhdpi")
+@Config(sdk = [30], qualifiers = "w393dp-h851dp-night-440dpi")
 class HaScreenshotTest {
     private val ctx get() = ApplicationProvider.getApplicationContext<android.app.Application>()
     private val out get() = File(System.getProperty("alarmeha.shots")!!).apply { mkdirs() }
@@ -55,10 +55,19 @@ class HaScreenshotTest {
         HaConfig(ctx).markActivated()
         Shadows.shadowOf(ctx.getSystemService(PowerManager::class.java)).setIgnoringBatteryOptimizations(ctx.packageName, true)
         ctx.dbHelper.deleteAlarms(ArrayList(ctx.dbHelper.getAlarms()))
-        val trab = "trabalho_plantao_amanha"
-        listOf(0, 10, 20, 30).forEachIndexed { i, m ->
-            add("ag_trabalho_${i + 1}", 7, m, -2, "📅 Plantão ${i + 1}/4", group = trab, groupName = "Trabalho · Plantão · amanhã")
+        // Compromisso "Teste Alarme" hoje (qua) e amanhã (qui), como a integração manda (-1/-2):
+        // 22:00 e 22:30 viram linhas Q Q; o 22:00 de hoje está pulado (linha mista, a chave mostra o próximo).
+        // 23:30 só amanhã = linha com a data por extenso. (O relógio do Robolectric é qua 31/12 21:00.)
+        val trab = "trabalho_teste_alarme"
+        var n = 0
+        for (d in listOf(-1, -2)) {
+            add("ag_trabalho_${++n}", 22, 0, d, "📅 Teste Alarme", group = trab, groupName = "Teste Alarme", skipped = if (d == -1) at(0, 22, 0) else null)
+            add("ag_trabalho_${++n}", 22, 30, d, "📅 Teste Alarme", group = trab, groupName = "Teste Alarme")
         }
+        add("ag_trabalho_${++n}", 23, 30, -2, "📅 Teste Alarme", group = trab, groupName = "Teste Alarme")
+        // Outro compromisso do mesmo tipo = outro cartão.
+        add("ag_trabalho_${++n}", 8, 0, bit(3), "📅 Plantão", group = "trabalho_plantao", groupName = "Plantão")
+        add("ag_trabalho_${++n}", 8, 30, bit(3), "📅 Plantão", group = "trabalho_plantao", groupName = "Plantão")
         val hojeAmanha = bit(0) or bit(1)
         add("ag_remedio_1", 9, 0, hojeAmanha, "Remédio manhã", group = "tipo_remedio", groupName = "Remédio")
         add("ag_remedio_2", 18, 0, hojeAmanha, "Remédio tarde", group = "tipo_remedio", groupName = "Remédio", skipped = at(0, 18, 0))
@@ -72,10 +81,22 @@ class HaScreenshotTest {
     }
 
     private fun shot(view: View, name: String) {
+        val d = view.resources.displayMetrics.density
+        val bars = androidx.core.view.WindowInsetsCompat.Builder()
+            .setInsets(androidx.core.view.WindowInsetsCompat.Type.statusBars(), androidx.core.graphics.Insets.of(0, (24 * d).toInt(), 0, 0))
+            .setInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars(), androidx.core.graphics.Insets.of(0, 0, 0, (48 * d).toInt()))
+            .build()
+        androidx.core.view.ViewCompat.dispatchApplyWindowInsets(view, bars)
+        settle()
         view.measure(View.MeasureSpec.makeMeasureSpec(1080, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(2340, View.MeasureSpec.EXACTLY))
         view.layout(0, 0, 1080, 2340)
         val bmp = Bitmap.createBitmap(1080, 2340, Bitmap.Config.ARGB_8888)
-        Canvas(bmp).apply { drawColor(HaStyle.BG); view.draw(this) }
+        Canvas(bmp).apply {
+            drawColor(HaStyle.BG); view.draw(this)
+            // Barra de navegação de 3 botões simulada (48dp), como no aparelho.
+            val p = android.graphics.Paint().apply { color = 0x33FFFFFF }
+            drawRect(0f, 2340 - 48 * d, 1080f, 2340f, p)
+        }
         File(out, "$name.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
@@ -84,7 +105,7 @@ class HaScreenshotTest {
         seed()
         val main = Robolectric.buildActivity(MainActivity::class.java).setup()
         settle()
-        main.get().findViewById<androidx.viewpager.widget.ViewPager>(org.fossify.clock.R.id.view_pager).currentItem = 1
+        main.get().findViewById<androidx.viewpager.widget.ViewPager>(org.fossify.clock.R.id.view_pager).setCurrentItem(1, false)
         settle()
         shot(main.get().window.decorView, "lista")
 
@@ -92,7 +113,7 @@ class HaScreenshotTest {
         settle()
         shot(grupo.get().window.decorView, "grupo")
 
-        val trab = Robolectric.buildActivity(HaGroupActivity::class.java, HaGroupActivity.intent(ctx, "trabalho_plantao_amanha")).setup()
+        val trab = Robolectric.buildActivity(HaGroupActivity::class.java, HaGroupActivity.intent(ctx, "trabalho_teste_alarme")).setup()
         settle()
         shot(trab.get().window.decorView, "grupo_trabalho")
     }

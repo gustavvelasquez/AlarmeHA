@@ -73,4 +73,42 @@ object HaUi {
         val back = HaSkipLogic.effectiveNext(item.timeInMinutes, item.days, item.skippedAt, now, tz)
         return if (back != null) "Volta " + HaListOrder.longDate(back, tz) else "Pulado"
     }
+
+    /** Estado de uma letra da semana numa linha do grupo. */
+    const val DAY_NONE = 0
+    const val DAY_ON = 1
+    const val DAY_OFF = 2 // pulado/desligado/já tocou: letra apagada
+
+    data class Member(
+        val alarmId: Int, val timeInMinutes: Int, val label: String, val days: Int,
+        val on: Boolean, val ended: Boolean, val at: Long?,
+    )
+
+    /**
+     * Linha visual da tela do grupo. `states` (D S T Q Q S S) só quando junta 2+ vagas com o mesmo
+     * horário e rótulo (ex.: "Teste Alarme 1/4" de qua e qui). `target` = a vaga da próxima
+     * ocorrência (a chave age só nela); null se todas já tocaram. `faded` = todas desligadas.
+     */
+    data class Line(val ids: List<Int>, val states: List<Int>?, val target: Int?, val checked: Boolean, val faded: Boolean)
+
+    private val WEEK_BITS = listOf(64, 1, 2, 4, 8, 16, 32) // D S T Q Q S S
+
+    fun lines(members: List<Member>, tz: TimeZone = TimeZone.getDefault()): List<Line> {
+        val groups = LinkedHashMap<Pair<Int, String>, MutableList<Member>>()
+        members.forEach { groups.getOrPut(it.timeInMinutes to it.label) { mutableListOf() }.add(it) }
+        return groups.values.map { ms ->
+            val sorted = ms.sortedBy { it.at ?: Long.MAX_VALUE }
+            val target = sorted.firstOrNull { !it.ended }
+            val states = if (ms.size < 2) null else {
+                val st = MutableList(7) { DAY_NONE }
+                sorted.forEach { m ->
+                    val idx = if (m.days > 0) WEEK_BITS.indices.filter { m.days and WEEK_BITS[it] != 0 }
+                    else listOfNotNull(m.at?.let { at -> (Calendar.getInstance(tz).apply { timeInMillis = at }.get(Calendar.DAY_OF_WEEK) - 1) })
+                    idx.forEach { i -> st[i] = if (m.on && !m.ended) DAY_ON else if (st[i] == DAY_ON) DAY_ON else DAY_OFF }
+                }
+                st
+            }
+            Line(sorted.map { it.alarmId }, states, target?.alarmId, target?.on == true, ms.none { it.on && !it.ended })
+        }
+    }
 }

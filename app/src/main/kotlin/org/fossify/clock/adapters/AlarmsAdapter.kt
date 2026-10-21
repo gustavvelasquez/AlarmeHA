@@ -25,6 +25,7 @@ import org.fossify.commons.adapters.MyRecyclerViewAdapter
 import org.fossify.commons.dialogs.ConfirmationDialog
 import org.fossify.commons.extensions.adjustAlpha
 import org.fossify.commons.extensions.applyColorFilter
+import org.fossify.commons.extensions.beGone
 import org.fossify.commons.extensions.beVisibleIf
 import org.fossify.commons.extensions.getSelectedDaysString
 import org.fossify.commons.extensions.move
@@ -183,13 +184,13 @@ class AlarmsAdapter(
             if (group != null) {
                 // Cartão do grupo (pílula da Samsung): ícone roxo, nome do tipo e o total de alarmes. Sem chave.
                 val members = allAlarms.filter { haInfo[it.id]?.group == group }
-                val (name, hint) = cardTitles[group] ?: (HaUi.baseName(info?.groupName, group) to null)
-                haGroupPill.background = HaStyle.rounded(ctx, HaStyle.CARD, 30f)
-                haGroupAvatar.background = HaStyle.rounded(ctx, 0xFF7F7CF0.toInt(), 23f)
+                val (name, _) = cardTitles[group] ?: (HaUi.baseName(info?.groupName, group) to null)
+                haGroupPill.background = HaStyle.rounded(ctx, HaStyle.CARD, 32f)
+                haGroupAvatar.background = HaStyle.rounded(ctx, 0xFF7F7CF0.toInt(), 20f)
                 haGroupName.text = name
                 haGroupName.setTextColor(HaStyle.ACCENT)
-                haGroupHint.beVisibleIf(hint != null)
-                haGroupHint.text = hint ?: ""
+                // 0.9.2: como na Samsung, só nome e contador numa linha (sem data embaixo).
+                haGroupHint.beGone()
                 haGroupHint.setTextColor(HaStyle.TEXT_2)
                 haGroupCount.text = members.size.toString()
                 haGroupCount.setTextColor(HaStyle.ACCENT)

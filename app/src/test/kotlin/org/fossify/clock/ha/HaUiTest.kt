@@ -73,4 +73,37 @@ class HaUiTest {
         val unico = HaListOrder.Item(2, 18 * 60, -1, true, "r", at(21, 18, 0))
         assertEquals("Pulado", HaUi.skippedLine(unico, now, tz))
     }
+
+    private fun m(id: Int, h: Int, label: String, day: Int, on: Boolean = true, ended: Boolean = false, days: Int = -1) =
+        HaUi.Member(id, h * 60, label, days, on, ended, at(day, h, 0))
+
+    @Test
+    fun linha_junta_mesmo_horario_e_rotulo_com_os_dias() {
+        // qua 21 e qui 22: Teste 1/4 às 13h nos dois dias, e um 15h só na quarta
+        val l = HaUi.lines(listOf(m(1, 13, "T 1/4", 21), m(2, 13, "T 1/4", 22), m(3, 15, "T 2/4", 21)), tz)
+        assertEquals(2, l.size)
+        assertEquals(listOf(1, 2), l[0].ids)
+        assertEquals(listOf(0, 0, 0, 1, 1, 0, 0), l[0].states)
+        assertEquals(1, l[0].target); assertEquals(true, l[0].checked); assertEquals(false, l[0].faded)
+        assertEquals(null, l[1].states) // horário diferente: linha própria com data
+    }
+
+    @Test
+    fun linha_mista_pulado_e_ligado() {
+        val l = HaUi.lines(listOf(m(1, 13, "T", 21, on = false), m(2, 13, "T", 22)), tz).single()
+        assertEquals(listOf(0, 0, 0, 2, 1, 0, 0), l.states) // quarta apagada, quinta roxa
+        assertEquals(1, l.target); assertEquals(false, l.checked) // a chave é da quarta (pulada)
+        assertEquals(false, l.faded)
+    }
+
+    @Test
+    fun linha_com_dia_que_ja_tocou_e_toda_desligada() {
+        val passou = HaUi.lines(listOf(m(1, 13, "T", 21, on = false, ended = true), m(2, 13, "T", 22)), tz).single()
+        assertEquals(2, passou.target); assertEquals(true, passou.checked)
+        assertEquals(listOf(0, 0, 0, 2, 1, 0, 0), passou.states)
+        val off = HaUi.lines(listOf(m(1, 13, "T", 21, on = false), m(2, 13, "T", 22, on = false)), tz).single()
+        assertEquals(true, off.faded)
+        val sozinho = HaUi.lines(listOf(m(1, 9, "R", 21)), tz).single()
+        assertEquals(null, sozinho.states); assertEquals(1, sozinho.target)
+    }
 }
