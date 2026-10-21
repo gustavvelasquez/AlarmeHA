@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarmeha`). Até a 0.6.0 o app e a integração tinham números próprios; desde a 0.7.0 usam o mesmo número. As versões do Fossify Clock (upstream) seguem abaixo.
 
+### 0.8.1 - 2026-10-21 (só integração; o app continua 0.8.0)
+- Agenda indisponível não apaga mais alarmes: se uma agenda de um tipo não puder ser lida (indisponível, sem estado, ainda carregando depois de reiniciar ou com erro na leitura), as vagas desse tipo ficam como estão até ela voltar, com aviso (WARNING) no log. Com várias agendas no tipo, uma falhando já congela o tipo. Caso real: `calendar.remedio` indisponível por 3 min apagou os remédios na 0.8.0.
+- Reconciliação: se a lista do celular chegar sem alarmes que o HA enviou ligados, o HA recria só esses, respeitando a janela de 5/10 min, toque/soneca e pulos. No máximo 1 vez a cada 15 min por alarme, espaçando (30 min, 1 h ... até 4 h) se continuar sumindo. Celular sem resposta: o ciclo para no primeiro comando não confirmado, sem empilhar.
+- `apagar` de um alarme que já não existe (`ref_inexistente`) conta como sucesso e não vira "erro" no último evento.
+- Comandos enviados ao celular aparecem no log em nível INFO (operação, ref, horário; sem token).
+
 ### 0.8.0 - 2026-10-20 (app e integração)
 - Lista do app em cartões: todo compromisso do HA vira um cartão de grupo (cantos arredondados) com nome, próximo toque e quantos alarmes estão ligados/desligados, inclusive os de um alarme só. Alarmes manuais continuam soltos. Ordem pelo próximo toque.
 - Tocar no cartão abre a tela do grupo: nome grande, "Desativar tudo" / "Ativar tudo" (os dois quando o grupo está misto) e a chave de cada alarme. Desativar pula só aquele toque (e cancela soneca em andamento); Ativar desfaz o pulo. Horário e nome dos alarmes do HA não se editam no app.

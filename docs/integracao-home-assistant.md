@@ -4,7 +4,7 @@ O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app
 
 - **Ida:** o HA pede para criar, editar, ligar, desligar, apagar ou listar alarmes.
 - **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca, foi desligado, pulado ou religado, confirma as mudanças e manda a lista de alarmes.
-- **Versão:** este guia descreve a **0.8.0** (app e integração com o mesmo número). O que mudou na 0.8.0 está resumido na seção 7.
+- **Versão:** este guia descreve a **integração 0.8.1** com o **app 0.8.0** (a 0.8.1 só mudou a integração). O que mudou na 0.8.0 e na 0.8.1 está resumido na seção 7.
 - **Segurança:** todo comando leva um **token** (gerado pelo HA na ativação pelo painel, ou pelo app no modo manual). Comando sem o token certo é ignorado em silêncio.
 - **Regra:** o HA só edita ou apaga alarmes que ele mesmo criou (com `ref`). Alarmes criados à mão no celular aparecem só na lista.
 - **Som:** o padrão do app, a não ser que o comando traga `som_uri` (toque por tipo de evento na agenda).
@@ -323,10 +323,18 @@ Exemplo:
 | Sensores do celular parados depois de ativar de novo; ações dão "não confirmou após 3 tentativas" | Era o problema da 0.7.0, corrigido na 0.8.0. Em versão antiga: recarregue a integração (Dispositivos e serviços → AlarmeHA → ⋮ → Recarregar). |
 | Nenhum evento chega ao HA | Veja `sensor.alarmeha_<pessoa>_ultimo_evento_recebido` e a notificação "AlarmeHA: celular sem resposta". No app, abra a tela **Home Assistant**: último envio ok, último erro (URL e HTTP/exceção) e itens na fila. Abra a URL externa no navegador do celular, fora do Wi-Fi. Deixe o AlarmeHA em bateria **Sem restrição**. |
 | Comandos não chegam ao celular | Mande uma notificação comum para `notify.mobile_app_<celular>`. Se ela não chegar, o problema é no Companion/FCM, não no AlarmeHA. |
+| Alarmes do HA sumiram do celular | Na 0.8.0, uma agenda indisponível por alguns minutos podia apagar os alarmes do tipo (corrigido na 0.8.1). Na 0.8.1 o HA recria sozinho os que sumirem; para forçar já, salve o painel ou recarregue a integração. |
 | Alarmes duplicados desligados (`ag_<tipo>_<n>` com os mesmos horários) | Sobra de re-pareamento na 0.7.0. Na 0.8.0 o HA apaga as vagas `ag_*` sem uso na sincronização seguinte (00/15/30/45), fora da janela de 5/10 min. |
 | Alarme da agenda não mudou | O HA não mexe em alarme tocando, em soneca ou entre 5 min à frente e 10 min atrás; espere a próxima sincronização (00/15/30/45). |
 
-## 7. Novidades da 0.8.0
+## 7. Novidades da 0.8.1 (integração)
+
+- **Agenda fora do ar não mexe nos alarmes.** Se alguma agenda de um tipo estiver indisponível, sem estado (ex.: logo depois de reiniciar o HA) ou der erro na leitura, a sincronização pula esse tipo inteiro: nada é apagado, desligado ou editado até a agenda voltar. O log mostra um aviso com a agenda e os tipos afetados. O dia sem compromisso também espera, porque depende de todas as agendas.
+- **Reconciliação automática.** Quando a lista do celular chega sem alarmes `ag_*` que o HA enviou ligados, o HA recria só esses (mesma vaga), respeitando a janela de 5/10 min, toque/soneca e pulos. Limite: 1 recriação por alarme a cada 15 min, espaçando se repetir (até 4 h). Celular sem resposta: a sincronização para no primeiro comando sem confirmação e tenta no próximo ciclo.
+- **Apagar o que já não existe** (`ref_inexistente`) conta como sucesso e não aparece como erro no último evento.
+- **Log:** os comandos enviados aparecem em INFO (operação, ref, horário), sem token.
+
+## 7.1 Novidades da 0.8.0
 
 - **Cartões de grupo:** todo compromisso do HA vira um cartão na lista (nome, próximo toque, ligados/desligados), inclusive os de um alarme só; alarmes manuais ficam soltos. Ordem pelo próximo toque.
 - **Tela do grupo** (tocar no cartão): "Desativar tudo" / "Ativar tudo" (os dois quando misto) e a chave de cada alarme. Desativar pula só aquele toque e cancela soneca em andamento; Ativar desfaz. Horário e nome vêm da agenda e não se editam no app.
