@@ -8,7 +8,7 @@ O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app
 - **Segurança:** todo comando leva um **token** (gerado pelo HA na ativação pelo painel, ou pelo app no modo manual). Comando sem o token certo é ignorado em silêncio.
 - **Regra:** o HA só edita ou apaga alarmes que ele mesmo criou (com `ref`). Alarmes criados à mão no celular aparecem só na lista.
 - **Som:** o padrão do app, a não ser que o comando traga `som_uri` (toque por tipo de evento na agenda).
-- **Webhook:** um por pessoa (ex.: um para o Usuario e outro para a Segunda pessoa).
+- **Webhook:** um por pessoa (ex.: um para a pessoa principal e outro para uma segunda pessoa da casa).
 
 ## 0. Jeito recomendado: integração HACS "AlarmeHA" + painel Despertador
 
