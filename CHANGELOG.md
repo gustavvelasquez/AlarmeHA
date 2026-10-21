@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarmeha`). Até a 0.6.0 o app e a integração tinham números próprios; desde a 0.7.0 usam o mesmo número. As versões do Fossify Clock (upstream) seguem abaixo.
 
+### 0.9.1 - 2026-10-21 (app e integração)
+- Só a numeração: app e integração com o mesmo número (0.9.1). Sem mudança funcional em relação à 0.9.0 (app) e à 0.8.1 (integração).
+- Observação: a tag/release v0.9.0 ficou com a integração marcando 0.8.1 no manifest (o app era 0.9.0). Use a 0.9.1.
+
 ### 0.9.0 - 2026-10-21 (app e integração)
 - Visual novo no estilo do Relógio da Samsung (One UI, escuro):
   - Aba Alarme com cabeçalho grande "Alarme em X horas e Y minutos" e a data/hora do próximo toque; + e ⋮ logo abaixo (a barra de cima some nessa aba).
@@ -17,7 +21,7 @@ Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarm
   - Tela do grupo: título centralizado, "Ativar tudo" / "Desativar tudo" (só o que faz sentido; os dois quando misto), barra ‹ ⋮ e um cartão com rótulo acima da hora e chave por alarme. Grupo do HA não tem + nem editar/renomear; o ⋮ leva às configurações.
   - Barra de abas em pílula, só ícones.
 - Sem mudança de lógica: pular o próximo toque, soneca, eventos ao HA e ordem por próximo toque continuam iguais.
-- Integração 0.9.0 sem mudança funcional em relação à 0.8.1 (só o número, para app e integração seguirem iguais).
+- Integração sem mudança funcional em relação à 0.8.1. Na tag v0.9.0 o manifest da integração ainda marcava 0.8.1; corrigido na 0.9.1.
 
 ### 0.8.1 - 2026-10-21 (só integração; o app continua 0.8.0)
 - Agenda indisponível não apaga mais alarmes: se uma agenda de um tipo não puder ser lida (indisponível, sem estado, ainda carregando depois de reiniciar ou com erro na leitura), as vagas desse tipo ficam como estão até ela voltar, com aviso (WARNING) no log. Com várias agendas no tipo, uma falhando já congela o tipo. Caso real: `calendar.remedio` indisponível por 3 min apagou os remédios na 0.8.0.
