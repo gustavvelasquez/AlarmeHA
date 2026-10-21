@@ -4,7 +4,7 @@ O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app
 
 - **Ida:** o HA pede para criar, editar, ligar, desligar, apagar ou listar alarmes.
 - **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca, foi desligado, pulado ou religado, confirma as mudanças e manda a lista de alarmes.
-- **Versão:** este guia descreve a **integração 0.8.1** com o **app 0.8.0** (a 0.8.1 só mudou a integração). O que mudou na 0.8.0 e na 0.8.1 está resumido na seção 7.
+- **Versão:** este guia descreve o **app 0.9.0** com a **integração 0.8.1** (a 0.9.0 só mudou o visual do app). O que mudou nas últimas versões está resumido na seção 7.
 - **Segurança:** todo comando leva um **token** (gerado pelo HA na ativação pelo painel, ou pelo app no modo manual). Comando sem o token certo é ignorado em silêncio.
 - **Regra:** o HA só edita ou apaga alarmes que ele mesmo criou (com `ref`). Alarmes criados à mão no celular aparecem só na lista.
 - **Som:** o padrão do app, a não ser que o comando traga `som_uri` (toque por tipo de evento na agenda).
@@ -327,14 +327,21 @@ Exemplo:
 | Alarmes duplicados desligados (`ag_<tipo>_<n>` com os mesmos horários) | Sobra de re-pareamento na 0.7.0. Na 0.8.0 o HA apaga as vagas `ag_*` sem uso na sincronização seguinte (00/15/30/45), fora da janela de 5/10 min. |
 | Alarme da agenda não mudou | O HA não mexe em alarme tocando, em soneca ou entre 5 min à frente e 10 min atrás; espere a próxima sincronização (00/15/30/45). |
 
-## 7. Novidades da 0.8.1 (integração)
+## 7. Novidades da 0.9.0 (app)
+
+- **Visual do Relógio da Samsung.** A aba Alarme mostra no alto "Alarme em X horas e Y minutos" e a data do próximo toque, com + e ⋮ logo abaixo.
+- **Cartão do grupo** (um por compromisso/tipo do HA): pílula com ícone roxo, o nome do tipo e o total de alarmes. Não tem chave: toque nele para abrir o grupo. Os alarmes manuais ficam embaixo, num cartão único.
+- **Dentro do grupo:** "Ativar tudo" / "Desativar tudo" e uma chave por alarme. Desligar um alarme do HA continua sendo "pular o próximo toque" (selo **Pulado** e quando volta); ligar desfaz o pulo. Horário e nome continuam vindo da agenda do HA.
+- **Dias da semana:** alarme que repete mostra D S T Q Q S S com os dias ativos em roxo; alarme de uma vez mostra a data por extenso.
+
+## 7.1 Novidades da 0.8.1 (integração)
 
 - **Agenda fora do ar não mexe nos alarmes.** Se alguma agenda de um tipo estiver indisponível, sem estado (ex.: logo depois de reiniciar o HA) ou der erro na leitura, a sincronização pula esse tipo inteiro: nada é apagado, desligado ou editado até a agenda voltar. O log mostra um aviso com a agenda e os tipos afetados. O dia sem compromisso também espera, porque depende de todas as agendas.
 - **Reconciliação automática.** Quando a lista do celular chega sem alarmes `ag_*` que o HA enviou ligados, o HA recria só esses (mesma vaga), respeitando a janela de 5/10 min, toque/soneca e pulos. Limite: 1 recriação por alarme a cada 15 min, espaçando se repetir (até 4 h). Celular sem resposta: a sincronização para no primeiro comando sem confirmação e tenta no próximo ciclo.
 - **Apagar o que já não existe** (`ref_inexistente`) conta como sucesso e não aparece como erro no último evento.
 - **Log:** os comandos enviados aparecem em INFO (operação, ref, horário), sem token.
 
-## 7.1 Novidades da 0.8.0
+## 7.2 Novidades da 0.8.0
 
 - **Cartões de grupo:** todo compromisso do HA vira um cartão na lista (nome, próximo toque, ligados/desligados), inclusive os de um alarme só; alarmes manuais ficam soltos. Ordem pelo próximo toque.
 - **Tela do grupo** (tocar no cartão): "Desativar tudo" / "Ativar tudo" (os dois quando misto) e a chave de cada alarme. Desativar pula só aquele toque e cancela soneca em andamento; Ativar desfaz. Horário e nome vêm da agenda e não se editam no app.
