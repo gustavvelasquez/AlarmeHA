@@ -13,6 +13,8 @@ Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarm
 - Tela do grupo: alarmes do mesmo horário e rótulo viram uma linha com D S T Q Q S S (dias com alarme em roxo com ponto; dia pulado/desligado apagado). A chave da linha age só no próximo toque (pular a quarta mantém a quinta). Linha esmaecida só quando todos estão desligados. Horários diferentes continuam em linhas separadas com a data por extenso. "Ativar/Desativar tudo" continua.
 - Barra de abas: refeita como pílula flutuante com os 4 ícones inteiros e a aba ativa destacada. Causa do defeito: o recuo da barra de navegação do sistema era aplicado na própria pílula de altura fixa, que cortava os ícones e deixava só um risco.
 - Cartão de grupo na lista: pílula mais baixa, ícone, nome e contador numa linha só (sem data embaixo), como na Samsung. Removido o espaço vazio extra acima da lista.
+- Decidido e mantido: o cartão mostra o total de alarmes, sem chave; grupos do HA não se editam, renomeiam nem recebem alarmes no app; mesma versão no app e na integração.
+- **Pendente (não implementado):** dispensar um alarme de um conjunto (ex.: o 1/4) ainda não desliga os outros do dia. Aguarda a decisão sobre qual opção adotar: (1) dispensar um desliga o resto do dia (nunca no Remédio); (2) botão separado "Dispensar todos de hoje" na tela do alarme tocando; (3) escolha por tipo no painel. Diferenças visuais abertas: espaço vazio grande na tela do grupo e cabeçalho expandido em vez de recolhido.
 
 ### 0.9.1 - 2026-10-21 (app e integração)
 - Só a numeração: app e integração com o mesmo número (0.9.1). Sem mudança funcional em relação à 0.9.0 (app) e à 0.8.1 (integração).

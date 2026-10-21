@@ -10,17 +10,21 @@
 - **app → HA:** eventos por webhook (`lista`, `criado`, `alterado`, `apagado`, `tocou`, `soneca`, `desligado`, `pulado`, `religado`, `erro`), enviados em segundo plano (WorkManager);
 - **agenda:** a integração lê a agenda (ex.: iCal secreto do Google pela Remote Calendar) e mantém no celular alarmes fixos `ag_<tipo>_<n>` (marcados com 📅), agrupados por compromisso.
 
-**Status:** em uso na casa. Versão publicada: **0.7.0**. Desde a 0.7.0 o app e a integração usam o mesmo número de versão.
+**Status:** em uso na casa. Versão publicada: **0.9.2**. Regra: o app e a integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`), mesmo quando um lado não muda.
+
+**No app (0.9.2, visual do Relógio da Samsung):** um cartão por compromisso, agrupado pelo título (não por dia), mostrando o total de alarmes e sem chave; alarmes do mesmo horário numa linha com D S T Q Q S S; grupos do HA não se editam, renomeiam nem recebem alarmes no app; "Ativar tudo"/"Desativar tudo" pulam só o próximo toque.
+
+**Pendente (não implementado):** dispensar um alarme de um conjunto (ex.: o 1/4) ainda não desliga os outros do dia. Aguarda a decisão sobre qual opção adotar: (1) dispensar um desliga o resto do dia (nunca no Remédio); (2) botão separado "Dispensar todos de hoje" na tela do alarme tocando; (3) escolha por tipo no painel. Diferenças visuais abertas: espaço vazio grande na tela do grupo e cabeçalho expandido em vez de recolhido.
 
 **Integração com o Home Assistant (HACS):** este repositório também contém a integração `custom_components/alarmeha`. O fluxo é:
 1. o admin instala pelo HACS (Repositórios personalizados → `https://github.com/gustavvelasquez/AlarmeHA`, tipo Integração), reinicia o HA e adiciona a integração **AlarmeHA** uma única vez;
 2. cada pessoa abre o painel **Despertador** (`/despertador`) no app Home Assistant do próprio celular;
-3. toca em **Baixar e instalar** (o próprio HA entrega o APK da última release);
+3. toca em **Baixar e instalar** (o próprio HA entrega o APK da última release; não use o build do Firebase, que é o pacote de debug);
 4. abre o app AlarmeHA, toca em **Ativar**, confirma no painel (**Confirmar ativação**) e depois no app. Não há token para copiar.
 
-Guia completo (instalação, pareamento, agenda, protocolo, solução de problemas): [docs/integracao-home-assistant.md](docs/integracao-home-assistant.md). Histórico: [CHANGELOG.md](CHANGELOG.md).
+Guia completo (instalação, pareamento, agenda, protocolo, solução de problemas): [docs/integracao-home-assistant.md](docs/integracao-home-assistant.md). Histórico: [CHANGELOG.md](CHANGELOG.md). Escopo oficial (feito/pendente/futuro): [docs/ESCOPO.md](docs/ESCOPO.md).
 
-**Problema conhecido (0.7.0):** depois de ativar o celular de novo (reinstalação, troca de celular), os sensores do celular no HA podem ficar presos ao pareamento antigo e parar de atualizar. Contorno: Configurações → Dispositivos e serviços → AlarmeHA → ⋮ → **Recarregar**. A correção definitiva está prevista para a 0.8.0.
+**Problema da 0.7.0** (sensores presos ao pareamento antigo depois de ativar de novo): corrigido na 0.8.0.
 
 **Atualizações do upstream:** as mudanças do Fossify Clock só são trazidas para cá por decisão deliberada, nunca de forma automática.
 
