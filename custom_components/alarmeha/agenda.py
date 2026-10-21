@@ -149,14 +149,22 @@ def grupo_um_alarme(a: dict[str, Any], t: dict[str, Any], modo: str | None = Non
     return (f'{slug(t["id"])}_{titulo}' if titulo else slug(t["id"]))[:64], nome_do_grupo(a, t["nome"])
 
 
+def grupo_do_compromisso(a: dict[str, Any], t: dict[str, Any]) -> tuple[str, str]:
+    """(id, nome) do cartão de um compromisso: tipo + título (eventos de vários dias com o mesmo
+    título ficam juntos; títulos diferentes, cartões separados)."""
+    titulo = slug(a.get("titulo") or "")[:40]
+    return (f'{slug(t["id"])}_{titulo}' if titulo else slug(t["id"]))[:64], nome_do_grupo(a, t["nome"])
+
+
 def grupo_do_tipo(t: dict[str, Any]) -> tuple[str, str]:
     """Um cartão para o tipo inteiro."""
     return f'tipo_{slug(t["id"])}'[:64], str(t["nome"])[:64]
 
 
 def nome_do_grupo(a: dict[str, Any], nome_tipo: str) -> str:
+    """0.9.2: o nome do cartão é o título do compromisso ("Teste Alarme"); sem título, o nome do tipo."""
     titulo = " ".join((a.get("titulo") or "").split())
-    return (f"{nome_tipo} · {titulo}" if titulo and titulo != nome_tipo else nome_tipo)[:64]
+    return (titulo or nome_tipo)[:64]
 
 
 def _motivo(t: dict[str, Any], ev: dict[str, Any], alarmes: list[dict[str, Any]]) -> str:
@@ -345,10 +353,6 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
             _LOGGER.warning("AlarmeHA agenda: tipo %s tem %d alarmes até amanhã; só os %d primeiros vão para o celular",
                             t["nome"], len(grupos), MAX_TODOS)
         usados = list(grupos.values())[:MAX_TODOS]
-        inicio_grupo: dict[str, date] = {}
-        for a in candidatos:
-            if a.get("grupo"):
-                inicio_grupo.setdefault(a["grupo"], a["horario"].date())
         for i in range(MAX_TODOS if t is not livre else 1):
             grupo = usados[i] if i < len(usados) else []
             prox = grupo[0]["horario"] if grupo else None
@@ -373,10 +377,10 @@ def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -
                     gid, gnome = grupo_do_tipo(t)
                     plano[ref] |= {"grupo": gid, "grupo_nome": gnome}
                 elif com_grupo and int(grupo[0].get("total") or 1) > 1 and grupo[0].get("grupo"):
-                    nome = nome_do_grupo(grupo[0], t["nome"])
-                    if inicio_grupo.get(grupo[0]["grupo"]) == amanha:
-                        nome = nome[: 64 - len(" · amanhã")] + " · amanhã"
-                    plano[ref] |= {"grupo": grupo[0]["grupo"], "grupo_nome": nome}
+                    # 0.9.2: o cartão é o compromisso (tipo + título), não o dia: "Teste Alarme" de
+                    # qua e qui = um cartão. A vaga (ref) e a chave interna (grupo do dia, n) não mudam.
+                    gid, gnome = grupo_do_compromisso(grupo[0], t)
+                    plano[ref] |= {"grupo": gid, "grupo_nome": gnome}
                 elif t is not livre and not com_grupo:
                     gid, gnome = grupo_um_alarme(grupo[0], t)
                     plano[ref] |= {"grupo": gid, "grupo_nome": gnome}
