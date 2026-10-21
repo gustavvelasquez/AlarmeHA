@@ -79,13 +79,14 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
 
     private fun setupViews() {
         binding.apply {
-            requireContext().updateTextColors(alarmFragment)
-            alarmFab.setOnClickListener {
+            // 0.9.0: + e ⋮ ficam no cabeçalho, como no Relógio da Samsung.
+            alarmsAdd.setOnClickListener {
                 val newAlarm = root.context.createNewAlarm(DEFAULT_ALARM_MINUTES, 0)
                 newAlarm.isEnabled = true
                 newAlarm.days = getTomorrowBit()
                 openEditAlarm(newAlarm)
             }
+            alarmsMore.setOnClickListener { (activity as? MainActivity)?.showMainMenu(it) }
         }
 
         setupAlarms()
@@ -151,7 +152,9 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
                 val order = org.fossify.clock.ha.HaListOrder.order(items, groups, System.currentTimeMillis())
                 // Um cartão por compromisso (grupo); manuais soltos.
                 val cards = org.fossify.clock.ha.HaListOrder.cards(order, info.mapValues { it.value.group }, groups)
-                ArrayList(cards.mapNotNull { byId[it] })
+                // Como na Samsung: cartões de grupo em cima, soltos embaixo (cada parte pelo próximo toque).
+                val sections = org.fossify.clock.ha.HaUi.sections(cards) { id -> info[id]?.group?.let { it in groups } == true }
+                ArrayList(sections.mapNotNull { byId[it] })
             }
             allAlarms = sorted
 
@@ -202,7 +205,19 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
                 }
             }
             binding.alarmsPlaceholder.beVisibleIf(alarms.isEmpty())
+            updateHeader()
         }
+    }
+
+    /** "Alarme em X horas e Y minutos" + data/hora do próximo toque (pulos considerados). */
+    private fun updateHeader() {
+        val now = System.currentTimeMillis()
+        val next = allAlarms.filter { it.isEnabled }.mapNotNull { a ->
+            org.fossify.clock.ha.HaSkipLogic.effectiveNext(a.timeInMinutes, a.days, haInfo[a.id]?.skippedAt, now)
+        }.filter { it > now }.minOrNull()
+        binding.alarmsTitle.text = org.fossify.clock.ha.HaUi.headerTitle(next, now)
+        binding.alarmsSubtitle.text = org.fossify.clock.ha.HaUi.headerSubtitle(next)
+        binding.alarmsSubtitle.beVisibleIf(next != null)
     }
 
     /** Grupo do HA abre a tela do grupo; alarme do HA solto não é editável; manual abre a edição. */

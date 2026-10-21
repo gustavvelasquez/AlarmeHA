@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/main_coordinator"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#010101">
 
     <org.fossify.commons.views.MyAppBarLayout
         android:id="@+id/main_appbar"
@@ -32,13 +33,22 @@
             android:layout_height="match_parent"
             android:layout_above="@+id/main_tabs_holder" />
 
+        <!-- 0.9.0: barra de abas em pílula flutuante, só ícones (Relógio da Samsung). -->
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/main_tabs_holder"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_width="264dp"
+            android:layout_height="64dp"
             android:layout_alignParentBottom="true"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="12dp"
+            android:paddingHorizontal="8dp"
+            app:tabGravity="center"
             app:tabIndicator="@null"
-            app:tabMinWidth="150dp"
+            app:tabMinWidth="0dp"
+            app:tabMode="fixed"
+            app:tabPaddingEnd="2dp"
+            app:tabPaddingStart="2dp"
             app:tabRippleColor="@null" />
 
     </RelativeLayout>

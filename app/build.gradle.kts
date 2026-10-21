@@ -117,6 +117,14 @@ android {
 
     namespace = "org.fossify.clock"
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.all { test ->
+            val shots = project.findProperty("alarmeha.shots")?.toString()
+            if (shots == null) test.exclude("**/HaScreenshotTest*") else test.systemProperty("alarmeha.shots", shots)
+        }
+    }
+
     lint {
         checkReleaseBuilds = false
         abortOnError = true
@@ -142,6 +150,9 @@ detekt {
 dependencies {
     implementation(libs.fossify.commons)
     testImplementation("junit:junit:4.13.2")
+    // Screenshots do visual (só com -Palarmeha.shots=<pasta>)
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.test:core:1.6.1")
 
     implementation(libs.bundles.lifecycle)
     implementation(libs.androidx.constraintlayout)

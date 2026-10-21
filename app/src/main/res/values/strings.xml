@@ -76,4 +76,7 @@
     <string name="ha_skipped_today" translatable="false">Pulado hoje</string>
     <string name="ha_skipped_tomorrow" translatable="false">Pulado amanhã</string>
     <string name="ha_skipped_on" translatable="false">Pulado em %s</string>
+    <string name="ha_new_alarm" translatable="false">Novo alarme</string>
+    <string name="ha_more_options" translatable="false">Mais opções</string>
+    <string name="ha_back" translatable="false">Voltar</string>
 </resources>

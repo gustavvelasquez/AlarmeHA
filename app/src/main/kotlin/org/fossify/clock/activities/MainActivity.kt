@@ -1,6 +1,7 @@
 package org.fossify.clock.activities
 
 import android.annotation.SuppressLint
+import org.fossify.commons.extensions.beVisibleIf
 import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.graphics.drawable.Icon
@@ -110,7 +111,7 @@ class MainActivity : SimpleActivity() {
 
         val configBackgroundColor = getProperBackgroundColor()
         if (storedBackgroundColor != configBackgroundColor) {
-            binding.mainTabsHolder.background = configBackgroundColor.toDrawable()
+            Unit
         }
 
         val configPrimaryColor = getProperPrimaryColor()
@@ -174,9 +175,26 @@ class MainActivity : SimpleActivity() {
         config.lastUsedViewPagerPage = binding.viewPager.currentItem
     }
 
+    /** 0.9.0: na aba Alarme a barra some (cabeçalho da Samsung); o ⋮ do cabeçalho abre o mesmo menu. */
+    fun showMainMenu(anchor: android.view.View) {
+        android.widget.PopupMenu(this, anchor).apply {
+            menuInflater.inflate(R.menu.menu, menu)
+            menu.findItem(R.id.more_apps_from_us).isVisible = false
+            setOnMenuItemClickListener { handleMenuItem(it.itemId) }
+        }.show()
+    }
+
+    private fun updateAlarmTabChrome() {
+        binding.mainAppbar.beVisibleIf(binding.viewPager.currentItem != TAB_ALARM_INDEX)
+    }
+
     private fun setupOptionsMenu() {
-        binding.mainToolbar.setOnMenuItemClickListener { menuItem ->
-            when (menuItem.itemId) {
+        binding.mainToolbar.setOnMenuItemClickListener { handleMenuItem(it.itemId) }
+    }
+
+    private fun handleMenuItem(itemId: Int): Boolean {
+        run {
+            when (itemId) {
                 R.id.sort -> when (binding.viewPager.currentItem) {
                     TAB_ALARM_INDEX -> getViewPagerAdapter()?.showAlarmSortDialog()
                     TAB_TIMER_INDEX -> getViewPagerAdapter()?.showTimerSortDialog()
@@ -186,10 +204,10 @@ class MainActivity : SimpleActivity() {
                 R.id.home_assistant_activate -> HaOnboarding.openPanel(this)
                 R.id.settings -> launchSettings()
                 R.id.about -> showAlarmeHaAbout()
-                else -> return@setOnMenuItemClickListener false
+                else -> return false
             }
-            return@setOnMenuItemClickListener true
         }
+        return true
     }
 
     private fun refreshMenuItems() {
@@ -254,6 +272,7 @@ class MainActivity : SimpleActivity() {
         binding.viewPager.onPageChangeListener {
             binding.mainTabsHolder.getTabAt(it)?.select()
             refreshMenuItems()
+            updateAlarmTabChrome()
         }
 
         val tabToOpen = intent.getIntExtra(OPEN_TAB, config.defaultTab)
@@ -269,6 +288,7 @@ class MainActivity : SimpleActivity() {
 
         binding.viewPager.offscreenPageLimit = TABS_COUNT - 1
         binding.viewPager.currentItem = getTabIndex(tabToOpen)
+        updateAlarmTabChrome()
     }
 
     private fun setupTabs() {
@@ -293,7 +313,12 @@ class MainActivity : SimpleActivity() {
                     customView?.let { BottomTablayoutItemBinding.bind(it) }?.apply {
                         tabItemIcon.setImageDrawable(getDrawable(drawableId))
                         tabItemLabel.setText(tabLabels[i])
-                        AutofitHelper.create(tabItemLabel)
+                        // 0.9.0: barra em pílula flutuante só com ícones (Samsung).
+                        tabItemLabel.beVisibleIf(false)
+                        root.contentDescription = getString(tabLabels[i])
+                        root.minimumWidth = (76 * resources.displayMetrics.density).toInt()
+                        root.minimumHeight = (50 * resources.displayMetrics.density).toInt()
+                        root.gravity = android.view.Gravity.CENTER
                         binding.mainTabsHolder.addTab(this@tab)
                     }
                 }
@@ -301,6 +326,7 @@ class MainActivity : SimpleActivity() {
 
         binding.mainTabsHolder.onTabSelectionChanged(
             tabUnselectedAction = {
+                it.customView?.background = null
                 updateBottomTabItemColors(
                     view = it.customView,
                     isActive = false,
@@ -308,6 +334,8 @@ class MainActivity : SimpleActivity() {
                 )
             },
             tabSelectedAction = {
+                it.customView?.background = org.fossify.clock.ha.HaStyle.rounded(this, org.fossify.clock.ha.HaStyle.PILL_ON, 25f)
+                binding.mainTabsHolder.post { whiteTabIcons() }
                 binding.viewPager.currentItem = it.position
                 updateBottomTabItemColors(
                     view = it.customView,
@@ -332,8 +360,20 @@ class MainActivity : SimpleActivity() {
         }
 
         binding.mainTabsHolder.getTabAt(binding.viewPager.currentItem)?.select()
-        val bottomBarColor = getBottomNavigationBackgroundColor()
-        binding.mainTabsHolder.setBackgroundColor(bottomBarColor)
+        binding.mainTabsHolder.background = org.fossify.clock.ha.HaStyle.rounded(this, org.fossify.clock.ha.HaStyle.PILL, 32f)
+        whiteTabIcons()
+        (0 until binding.mainTabsHolder.tabCount).forEach { i ->
+            binding.mainTabsHolder.getTabAt(i)?.customView?.background = if (i == binding.viewPager.currentItem)
+                org.fossify.clock.ha.HaStyle.rounded(this, org.fossify.clock.ha.HaStyle.PILL_ON, 25f) else null
+        }
+    }
+
+    /** Ícones brancos na pílula (Samsung); a aba ativa ganha só o fundo mais claro. */
+    private fun whiteTabIcons() {
+        (0 until binding.mainTabsHolder.tabCount).forEach { i ->
+            binding.mainTabsHolder.getTabAt(i)?.customView?.findViewById<android.widget.ImageView>(org.fossify.commons.R.id.tab_item_icon)
+                ?.applyColorFilter(org.fossify.clock.ha.HaStyle.TEXT)
+        }
     }
 
     private fun getInactiveTabIndexes(activeIndex: Int): List<Int> {

@@ -8,6 +8,10 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import org.fossify.clock.R
+import org.fossify.clock.ha.HaListOrder
+import org.fossify.clock.ha.HaSkipLogic
+import org.fossify.clock.ha.HaStyle
+import org.fossify.clock.ha.HaUi
 import org.fossify.clock.activities.SimpleActivity
 import org.fossify.clock.databinding.ItemAlarmBinding
 import org.fossify.clock.extensions.config
@@ -52,7 +56,14 @@ class AlarmsAdapter(
         haInfo = info
         allAlarms = all
         haGroups = org.fossify.clock.ha.HaSkipLogic.groupsOf(info.mapValues { it.value.group })
+        val now = System.currentTimeMillis()
+        cardTitles = HaUi.cardTitles(haGroups.keys.map { g ->
+            val members = all.filter { info[it.id]?.group == g }.map { haItem(it) }
+            HaUi.Card(g, members.firstNotNullOfOrNull { m -> info[m.alarmId]?.groupName }, HaListOrder.summary(members, now).nextRing)
+        })
     }
+
+    private var cardTitles: Map<String, Pair<String, String?>> = emptyMap()
 
     /** Grupo (cartão) do alarme, ou null para alarme solto. */
     fun haGroupOf(alarm: Alarm): String? = haInfo[alarm.id]?.group?.takeIf { haGroups.containsKey(it) }
@@ -153,10 +164,11 @@ class AlarmsAdapter(
     @SuppressLint("ClickableViewAccessibility")
     private fun setupView(view: View, alarm: Alarm, holder: ViewHolder) {
         val isSelected = selectedKeys.contains(alarm.id)
+        val ctx = activity
         ItemAlarmBinding.bind(view).apply {
             alarmHolder.isSelected = isSelected
             alarmDragHandle.beVisibleIf(selectedKeys.isNotEmpty())
-            alarmDragHandle.applyColorFilter(textColor)
+            alarmDragHandle.applyColorFilter(HaStyle.TEXT)
             alarmDragHandle.setOnTouchListener { _, event ->
                 if (event.action == MotionEvent.ACTION_DOWN) {
                     startReorderDragListener.requestDrag(holder)
@@ -166,60 +178,66 @@ class AlarmsAdapter(
             val info = haInfo[alarm.id]
             val group = haGroupOf(alarm)
             val now = System.currentTimeMillis()
-            alarmGroupHeader.beVisibleIf(false)
-            styleCard(alarmHolder, group != null)
+            haGroupPill.beVisibleIf(group != null)
+            alarmSolo.beVisibleIf(group == null)
             if (group != null) {
-                // Cartão do compromisso: nome, próximo toque e quantos ligados/desligados. Toque abre o grupo.
-                val members = allAlarms.filter { haInfo[it.id]?.group == group }.map { haItem(it) }
-                val sum = org.fossify.clock.ha.HaListOrder.summary(members, now)
-                val shown = sum.nextRing?.let { java.util.Calendar.getInstance().apply { timeInMillis = it } }
-                val minutes = shown?.let { it.get(java.util.Calendar.HOUR_OF_DAY) * 60 + it.get(java.util.Calendar.MINUTE) } ?: alarm.timeInMinutes
-                alarmTime.text = activity.getFormattedTime(passedSeconds = minutes * 60, showSeconds = false, makeAmPmSmaller = true)
-                alarmTime.setTextColor(textColor)
-                val countText = activity.getString(R.string.ha_card_count, sum.on, sum.off)
-                alarmDays.text = (sum.nextRing?.let { org.fossify.clock.ha.HaListOrder.longDate(it) + " · " } ?: "") + countText
-                alarmDays.setTextColor(textColor)
-                alarmLabel.text = info?.groupName ?: group
-                alarmLabel.setTextColor(textColor)
-                alarmLabel.beVisibleIf(true)
-                alarmLabel.setTypeface(null, android.graphics.Typeface.BOLD)
-                val fade = if (sum.on == 0) FADE_OFF else 1f
-                alarmTime.alpha = fade
-                alarmDays.alpha = fade
-                alarmLabel.alpha = fade
-                alarmSwitch.beVisibleIf(false)
+                // Cartão do grupo (pílula da Samsung): ícone roxo, nome do tipo e o total de alarmes. Sem chave.
+                val members = allAlarms.filter { haInfo[it.id]?.group == group }
+                val (name, hint) = cardTitles[group] ?: (HaUi.baseName(info?.groupName, group) to null)
+                haGroupPill.background = HaStyle.rounded(ctx, HaStyle.CARD, 30f)
+                haGroupAvatar.background = HaStyle.rounded(ctx, 0xFF7F7CF0.toInt(), 23f)
+                haGroupName.text = name
+                haGroupName.setTextColor(HaStyle.ACCENT)
+                haGroupHint.beVisibleIf(hint != null)
+                haGroupHint.text = hint ?: ""
+                haGroupHint.setTextColor(HaStyle.TEXT_2)
+                haGroupCount.text = members.size.toString()
+                haGroupCount.setTextColor(HaStyle.ACCENT)
+                haGroupCountIcon.applyColorFilter(HaStyle.ACCENT)
+                haGroupPill.contentDescription = "$name, ${HaUi.countDescription(members.size)}"
                 return@apply
             }
-            alarmLabel.setTypeface(null, android.graphics.Typeface.NORMAL)
-            alarmSwitch.beVisibleIf(true)
-            val skippedAt = info?.skippedAt?.takeIf { org.fossify.clock.ha.HaSkipLogic.isSkipActive(it, now) }
 
-            alarmTime.text = activity.getFormattedTime(
-                passedSeconds = alarm.timeInMinutes * 60,
-                showSeconds = false,
-                makeAmPmSmaller = true
-            )
-            alarmTime.setTextColor(textColor)
-
-            alarmDays.text = when {
-                skippedAt != null -> skippedText(skippedAt)
-                info != null -> org.fossify.clock.ha.HaListOrder.dayText(haItem(alarm), dayNames(alarm), now)
-                else -> getAlarmSelectedDaysString(alarm)
+            // Solto: fatia do cartão único dos soltos (divisória entre eles).
+            val pos = alarms.indexOf(alarm)
+            val prevSolo = pos > 0 && haGroupOf(alarms[pos - 1]) == null
+            val nextSolo = pos >= 0 && pos < alarms.size - 1 && haGroupOf(alarms[pos + 1]) == null
+            alarmSolo.background = HaStyle.segment(ctx, if (isSelected) HaStyle.BUTTON else HaStyle.CARD, !prevSolo, !nextSolo)
+            alarmDivider.beVisibleIf(prevSolo)
+            alarmDivider.setBackgroundColor(HaStyle.DIVIDER)
+            (alarmSolo.layoutParams as? ViewGroup.MarginLayoutParams)?.let {
+                it.topMargin = if (prevSolo || pos == 0) 0 else (8 * ctx.resources.displayMetrics.density).toInt()
+                alarmSolo.layoutParams = it
             }
-            val fade = if (alarm.isEnabled && skippedAt == null) 1f else if (info != null) FADE_OFF else 1f
-            alarmTime.alpha = fade
-            alarmDays.alpha = fade
-            alarmLabel.alpha = fade
+
+            val skippedAt = info?.skippedAt?.takeIf { HaSkipLogic.isSkipActive(it, now) }
+            val on = alarm.isEnabled && skippedAt == null
+            alarmTime.text = HaUi.hhmm(alarm.timeInMinutes)
+            alarmTime.typeface = HaStyle.boldTime()
+            alarmTime.setTextColor(if (on) HaStyle.TEXT else HaStyle.DIM)
+            alarmLabel.text = alarm.label
+            alarmLabel.setTextColor(if (on) HaStyle.TEXT else HaStyle.DIM)
+            alarmLabel.beVisibleIf(alarm.label.isNotEmpty())
+            alarmChip.beVisibleIf(skippedAt != null)
+            alarmChip.background = HaStyle.rounded(ctx, 0xFF2C2C30.toInt(), 9f)
+            alarmChip.setTextColor(HaStyle.TEXT_2)
+            alarmLabelRow.beVisibleIf(alarm.label.isNotEmpty() || skippedAt != null)
+
+            val recurring = alarm.days > 0 && skippedAt == null
+            alarmWeek.beVisibleIf(recurring)
+            alarmWeek.setDays(alarm.days)
+            alarmWeek.faded = !on
+            alarmDate.beVisibleIf(!recurring)
+            alarmDate.text = when {
+                skippedAt != null -> HaUi.skippedLine(haItem(alarm), now)
+                else -> oneTimeDate(alarm, now)
+            }
+            alarmDate.setTextColor(if (on) HaStyle.ACCENT else HaStyle.DIM)
+
             alarmSwitch.alpha = 1f
             alarmSwitch.isEnabled = true
-            alarmDays.setTextColor(textColor)
-
-            alarmLabel.text = alarm.label
-            alarmLabel.setTextColor(textColor)
-            alarmLabel.beVisibleIf(alarm.label.isNotEmpty())
-
-            alarmSwitch.isChecked = alarm.isEnabled && skippedAt == null
-            alarmSwitch.setColors(textColor, properPrimaryColor, backgroundColor)
+            alarmSwitch.isChecked = on
+            HaStyle.paintSwitch(alarmSwitch)
             alarmSwitch.setOnClickListener {
                 if (info != null && (alarm.isEnabled || skippedAt != null)) {
                     // Alarme da agenda: desligar = pular só o próximo toque; ligar = desfazer o pulo.
@@ -231,24 +249,10 @@ class AlarmsAdapter(
         }
     }
 
-    private fun dayNames(alarm: Alarm): String? = if (alarm.days > 0) activity.getSelectedDaysString(alarm.days) else null
-
-    /** Cartão de cantos arredondados para grupo do HA; alarme solto volta ao fundo original. */
-    private fun styleCard(view: View, card: Boolean) {
-        if (view.getTag(R.id.alarm_holder) == null) view.setTag(R.id.alarm_holder, view.background ?: android.graphics.drawable.ColorDrawable(0))
-        val params = view.layoutParams as? ViewGroup.MarginLayoutParams
-        val margin = (8 * activity.resources.displayMetrics.density).toInt()
-        if (card) {
-            view.background = android.graphics.drawable.GradientDrawable().apply {
-                cornerRadius = 20 * activity.resources.displayMetrics.density
-                setColor(textColor.adjustAlpha(0.08f))
-            }
-            params?.setMargins(margin, margin / 2, margin, margin / 2)
-        } else {
-            view.background = view.getTag(R.id.alarm_holder) as android.graphics.drawable.Drawable
-            params?.setMargins(0, 0, 0, 0)
-        }
-        view.layoutParams = params ?: view.layoutParams
+    /** Alarme de uma vez: data por extenso do próximo toque ("qui., 22 de out."). */
+    private fun oneTimeDate(alarm: Alarm, now: Long): String {
+        val at = HaSkipLogic.nextOccurrence(alarm.timeInMinutes, alarm.days, now) ?: return ""
+        return HaListOrder.longDate(at)
     }
 
     private fun toggleAlarm(binding: ItemAlarmBinding, alarm: Alarm) {
@@ -272,9 +276,7 @@ class AlarmsAdapter(
             else -> {
                 updateNonRecurringAlarmDay(alarm)
                 activity.dbHelper.updateAlarm(alarm)
-                binding.alarmDays.text = getAlarmSelectedDaysString(
-                    alarm = alarm, isEnabled = binding.alarmSwitch.isChecked
-                )
+                binding.alarmDate.text = oneTimeDate(alarm, System.currentTimeMillis())
                 toggleAlarmInterface.alarmToggled(alarm.id, binding.alarmSwitch.isChecked)
             }
         }
@@ -287,18 +289,6 @@ class AlarmsAdapter(
         )
     }
 
-    private fun skippedText(at: Long): String {
-        val day = java.util.Calendar.getInstance().apply { timeInMillis = at }
-        val today = java.util.Calendar.getInstance()
-        fun same(a: java.util.Calendar, b: java.util.Calendar) =
-            a.get(java.util.Calendar.YEAR) == b.get(java.util.Calendar.YEAR) &&
-                a.get(java.util.Calendar.DAY_OF_YEAR) == b.get(java.util.Calendar.DAY_OF_YEAR)
-        if (same(day, today)) return activity.getString(R.string.ha_skipped_today)
-        today.add(java.util.Calendar.DAY_OF_MONTH, 1)
-        if (same(day, today)) return activity.getString(R.string.ha_skipped_tomorrow)
-        val fmt = java.text.SimpleDateFormat("dd/MM", java.util.Locale.getDefault())
-        return activity.getString(R.string.ha_skipped_on, fmt.format(day.time))
-    }
 
     private fun getAlarmSelectedDaysString(
         alarm: Alarm, isEnabled: Boolean = alarm.isEnabled,
