@@ -6,8 +6,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/alarm_fragment"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#010101">
+    android:layout_height="match_parent">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/alarms_appbar"
@@ -18,24 +17,25 @@
         app:elevation="0dp"
         app:liftOnScroll="false">
 
+        <!-- 0.11.0: a parte grande recolhe ao rolar (scroll|snap); a linha com o título curto, + e ⋮
+             fica fixa, como no Relógio da Samsung. -->
         <LinearLayout
             android:id="@+id/alarms_header"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            app:layout_scrollFlags="scroll">
+            app:layout_scrollFlags="scroll|snap">
 
             <TextView
                 android:id="@+id/alarms_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginTop="56dp"
+                android:layout_marginTop="40dp"
                 android:fontFamily="sans-serif-medium"
                 android:gravity="center"
                 android:maxWidth="290dp"
-                android:textColor="#FAFAFA"
-                android:textSize="29sp"
+                                android:textSize="29sp"
                 tools:text="Alarme em 19 horas e 1 minuto" />
 
             <TextView
@@ -45,8 +45,7 @@
                 android:layout_gravity="center_horizontal"
                 android:layout_marginTop="8dp"
                 android:fontFamily="sans-serif-medium"
-                android:textColor="#9A9AA0"
-                android:textSize="14sp"
+                                android:textSize="14sp"
                 tools:text="qui., 22 de out., 03:33" />
 
             <TextView
@@ -61,13 +60,29 @@
                 android:textSize="14sp"
                 android:visibility="gone" />
 
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="28dp" />
+        </LinearLayout>
+
             <LinearLayout
+                android:id="@+id/alarms_actions"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:layout_marginTop="44dp"
                 android:gravity="center_vertical|end"
                 android:orientation="horizontal"
+                android:paddingStart="20dp"
                 android:paddingEnd="8dp">
+
+                <TextView
+                    android:id="@+id/alarms_small_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:alpha="0"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="@string/ha_alarms_title"
+                    android:textSize="20sp" />
 
                 <ImageView
                     android:id="@+id/alarms_add"
@@ -90,7 +105,6 @@
                     android:src="@drawable/ic_three_dots_vector"
                     app:tint="#FAFAFA" />
             </LinearLayout>
-        </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
     <org.fossify.commons.views.MyRecyclerView
@@ -115,8 +129,7 @@
         android:gravity="center"
         android:padding="@dimen/activity_margin"
         android:text="@string/no_alarms_found"
-        android:textColor="#9A9AA0"
-        android:textSize="@dimen/bigger_text_size"
+                android:textSize="@dimen/bigger_text_size"
         android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

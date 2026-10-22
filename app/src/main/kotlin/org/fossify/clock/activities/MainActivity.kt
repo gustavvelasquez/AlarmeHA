@@ -77,7 +77,7 @@ class MainActivity : SimpleActivity() {
         setupOptionsMenu()
         refreshMenuItems()
 
-        setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.haTabWrap))
+        setupEdgeToEdge(padBottomImeAndSystem = listOf(binding.mainTabsHolder))
 
         storeStateVariables()
         initFragments()
@@ -111,7 +111,7 @@ class MainActivity : SimpleActivity() {
 
         val configBackgroundColor = getProperBackgroundColor()
         if (storedBackgroundColor != configBackgroundColor) {
-            Unit
+            binding.mainTabsHolder.background = configBackgroundColor.toDrawable()
         }
 
         val configPrimaryColor = getProperPrimaryColor()
@@ -280,7 +280,6 @@ class MainActivity : SimpleActivity() {
             binding.mainTabsHolder.getTabAt(it)?.select()
             refreshMenuItems()
             updateAlarmTabChrome()
-            updateTabPill()
         }
 
         val tabToOpen = intent.getIntExtra(OPEN_TAB, config.defaultTab)
@@ -300,7 +299,6 @@ class MainActivity : SimpleActivity() {
     }
 
     private fun setupTabs() {
-        setupTabPill()
         binding.mainTabsHolder.removeAllTabs()
         val tabDrawables = arrayOf(
             R.drawable.ic_clock_vector,
@@ -322,12 +320,7 @@ class MainActivity : SimpleActivity() {
                     customView?.let { BottomTablayoutItemBinding.bind(it) }?.apply {
                         tabItemIcon.setImageDrawable(getDrawable(drawableId))
                         tabItemLabel.setText(tabLabels[i])
-                        // 0.9.0: barra em pílula flutuante só com ícones (Samsung).
-                        tabItemLabel.beVisibleIf(false)
-                        root.contentDescription = getString(tabLabels[i])
-                        root.minimumWidth = (76 * resources.displayMetrics.density).toInt()
-                        root.minimumHeight = (50 * resources.displayMetrics.density).toInt()
-                        root.gravity = android.view.Gravity.CENTER
+                        AutofitHelper.create(tabItemLabel)
                         binding.mainTabsHolder.addTab(this@tab)
                     }
                 }
@@ -335,7 +328,6 @@ class MainActivity : SimpleActivity() {
 
         binding.mainTabsHolder.onTabSelectionChanged(
             tabUnselectedAction = {
-                it.customView?.background = null
                 updateBottomTabItemColors(
                     view = it.customView,
                     isActive = false,
@@ -343,7 +335,6 @@ class MainActivity : SimpleActivity() {
                 )
             },
             tabSelectedAction = {
-                it.customView?.background = org.fossify.clock.ha.HaStyle.rounded(this, org.fossify.clock.ha.HaStyle.PILL_ON, 25f)
                 binding.viewPager.currentItem = it.position
                 updateBottomTabItemColors(
                     view = it.customView,
@@ -368,38 +359,8 @@ class MainActivity : SimpleActivity() {
         }
 
         binding.mainTabsHolder.getTabAt(binding.viewPager.currentItem)?.select()
-        updateTabPill()
-    }
-
-    /** 0.9.2: pílula de abas da Samsung (4 ícones brancos; a ativa com fundo mais claro). */
-    private fun setupTabPill() {
-        val pill = binding.haTabPill
-        pill.removeAllViews()
-        pill.background = org.fossify.clock.ha.HaStyle.rounded(this, org.fossify.clock.ha.HaStyle.PILL, 30f)
-        val d = resources.displayMetrics.density
-        val icons = arrayOf(R.drawable.ic_clock_vector, R.drawable.ic_alarm_vector, R.drawable.ic_stopwatch_vector, R.drawable.ic_hourglass_vector)
-        val labels = arrayOf(R.string.clock, org.fossify.commons.R.string.alarm, R.string.stopwatch, R.string.timer)
-        icons.forEachIndexed { i, icon ->
-            android.widget.FrameLayout(this).apply {
-                contentDescription = getString(labels[i])
-                isClickable = true
-                setOnClickListener { binding.viewPager.currentItem = i }
-                addView(android.widget.ImageView(this@MainActivity).apply {
-                    setImageResource(icon)
-                    applyColorFilter(org.fossify.clock.ha.HaStyle.TEXT)
-                }, android.widget.FrameLayout.LayoutParams((24 * d).toInt(), (24 * d).toInt(), android.view.Gravity.CENTER))
-            }.also { pill.addView(it, android.widget.LinearLayout.LayoutParams((64 * d).toInt(), (46 * d).toInt()).apply { marginStart = (2 * d).toInt(); marginEnd = (2 * d).toInt() }) }
-        }
-        updateTabPill()
-    }
-
-    private fun updateTabPill() {
-        val pill = binding.haTabPill
-        for (i in 0 until pill.childCount) {
-            pill.getChildAt(i).background = if (i == binding.viewPager.currentItem)
-                org.fossify.clock.ha.HaStyle.rounded(this, org.fossify.clock.ha.HaStyle.PILL_ON, 23f) else null
-            pill.getChildAt(i).isSelected = i == binding.viewPager.currentItem
-        }
+        val bottomBarColor = getBottomNavigationBackgroundColor()
+        binding.mainTabsHolder.setBackgroundColor(bottomBarColor)
     }
 
     private fun getInactiveTabIndexes(activeIndex: Int): List<Int> {

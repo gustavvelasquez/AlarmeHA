@@ -87,6 +87,21 @@ class AlarmFragment : Fragment(), ToggleAlarmInterface {
                 openEditAlarm(newAlarm)
             }
             alarmsMore.setOnClickListener { (activity as? MainActivity)?.showMainMenu(it) }
+            // 0.11.0: cores do tema do Fossify no cabeçalho; título curto aparece quando a parte grande recolhe.
+            val ctx = requireContext()
+            val text = ctx.getProperTextColor()
+            alarmsTitle.setTextColor(text)
+            alarmsSmallTitle.setTextColor(text)
+            alarmsSubtitle.setTextColor(text)
+            alarmsSubtitle.alpha = 0.7f
+            alarmsAdd.setColorFilter(text)
+            alarmsMore.setColorFilter(text)
+            alarmsAppbar.addOnOffsetChangedListener { _, offset ->
+                val range = alarmsHeader.height.takeIf { it > 0 } ?: return@addOnOffsetChangedListener
+                val p = (-offset).toFloat() / range
+                alarmsSmallTitle.alpha = ((p - 0.6f) / 0.4f).coerceIn(0f, 1f)
+                alarmsHeader.alpha = (1f - p * 1.4f).coerceIn(0f, 1f)
+            }
         }
 
         setupAlarms()

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="alarmeha_diagnostic_mode">Diagnostic mode</string>
+    <string name="ha_alarms_title">Alarms</string>
 </resources>

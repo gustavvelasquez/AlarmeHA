@@ -103,7 +103,7 @@ class HaGroupActivity : SimpleActivity() {
             typeface = HaStyle.boldTime()
             gravity = Gravity.CENTER
             setTextColor(HaStyle.TEXT)
-            setPadding(dp(24), dp(84), dp(24), 0)
+            setPadding(dp(24), dp(32), dp(24), 0)
         }.also { column.addView(it, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)) }
 
         // Ativar tudo / Desativar tudo: só o que faz sentido; os dois quando misto.
@@ -141,7 +141,7 @@ class HaGroupActivity : SimpleActivity() {
                 setOnMenuItemClickListener { startActivity(Intent(this@HaGroupActivity, org.fossify.clock.activities.SettingsActivity::class.java)); true }
             }.show()
         }, LinearLayout.LayoutParams(dp(48), dp(48)))
-        column.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(72); bottomMargin = dp(8) })
+        column.addView(bar, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(16); bottomMargin = dp(4) })
 
         // Cartão com os alarmes do grupo, rótulo acima da hora, divisórias.
         val card = LinearLayout(this).apply {
