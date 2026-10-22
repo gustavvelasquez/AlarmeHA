@@ -33,7 +33,9 @@ class HaCommandProcessor(private val context: Context) {
         val op = extras.getAsString("op")?.trim()?.lowercase()
         val pedido = extras.getAsString("pedido")?.take(MAX_TEXT)
         val ref = extras.getAsString("ref")?.trim()
-        HaDiagLog.log(context, "recebido", ref, extra = mapOf("op" to op, "pedido" to pedido))
+        HaDiagLog.log(context, "recebido", ref, extra = mapOf("op" to op, "pedido" to pedido,
+            "hora" to extras.getAsString("hora"), "minuto" to extras.getAsString("minuto"), "dias" to extras.getAsString("dias"),
+            "ativo" to extras.getAsString("ativo")))
         try {
             when (op) {
                 "criar" -> create(extras, requireRef(ref), pedido)
