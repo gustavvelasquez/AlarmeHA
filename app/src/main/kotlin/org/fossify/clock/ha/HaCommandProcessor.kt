@@ -33,6 +33,7 @@ class HaCommandProcessor(private val context: Context) {
         val op = extras.getAsString("op")?.trim()?.lowercase()
         val pedido = extras.getAsString("pedido")?.take(MAX_TEXT)
         val ref = extras.getAsString("ref")?.trim()
+        HaDiagLog.log(context, "recebido", ref, extra = mapOf("op" to op, "pedido" to pedido))
         try {
             when (op) {
                 "criar" -> create(extras, requireRef(ref), pedido)
@@ -47,7 +48,7 @@ class HaCommandProcessor(private val context: Context) {
         } catch (e: CommandError) {
             sendError(pedido, op, ref, e.reason)
         } catch (e: Exception) {
-            sendError(pedido, op, ref, "erro_interno")
+            sendError(pedido, op, ref, "erro_interno", e)
         }
     }
 
@@ -148,15 +149,19 @@ class HaCommandProcessor(private val context: Context) {
         targets(ref).forEach { (r, alarm) ->
             db.deleteAlarms(arrayListOf(alarm))
             refs.remove(r)
+            HaDiagLog.log(context, "apagado", r, alarm)
             HaEvents.sendAlarmChange(context, "apagado", r, alarm, pedido)
         }
         refresh()
     }
 
     private fun applySchedule(alarm: Alarm) {
+        val ref = refs.refForAlarm(alarm.id)
         if (alarm.isEnabled) {
             context.alarmController.scheduleNextOccurrence(alarm)
+            HaDiagLog.log(context, "agendado", ref, alarm)
         } else {
+            HaDiagLog.log(context, "desagendado", ref, alarm)
             context.cancelAlarmClock(alarm)
             refresh()
         }
@@ -167,7 +172,9 @@ class HaCommandProcessor(private val context: Context) {
         EventBus.getDefault().post(AlarmEvent.Refresh)
     }
 
-    private fun sendError(pedido: String?, op: String?, ref: String?, reason: String) {
+    private fun sendError(pedido: String?, op: String?, ref: String?, reason: String, cause: Exception? = null) {
+        HaDiagLog.log(context, "erro", ref, extra = mapOf("op" to op, "pedido" to pedido, "motivo" to reason,
+            "mensagem" to cause?.let { "${it.javaClass.simpleName}: ${it.message ?: ""}" }))
         HaWebhook.send(context, "erro", JSONObject().apply {
             put("pedido", pedido ?: JSONObject.NULL)
             put("op", op ?: JSONObject.NULL)

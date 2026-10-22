@@ -55,6 +55,11 @@ class HaConfig(context: Context) {
         get() = prefs.getInt(KEY_DROPPED, 0)
         set(value) = prefs.edit().putInt(KEY_DROPPED, value).apply()
 
+    /** Modo diagnóstico (Configurações): desligado por padrão; nunca desliga sozinho. */
+    var diagnosticMode: Boolean
+        get() = prefs.getBoolean(KEY_DIAG, false)
+        set(value) = prefs.edit().putBoolean(KEY_DIAG, value).apply()
+
     var personName: String
         get() = prefs.getString(KEY_NAME, "") ?: ""
         set(value) = prefs.edit().putString(KEY_NAME, value).apply()
@@ -107,7 +112,8 @@ class HaConfig(context: Context) {
     fun unpair() {
         HaWebhook.clear(appContext)
         val activated = everActivated
-        prefs.edit().clear().putBoolean(KEY_EVER_ACTIVATED, activated).apply()
+        val diag = diagnosticMode
+        prefs.edit().clear().putBoolean(KEY_EVER_ACTIVATED, activated).putBoolean(KEY_DIAG, diag).apply()
     }
 
     companion object {
@@ -124,6 +130,7 @@ class HaConfig(context: Context) {
         private const val KEY_ERROR = "envio_erro"
         private const val KEY_ERROR_AT = "envio_erro_em"
         private const val KEY_DROPPED = "envio_descartados"
+        private const val KEY_DIAG = "modo_diagnostico"
 
         fun sha256(text: String): String =
             MessageDigest.getInstance("SHA-256").digest(text.toByteArray(Charsets.UTF_8))

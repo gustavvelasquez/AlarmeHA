@@ -57,6 +57,7 @@ object HaSkip {
         HaRefStore.get(context).setSkipped(alarm.id, target)
         context.cancelAlarmClock(alarm)
         context.alarmController.scheduleNextOccurrence(alarm) // agenda a ocorrência seguinte (ou nada)
+        HaDiagLog.log(context, "pulou", info.ref, alarm, mapOf("ocorrencia" to HaWebhook.isoDate(Date(target))))
         notifyHa(context, "pulado", info.ref, alarm, target)
         return true
     }

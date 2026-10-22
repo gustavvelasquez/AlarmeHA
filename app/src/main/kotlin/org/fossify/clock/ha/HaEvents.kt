@@ -87,6 +87,8 @@ object HaEvents {
         ensureBackgroundThread {
             val alarm = context.dbHelper.getAlarmWithId(alarmId)
             val ref = HaRefStore.get(context).refForAlarm(alarmId)
+            val tipo = when (event) { "desligado" -> "dispensou"; else -> event }
+            HaDiagLog.log(context, tipo, ref, alarm, JSONObject().apply(extra).let { j -> j.keys().asSequence().associateWith { j.get(it) } })
             HaWebhook.send(context, event, JSONObject().apply {
                 put("ref", ref ?: JSONObject.NULL)
                 put("id", alarmId)

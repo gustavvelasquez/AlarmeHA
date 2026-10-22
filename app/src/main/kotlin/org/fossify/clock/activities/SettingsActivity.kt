@@ -115,6 +115,12 @@ class SettingsActivity : SimpleActivity() {
         binding.settingsHomeAssistantHolder.setOnClickListener {
             startActivity(android.content.Intent(this, org.fossify.clock.ha.HaPairingActivity::class.java))
         }
+        val haConfig = org.fossify.clock.ha.HaConfig(this)
+        binding.settingsDiagnosticMode.isChecked = haConfig.diagnosticMode
+        binding.settingsDiagnosticModeHolder.setOnClickListener {
+            binding.settingsDiagnosticMode.toggle()
+            haConfig.diagnosticMode = binding.settingsDiagnosticMode.isChecked
+        }
     }
 
     private fun setupCustomizeColors() {
