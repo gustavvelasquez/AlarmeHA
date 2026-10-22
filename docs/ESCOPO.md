@@ -61,6 +61,22 @@ Status: **feito**, **pendente** (pedido e ainda não feito ou aguardando decisã
 | Espaço vazio grande na tela do grupo | pendente | — | Diferença visual da Samsung |
 | Cabeçalho da lista recolhido como na Samsung | pendente | — | Hoje fica expandido |
 
+## Decisões aprovadas — sincronização e cards
+
+Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" com 4 alarmes antes do evento e agrupamento por evento; tipo "Remédio" com antecedência 0 e agrupamento do tipo inteiro.
+
+| Regra | Status | Observação |
+|---|---|---|
+| Agrupamento `por_evento`: um cartão por título de evento da agenda do tipo, cada um com os N alarmes das antecedências do tipo | aprovado | Ex.: eventos "Trabalho" e "Reunião" no tipo Trabalho = dois cartões, 4 alarmes cada |
+| Agrupamento `por_tipo`: um cartão com o nome do tipo, um alarme por evento na hora do evento | aprovado | Ex.: cartão "Remédio" com um alarme por evento ("Dose manhã", "Dose noite") |
+| Janela de sincronização: hoje + 6 dias (7 dias) | aprovado | Limite de 7 porque o alarme repete por dia da semana (D S T Q Q S S); com 8 ou mais, dois dias iguais da semana se confundiriam |
+| Em cada sincronização: marca os dias da janela que têm o evento; desmarca os dias que já passaram e os dias sem evento | aprovado | O dia vira à meia-noite |
+| Número de alarmes por cartão fixo no configurado | aprovado | Muda só os dias marcados; nunca um alarme a mais por dia |
+| Cartão cujo evento não aparece na janela de 7 dias é apagado | aprovado | |
+| Sem data guardada no alarme | aprovado | A sincronização deve rodar pelo menos 1×/dia; a janela de 7 dias é margem de segurança |
+| Aviso de comunicação parada | aprovado | O alerta do HA de celular sem notícias avisa se a comunicação parar por mais de um dia |
+| Dispensar um alarme do conjunto | pendente | Em discussão; risco de dispensar os demais meio dormindo |
+
 ## Distribuição
 
 | Item | Status | Versão | Observação |
