@@ -75,6 +75,10 @@ Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" 
 | Cartão cujo evento não aparece na janela de 7 dias é apagado | aprovado | |
 | Sem data guardada no alarme | aprovado | A sincronização deve rodar pelo menos 1×/dia; a janela de 7 dias é margem de segurança |
 | Aviso de comunicação parada | aprovado | O alerta do HA de celular sem notícias avisa se a comunicação parar por mais de um dia |
+| Conjunto de alarmes = (título, horário) | aprovado | Mesmo título no mesmo horário reutiliza os mesmos N alarmes do tipo, com os dias da semana marcados; não cria N alarmes por dia |
+| Mesmo título em outro horário gera outro conjunto dentro do mesmo cartão | aprovado | Ex.: "Trabalho" às 06:00 na sexta e às 08:00 no sábado = dois conjuntos de N alarmes no cartão "Trabalho" |
+| Depois de tocar, o alarme só desmarca o dia que passou | aprovado | Os demais dias seguem ligados; o alarme não é desligado inteiro |
+| Vagas (refs) estáveis por cartão, por título e horário | aprovado | Os alarmes não trocam de cartão entre uma sincronização e outra |
 | Dispensar um alarme do conjunto | pendente | Em discussão; risco de dispensar os demais meio dormindo |
 
 ## Distribuição
