@@ -97,6 +97,17 @@ Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" 
 | Escalonamento para outra pessoa; regras por pessoa; pausa/férias; aviso de mudança de horário; várias fontes com prioridade; blueprints; iOS | fora do escopo | — |
 | Dispensar um alarme do conjunto | pendente | Em análise; risco de dispensar os demais meio dormindo |
 
+## Decisão aprovada — versão 0.10.0 (fase 0)
+
+| Item | Status | Observação |
+|---|---|---|
+| Chave "Modo diagnóstico" em Configurações do app | aprovado | Desligada por padrão e sem desligamento automático |
+| Eventos técnicos do Modo diagnóstico | aprovado | Comando recebido, alarme agendado, alarme apagado, tocou, soneca, pulou, dispensou e erro (com mensagem técnica), sempre com versão do app e horário; pelo mesmo webhook e pela mesma fila de envio. Sem dados pessoais: só vaga (`ref`), id, horário e dias; nunca o rótulo |
+| Registro no HA com os últimos 500 eventos | aprovado | Em armazenamento próprio da integração, fora do histórico (recorder); preservado ao reiniciar o HA; os mais antigos saem primeiro |
+| Leitura do registro | aprovado | Ação `alarmeha.diagnostico` com resposta (só administradores) e diagnósticos da integração |
+| Remover a distribuição pelo Firebase | aprovado | Script e menções removidos; APK só pela release do GitHub e pelo link do painel |
+| Versão 0.10.0 no app e na integração | aprovado | CHANGELOG, README, guia e este arquivo atualizados |
+
 ## Distribuição
 
 | Item | Status | Versão | Observação |
