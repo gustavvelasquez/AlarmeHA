@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarmeha`). Até a 0.6.0 o app e a integração tinham números próprios; desde a 0.7.0 usam o mesmo número. As versões do Fossify Clock (upstream) seguem abaixo.
 
+### 0.11.0 - 2026-10-22 (app e integração)
+- Integração: a sincronização olha hoje + 6 dias (7 dias).
+- Integração: conjunto = (título, horário do evento). O mesmo título no mesmo horário reaproveita os mesmos N alarmes do tipo, com os dias da semana marcados (não mais N alarmes por dia). O mesmo título em outro horário vira outro conjunto de N no mesmo cartão.
+- Integração: a cada sincronização entram os dias novos e saem os que passaram; o alarme que tocou hoje só perde o dia de hoje e segue nos demais (acabou o "tocou"/grupo encerrado que desligava o alarme inteiro).
+- Integração: título sem evento nos 7 dias tem os alarmes apagados do celular e o cartão some.
+- Integração: refs estáveis `ag_<tipo>_<hash>_<n>` (tipo + título + horário + n). As refs antigas `ag_<tipo>_<n>` são apagadas na primeira sincronização, antes de criar as novas.
+- Integração: `por_tipo` (ex.: Remédio) = um cartão, um alarme por evento/horário com os dias marcados. Limite de 10 conjuntos por tipo, no lugar de 12 alarmes por tipo.
+- App: o diagnóstico do comando recebido passa a trazer horário, dias e ativo.
+- App: tela do grupo sem o espaço vazio em cima; cabeçalho da lista recolhe ao rolar (fica a linha com o título curto, + e ⋮).
+- App: barra de abas e cores de volta ao Fossify original; cartões de grupo e tela do grupo continuam como estavam.
+- Compatibilidade: o app 0.10.0 aceita os comandos da integração 0.11.0.
+
+**Ainda não incluído:** dispensar um alarme do conjunto desligando os outros do dia; aviso em tela cheia com confirmação; confirmação de remédio.
+
 ### 0.10.0 - 2026-10-22 (app e integração)
 - App: chave **Modo diagnóstico** em Configurações (desligada por padrão, sem desligamento automático). Ligada, envia ao HA pelo webhook, na mesma fila de envio, o evento `diagnostico` para: comando recebido, alarme agendado/desagendado, apagado, tocou, soneca, pulou, dispensou e erro (com mensagem técnica). Sempre com versão do app e horário; sem o rótulo do alarme.
 - Integração: guarda os últimos 500 eventos de diagnóstico em `.storage/alarmeha.diagnostico`, fora do barramento e do histórico, preservados ao reiniciar. Nova ação `alarmeha.diagnostico` (com resposta, só administradores; filtros `device_id` e `limite`) e diagnósticos da integração com o registro.

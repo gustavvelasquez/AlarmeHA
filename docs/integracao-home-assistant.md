@@ -4,7 +4,7 @@ O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app
 
 - **Ida:** o HA pede para criar, editar, ligar, desligar, apagar ou listar alarmes.
 - **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca, foi desligado, pulado ou religado, confirma as mudanças e manda a lista de alarmes.
-- **Versão:** este guia descreve a **0.10.0**. App e integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`). O que mudou nas últimas versões está resumido na seção 7.
+- **Versão:** este guia descreve a **0.11.0**. App e integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`). O que mudou nas últimas versões está resumido na seção 7.
 - **Segurança:** todo comando leva um **token** (gerado pelo HA na ativação pelo painel, ou pelo app no modo manual). Comando sem o token certo é ignorado em silêncio.
 - **Regra:** o HA só edita ou apaga alarmes que ele mesmo criou (com `ref`). Alarmes criados à mão no celular aparecem só na lista.
 - **Som:** o padrão do app, a não ser que o comando traga `som_uri` (toque por tipo de evento na agenda).
@@ -59,7 +59,10 @@ Todo evento do celular também vira o evento `alarmeha_evento` no barramento do 
 Na aba **Agenda** do painel, o admin liga agendas do HA (ex.: o iCal secreto do Google adicionado pela integração **Remote Calendar**) a **tipos de evento** (ex.: Trabalho, Remédio).
 
 - **Escolha do tipo:** o tipo vale se a agenda do evento está nele e, se o tipo tem palavras-chave, o título tem uma delas. Tipo com palavra que bate vence o tipo sem palavras; o tipo sem palavras pega o resto; empate fica com o primeiro da lista.
-- **Alarmes fixos:** cada tipo tem até 12 alarmes no celular, com ref `ag_<tipo>_<n>`, rótulo com 📅 e o título do evento como nome. O HA só reajusta horário, nome, toque e liga/desliga esses alarmes. O plano cobre **hoje e amanhã**.
+- **Janela (0.11.0):** o plano cobre **hoje + 6 dias** (7 dias; o app repete por dia da semana, então 7 é o limite).
+- **Conjuntos:** cada (título do evento, horário do evento) é um conjunto com os N alarmes do tipo. O mesmo título no mesmo horário em vários dias usa os mesmos N alarmes, com os dias da semana marcados (`dias` = soma seg=1 … dom=64). O mesmo título em outro horário vira outro conjunto, no mesmo cartão. Até 10 conjuntos por tipo.
+- **A cada sincronização** (00/15/30/45): entram os dias novos da janela e saem os que passaram; um alarme que já tocou hoje só perde o dia de hoje. Conjunto sem ocorrência futura na janela é apagado do celular (o cartão some).
+- **Refs estáveis:** `ag_<tipo>_<hash>_<n>`, derivadas de tipo + título + horário + n; não mudam entre sincronizações. As vagas antigas `ag_<tipo>_<n>` (até a 0.10.0) são apagadas na primeira sincronização da 0.11.0, antes de criar as novas.
 - **Grupos:** um compromisso com mais de um alarme vira um grupo (`grupo`, `grupo_nome`). Desde a 0.9.2 o grupo é o compromisso (tipo + título do evento), não o dia: o mesmo título hoje e amanhã fica num cartão só, com o título como nome (sem título, o nome do tipo). Tipos com um alarme só (ex.: remédios) não têm grupo e se mesclam por dia da semana quando o horário se repete.
 - **Já tocou:** alarme do grupo que já tocou fica desligado e esmaecido no app, com "Tocou às HH:MM", até o último alarme do grupo passar.
 - **Quando sincroniza:** nos minutos 00, 15, 30 e 45, 5 s depois de a integração carregar e logo depois de um alarme ser desligado.
@@ -69,7 +72,7 @@ Na aba **Agenda** do painel, o admin liga agendas do HA (ex.: o iCal secreto do 
 - A lista é ordenada pelo próximo toque.
 - Desligar um alarme do HA no celular **pula só o próximo toque** (evento `pulado`); religar desfaz (evento `religado`). Só aparece o botão pertinente.
 - Cada compromisso é um cartão (pelo título) com o total de alarmes; dentro dele, **Ativar tudo** / **Desativar tudo** vale para todos os alarmes (pulando só o próximo toque). Grupos do HA não se editam, renomeiam nem recebem alarmes no app.
-- **Pendente (não implementado):** dispensar um alarme de um conjunto (ex.: o 1/4) ainda não desliga os outros do dia. Aguarda a decisão sobre qual opção adotar: (1) dispensar um desliga o resto do dia (nunca no Remédio); (2) botão separado "Dispensar todos de hoje" na tela do alarme tocando; (3) escolha por tipo no painel. Diferenças visuais abertas: espaço vazio grande na tela do grupo e cabeçalho expandido em vez de recolhido.
+- **Ainda não incluído:** dispensar um alarme do conjunto desligando os outros do dia (em discussão: risco de dispensar meio dormindo); aviso em tela cheia com confirmação; confirmação de remédio.
 - Soneca padrão: 5 min.
 
 ### Ações (serviços)
@@ -346,7 +349,14 @@ Pela API REST: `POST /api/services/alarmeha/diagnostico?return_response` com um 
 | Alarmes duplicados desligados (`ag_<tipo>_<n>` com os mesmos horários) | Sobra de re-pareamento na 0.7.0. Na 0.8.0 o HA apaga as vagas `ag_*` sem uso na sincronização seguinte (00/15/30/45), fora da janela de 5/10 min. |
 | Alarme da agenda não mudou | O HA não mexe em alarme tocando, em soneca ou entre 5 min à frente e 10 min atrás; espere a próxima sincronização (00/15/30/45). |
 
-## 7. Novidades da 0.10.0 (app e integração)
+## 7. Novidades da 0.11.0 (app e integração)
+
+- Integração: janela de 7 dias, conjuntos por título e horário com dias da semana, alarme que tocou só perde o dia de hoje, título fora da janela apagado, refs estáveis (migração automática das antigas), limite por conjunto.
+- App: diagnóstico com horário e dias também no comando recebido; tela do grupo sem o espaço vazio; cabeçalho da lista recolhe ao rolar e deixa fixa a linha com título curto, + e ⋮; barra de abas e cores do Fossify original (cartões de grupo e tela do grupo como estavam).
+- Compatível com o app 0.10.0: os comandos são os mesmos (`criar` com `dias` em bits, `apagar`).
+- Ainda não incluído: dispensar do conjunto; tela cheia com confirmação; confirmação de remédio.
+
+## 7.0.0 Novidades da 0.10.0 (app e integração)
 
 - **Modo diagnóstico** (seção 4.1): chave no app, desligada por padrão; registro técnico dos últimos 500 eventos no HA, fora do histórico, lido pela ação `alarmeha.diagnostico` ou pelos diagnósticos da integração.
 - Distribuição só pela release do GitHub e pelo painel; o canal de teste pelo Firebase foi removido.
@@ -357,7 +367,7 @@ Pela API REST: `POST /api/services/alarmeha/diagnostico?return_response` com um 
 - **Linhas por horário:** alarmes do mesmo horário e rótulo viram uma linha com D S T Q Q S S; as vagas por dia continuam e a chave age só no próximo toque.
 - Barra de abas em pílula consertada; cartão de grupo como o da Samsung.
 - A 0.9.1 só igualou a numeração do app e da integração.
-- **Pendente (não implementado):** dispensar um alarme de um conjunto (ex.: o 1/4) ainda não desliga os outros do dia. Aguarda a decisão sobre qual opção adotar: (1) dispensar um desliga o resto do dia (nunca no Remédio); (2) botão separado "Dispensar todos de hoje" na tela do alarme tocando; (3) escolha por tipo no painel. Diferenças visuais abertas: espaço vazio grande na tela do grupo e cabeçalho expandido em vez de recolhido.
+- **Ainda não incluído:** dispensar um alarme do conjunto desligando os outros do dia (em discussão: risco de dispensar meio dormindo); aviso em tela cheia com confirmação; confirmação de remédio.
 
 ## 7.0 Novidades da 0.9.0 (app; integração sem mudança funcional)
 

@@ -8,15 +8,17 @@
 
 - **HA → app:** comandos (criar, editar, ligar, desligar, apagar, listar) pelo app Home Assistant (Companion), com `command_broadcast_intent`, protegidos por token;
 - **app → HA:** eventos por webhook (`lista`, `criado`, `alterado`, `apagado`, `tocou`, `soneca`, `desligado`, `pulado`, `religado`, `erro` e, com o Modo diagnóstico ligado, `diagnostico`), enviados em segundo plano (WorkManager);
-- **agenda:** a integração lê a agenda (ex.: iCal secreto do Google pela Remote Calendar) e mantém no celular alarmes fixos `ag_<tipo>_<n>` (marcados com 📅), agrupados por compromisso.
+- **agenda:** a integração lê a agenda (ex.: iCal secreto do Google pela Remote Calendar) e mantém no celular os alarmes dos próximos 7 dias (marcados com 📅): um conjunto por título e horário do evento, com os dias da semana marcados, num cartão por título (ou um cartão para o tipo inteiro).
 
-**Status:** em uso na casa. Versão publicada: **0.10.0**. Regra: o app e a integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`), mesmo quando um lado não muda.
+**Status:** em uso na casa. Versão publicada: **0.11.0**. Regra: o app e a integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`), mesmo quando um lado não muda.
 
 **No app (0.9.2, visual do Relógio da Samsung):** um cartão por compromisso, agrupado pelo título (não por dia), mostrando o total de alarmes e sem chave; alarmes do mesmo horário numa linha com D S T Q Q S S; grupos do HA não se editam, renomeiam nem recebem alarmes no app; "Ativar tudo"/"Desativar tudo" pulam só o próximo toque.
 
 **Modo diagnóstico (0.10.0):** chave em Configurações, desligada por padrão. Ligada, o app manda ao HA um registro técnico (comando recebido, agendado, apagado, tocou, soneca, pulou, dispensou, erro), sem dados pessoais. O HA guarda os últimos 500 eventos fora do histórico; leitura pela ação `alarmeha.diagnostico` ou pelos diagnósticos da integração.
 
-**Pendente (não implementado):** dispensar um alarme de um conjunto (ex.: o 1/4) ainda não desliga os outros do dia. Aguarda a decisão sobre qual opção adotar: (1) dispensar um desliga o resto do dia (nunca no Remédio); (2) botão separado "Dispensar todos de hoje" na tela do alarme tocando; (3) escolha por tipo no painel. Diferenças visuais abertas: espaço vazio grande na tela do grupo e cabeçalho expandido em vez de recolhido.
+**Novidades da 0.11.0:** janela de 7 dias; mesmo título no mesmo horário reaproveita os mesmos alarmes com vários dias marcados; o alarme que tocou só perde o dia de hoje; título sem evento na janela some do celular; refs estáveis. No app: tela do grupo sem o espaço vazio, cabeçalho da lista que recolhe ao rolar e barra de abas e cores do Fossify original.
+
+**Ainda não incluído:** dispensar um alarme do conjunto desligando os outros do dia (em discussão: risco de dispensar meio dormindo); aviso em tela cheia com confirmação; confirmação de remédio.
 
 **Integração com o Home Assistant (HACS):** este repositório também contém a integração `custom_components/alarmeha`. O fluxo é:
 1. o admin instala pelo HACS (Repositórios personalizados → `https://github.com/gustavvelasquez/AlarmeHA`, tipo Integração), reinicia o HA e adiciona a integração **AlarmeHA** uma única vez;

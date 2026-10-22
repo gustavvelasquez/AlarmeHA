@@ -9,7 +9,7 @@ Status: **feito**, **pendente** (pedido e ainda não feito ou aguardando decisã
 | Item | Status | Versão | Observação |
 |---|---|---|---|
 | Mesmo número de versão no app e na integração | feito | 0.7.0 (regra reforçada na 0.9.1) | `gradle.properties`, `manifest.json` e `const.py`; toda versão sai nos dois |
-| Documentação atualizada antes de publicar | feito | 0.10.0 | Especificação, CHANGELOG, README, guia e este arquivo |
+| Documentação atualizada antes de publicar | feito | 0.11.0 | Especificação, CHANGELOG, README, guia e este arquivo |
 | Não disparar nada no celular de uma segunda pessoa da casa sem consentimento | feito | — | Outras pessoas só recebem algo com consentimento |
 
 ## Comunicação e pareamento
@@ -29,9 +29,9 @@ Status: **feito**, **pendente** (pedido e ainda não feito ou aguardando decisã
 | Item | Status | Versão | Observação |
 |---|---|---|---|
 | Agenda pelo iCal secreto via Remote Calendar | feito | 0.5.x | |
-| Próximos 14 dias enviados; app aplica sozinho, mesmo offline | feito | 0.5.x | `DIAS_PREVIA = 14` |
+| Próximos 14 dias lidos da agenda; o celular recebe os 7 primeiros (hoje + 6) | feito | 0.11.0 | `DIAS_PREVIA = 14`, `JANELA_DIAS = 6` |
 | Antecedência (padrão 1h15) | feito | 0.5.x | Ajustável por tipo de evento |
-| Tipos de evento no painel com vagas fixas `ag_<tipo>_<n>` | feito | 0.5.x | O HA só reajusta as vagas |
+| Tipos de evento no painel com vagas `ag_<tipo>_<hash>_<n>` | feito | 0.11.0 | Até a 0.10.0, vagas fixas `ag_<tipo>_<n>` |
 | Sincronização 00/15/30/45 e ao carregar | feito | 0.5.13 | |
 | Guarda de 5 min à frente / 10 min atrás, tocando ou em soneca | feito | 0.5.12–0.5.14 | |
 | Opção Agrupar por tipo: `por_evento` / `por_tipo` | feito | 0.8.0 | Padrões: Trabalho `por_evento`, Remédio `por_tipo` |
@@ -39,7 +39,7 @@ Status: **feito**, **pendente** (pedido e ainda não feito ou aguardando decisã
 | Reconciliação de refs sumidos | feito | 0.8.1 | ≤1×/15 min por ref, espaçando até 4 h |
 | `ref_inexistente` conta como sucesso | feito | 0.8.1 | |
 | Limpeza de `ag_*` órfãos | feito | 0.8.0 | |
-| Refs estáveis | pendente | — | Planejado para a 0.9.x |
+| Refs estáveis | feito | 0.11.0 | `ag_<tipo>_<hash>_<n>` |
 | Várias fontes com prioridade (exceções, escala, grade semanal, Workday) | futuro | — | — |
 | Recálculo avisando a pessoa quando o horário muda | futuro | — | — |
 
@@ -56,10 +56,10 @@ Status: **feito**, **pendente** (pedido e ainda não feito ou aguardando decisã
 | Horário 24 h, data por extenso, selo "Pulado" | feito | 0.9.0 | |
 | Ativar/Desativar tudo na tela do grupo | feito | 0.8.0 | |
 | Grupos do HA sem editar, renomear ou adicionar | feito | 0.9.0 | Só alarmes avulsos se gerenciam no app |
-| Barra de abas em pílula consertada | feito | 0.9.2 | |
+| Barra de abas em pílula consertada | substituído | 0.11.0 | Barra de abas e cores voltaram ao Fossify original |
 | Dispensar um alarme do conjunto desliga os outros do dia ("Dispensar todos de hoje") | pendente | — | Na especificação original do projeto, não implementado. Aguarda decisão: (1) dispensar um desliga o resto do dia (nunca no Remédio); (2) botão separado "Dispensar todos de hoje"; (3) escolha por tipo no painel |
-| Espaço vazio grande na tela do grupo | pendente | — | Diferença visual da Samsung |
-| Cabeçalho da lista recolhido como na Samsung | pendente | — | Hoje fica expandido |
+| Espaço vazio grande na tela do grupo | feito | 0.11.0 | |
+| Cabeçalho da lista recolhido como na Samsung | feito | 0.11.0 | Recolhe ao rolar |
 
 ## Decisões aprovadas — sincronização e cards
 
@@ -67,18 +67,18 @@ Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" 
 
 | Regra | Status | Observação |
 |---|---|---|
-| Agrupamento `por_evento`: um cartão por título de evento da agenda do tipo, cada um com os N alarmes das antecedências do tipo | aprovado | Ex.: eventos "Trabalho" e "Reunião" no tipo Trabalho = dois cartões, 4 alarmes cada |
-| Agrupamento `por_tipo`: um cartão com o nome do tipo, um alarme por evento na hora do evento | aprovado | Ex.: cartão "Remédio" com um alarme por evento ("Dose manhã", "Dose noite") |
-| Janela de sincronização: hoje + 6 dias (7 dias) | aprovado | Limite de 7 porque o alarme repete por dia da semana (D S T Q Q S S); com 8 ou mais, dois dias iguais da semana se confundiriam |
-| Em cada sincronização: marca os dias da janela que têm o evento; desmarca os dias que já passaram e os dias sem evento | aprovado | O dia vira à meia-noite |
-| Número de alarmes por cartão fixo no configurado | aprovado | Muda só os dias marcados; nunca um alarme a mais por dia |
-| Cartão cujo evento não aparece na janela de 7 dias é apagado | aprovado | |
+| Agrupamento `por_evento`: um cartão por título de evento da agenda do tipo, cada um com os N alarmes das antecedências do tipo | feito (0.11.0) | Ex.: eventos "Trabalho" e "Reunião" no tipo Trabalho = dois cartões, 4 alarmes cada |
+| Agrupamento `por_tipo`: um cartão com o nome do tipo, um alarme por evento na hora do evento | feito (0.11.0) | Ex.: cartão "Remédio" com um alarme por evento ("Dose manhã", "Dose noite") |
+| Janela de sincronização: hoje + 6 dias (7 dias) | feito (0.11.0) | Limite de 7 porque o alarme repete por dia da semana (D S T Q Q S S); com 8 ou mais, dois dias iguais da semana se confundiriam |
+| Em cada sincronização: marca os dias da janela que têm o evento; desmarca os dias que já passaram e os dias sem evento | feito (0.11.0) | O dia vira à meia-noite |
+| Número de alarmes por cartão fixo no configurado | feito (0.11.0) | Muda só os dias marcados; nunca um alarme a mais por dia |
+| Cartão cujo evento não aparece na janela de 7 dias é apagado | feito (0.11.0) | |
 | Sem data guardada no alarme | aprovado | A sincronização deve rodar pelo menos 1×/dia; a janela de 7 dias é margem de segurança |
 | Aviso de comunicação parada | aprovado | O alerta do HA de celular sem notícias avisa se a comunicação parar por mais de um dia |
-| Conjunto de alarmes = (título, horário) | aprovado | Mesmo título no mesmo horário reutiliza os mesmos N alarmes do tipo, com os dias da semana marcados; não cria N alarmes por dia |
-| Mesmo título em outro horário gera outro conjunto dentro do mesmo cartão | aprovado | Ex.: "Trabalho" às 06:00 na sexta e às 08:00 no sábado = dois conjuntos de N alarmes no cartão "Trabalho" |
-| Depois de tocar, o alarme só desmarca o dia que passou | aprovado | Os demais dias seguem ligados; o alarme não é desligado inteiro |
-| Vagas (refs) estáveis por cartão, por título e horário | aprovado | Os alarmes não trocam de cartão entre uma sincronização e outra |
+| Conjunto de alarmes = (título, horário) | feito (0.11.0) | Mesmo título no mesmo horário reutiliza os mesmos N alarmes do tipo, com os dias da semana marcados; não cria N alarmes por dia |
+| Mesmo título em outro horário gera outro conjunto dentro do mesmo cartão | feito (0.11.0) | Ex.: "Trabalho" às 06:00 na sexta e às 08:00 no sábado = dois conjuntos de N alarmes no cartão "Trabalho" |
+| Depois de tocar, o alarme só desmarca o dia que passou | feito (0.11.0) | Os demais dias seguem ligados; o alarme não é desligado inteiro |
+| Vagas (refs) estáveis por cartão, por título e horário | feito (0.11.0) | Os alarmes não trocam de cartão entre uma sincronização e outra |
 | Dispensar um alarme do conjunto | pendente | Em discussão; risco de dispensar os demais meio dormindo |
 
 ## Decisões aprovadas — roadmap
@@ -112,17 +112,17 @@ Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" 
 
 | Item | Status | Observação |
 |---|---|---|
-| Janela de sincronização hoje + 6 dias | aprovado | Regras da seção "Decisões aprovadas — sincronização e cards" |
-| Conjunto = (título, horário) com dias da semana marcados | aprovado | Mesmo título em outro horário = outro conjunto de N alarmes no mesmo cartão |
-| Cada sincronização marca os dias novos e desmarca os que passaram | aprovado | Alarme que tocou hoje só perde o dia de hoje; os demais dias seguem |
-| Título sem evento nos 7 dias | aprovado | Alarmes apagados do celular; o cartão some |
-| Refs estáveis por cartão e horário | aprovado | Derivadas de tipo + título + horário + n; as vagas antigas `ag_<tipo>_<n>` são apagadas e trocadas pelas novas na primeira sincronização |
-| Agrupamento `por_tipo` | aprovado | Um cartão; um alarme por evento/horário com os dias da semana marcados |
-| Limite de alarmes por conjunto | aprovado | Em vez de um limite fixo por tipo |
-| Diagnóstico com horário e dias de cada alarme | aprovado | Também no comando recebido |
-| Tela do grupo sem o espaço vazio; cabeçalho da lista recolhe ao rolar | aprovado | Estilo Samsung |
-| Barra de abas e cores do Fossify original | aprovado | Cartões de grupo e tela do grupo ficam no formato atual |
-| Versão 0.11.0 no app e na integração | aprovado | README em inglês fica para a fase 3 |
+| Janela de sincronização hoje + 6 dias | feito (0.11.0) | Regras da seção "Decisões aprovadas — sincronização e cards" |
+| Conjunto = (título, horário) com dias da semana marcados | feito (0.11.0) | Mesmo título em outro horário = outro conjunto de N alarmes no mesmo cartão |
+| Cada sincronização marca os dias novos e desmarca os que passaram | feito (0.11.0) | Alarme que tocou hoje só perde o dia de hoje; os demais dias seguem |
+| Título sem evento nos 7 dias | feito (0.11.0) | Alarmes apagados do celular; o cartão some |
+| Refs estáveis por cartão e horário | feito (0.11.0) | Derivadas de tipo + título + horário + n; as vagas antigas `ag_<tipo>_<n>` são apagadas e trocadas pelas novas na primeira sincronização |
+| Agrupamento `por_tipo` | feito (0.11.0) | Um cartão; um alarme por evento/horário com os dias da semana marcados |
+| Limite de alarmes por conjunto | feito (0.11.0) | Em vez de um limite fixo por tipo |
+| Diagnóstico com horário e dias de cada alarme | feito (0.11.0) | Também no comando recebido |
+| Tela do grupo sem o espaço vazio; cabeçalho da lista recolhe ao rolar | feito (0.11.0) | Estilo Samsung |
+| Barra de abas e cores do Fossify original | feito (0.11.0) | Cartões de grupo e tela do grupo ficam no formato atual |
+| Versão 0.11.0 no app e na integração | feito (0.11.0) | README em inglês fica para a fase 3 |
 
 ## Distribuição
 
