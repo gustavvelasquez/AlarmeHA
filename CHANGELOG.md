@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarmeha`). Até a 0.6.0 o app e a integração tinham números próprios; desde a 0.7.0 usam o mesmo número. As versões do Fossify Clock (upstream) seguem abaixo.
 
+### 0.10.0 - 2026-10-22 (app e integração)
+- App: chave **Modo diagnóstico** em Configurações (desligada por padrão, sem desligamento automático). Ligada, envia ao HA pelo webhook, na mesma fila de envio, o evento `diagnostico` para: comando recebido, alarme agendado/desagendado, apagado, tocou, soneca, pulou, dispensou e erro (com mensagem técnica). Sempre com versão do app e horário; sem o rótulo do alarme.
+- Integração: guarda os últimos 500 eventos de diagnóstico em `.storage/alarmeha.diagnostico`, fora do barramento e do histórico, preservados ao reiniciar. Nova ação `alarmeha.diagnostico` (com resposta, só administradores; filtros `device_id` e `limite`) e diagnósticos da integração com o registro.
+- Distribuição: removido o script de envio pelo Firebase; o APK sai só pela release do GitHub e pelo painel.
+- Testes novos da integração: registro circular de 500, persistência, ação e diagnósticos.
+
 ### 0.9.2 - 2026-10-21 (app e integração)
 - Integração: no agrupamento "por evento", o grupo passa a ser o compromisso (tipo + título do evento), não o dia. "Teste Alarme" na quarta e na quinta vira um cartão só, chamado "Teste Alarme"; títulos diferentes = cartões separados. Sem título, o nome é o do tipo. As vagas (`ag_<tipo>_<n>`) e a lógica não mudam; quem atualiza só tem os alarmes editados (nada duplicado). "Por tipo" continua com o nome do tipo.
 - Tela do grupo: alarmes do mesmo horário e rótulo viram uma linha com D S T Q Q S S (dias com alarme em roxo com ponto; dia pulado/desligado apagado). A chave da linha age só no próximo toque (pular a quarta mantém a quinta). Linha esmaecida só quando todos estão desligados. Horários diferentes continuam em linhas separadas com a data por extenso. "Ativar/Desativar tudo" continua.

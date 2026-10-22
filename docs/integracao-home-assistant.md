@@ -4,7 +4,7 @@ O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app
 
 - **Ida:** o HA pede para criar, editar, ligar, desligar, apagar ou listar alarmes.
 - **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca, foi desligado, pulado ou religado, confirma as mudanças e manda a lista de alarmes.
-- **Versão:** este guia descreve a **0.9.2**. App e integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`). O que mudou nas últimas versões está resumido na seção 7.
+- **Versão:** este guia descreve a **0.10.0**. App e integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`). O que mudou nas últimas versões está resumido na seção 7.
 - **Segurança:** todo comando leva um **token** (gerado pelo HA na ativação pelo painel, ou pelo app no modo manual). Comando sem o token certo é ignorado em silêncio.
 - **Regra:** o HA só edita ou apaga alarmes que ele mesmo criou (com `ref`). Alarmes criados à mão no celular aparecem só na lista.
 - **Som:** o padrão do app, a não ser que o comando traga `som_uri` (toque por tipo de evento na agenda).
@@ -73,7 +73,7 @@ Na aba **Agenda** do painel, o admin liga agendas do HA (ex.: o iCal secreto do 
 - Soneca padrão: 5 min.
 
 ### Ações (serviços)
-`alarmeha.criar`, `alarmeha.editar`, `alarmeha.ligar`, `alarmeha.desligar`, `alarmeha.apagar` e `alarmeha.listar`.
+`alarmeha.criar`, `alarmeha.editar`, `alarmeha.ligar`, `alarmeha.desligar`, `alarmeha.apagar` e `alarmeha.listar`. Para o Modo diagnóstico: `alarmeha.diagnostico` (seção 4.1).
 
 - O celular é escolhido por `device_id` (dispositivo AlarmeHA). Se houver um só celular, pode omitir.
 - Cada ação espera a confirmação com o mesmo `pedido` (padrão: 45 s, campo `timeout`) e reenvia até 3 vezes.
@@ -309,6 +309,24 @@ Exemplo:
  "pulado":null,"grupo":null,"grupo_nome":null}}
 ```
 
+## 4.1 Modo diagnóstico (0.10.0)
+
+No app: **Configurações → Home Assistant → Modo diagnóstico**. Vem desligado e só desliga quando a pessoa desligar.
+
+Ligado, o app manda o evento `diagnostico` pelo mesmo webhook e pela mesma fila (se o HA estiver fora do ar, espera na fila e vai depois, até 24 h). Campos: `tipo` (`recebido`, `agendado`, `desagendado`, `apagado`, `tocou`, `soneca`, `pulou`, `dispensou`, `erro`), `ref`, `id`, `hora`, `minuto`, `dias`, `ativo` e, conforme o tipo, `op`, `pedido`, `motivo`, `mensagem`, `minutos`, `ocorrencia`. Sempre com `versao` e `quando`. Nunca vai o rótulo do alarme.
+
+No HA, esses eventos não vão para o barramento nem para o histórico: ficam num armazenamento próprio (`.storage/alarmeha.diagnostico`) com os **últimos 500** (os mais antigos saem), preservado ao reiniciar. Nome da pessoa e do aparelho não são gravados.
+
+Leitura (só administradores):
+
+```yaml
+- action: alarmeha.diagnostico
+  data: { limite: 100 }            # opcional; device_id também é opcional
+  response_variable: registro
+```
+
+Pela API REST: `POST /api/services/alarmeha/diagnostico?return_response` com um token de administrador. Também aparece em **Dispositivos e serviços → AlarmeHA → ⋮ → Baixar diagnósticos**.
+
 ## 5. Limites conhecidos
 - Sem rede no celular, o comando não chega. O script do item 3.1 tenta de novo, mas o ideal é mandar as mudanças com antecedência, na noite anterior.
 - O comando viaja como push (FCM), que aceita no máximo uns 4 KB; mantenha os comandos curtos.
@@ -328,7 +346,12 @@ Exemplo:
 | Alarmes duplicados desligados (`ag_<tipo>_<n>` com os mesmos horários) | Sobra de re-pareamento na 0.7.0. Na 0.8.0 o HA apaga as vagas `ag_*` sem uso na sincronização seguinte (00/15/30/45), fora da janela de 5/10 min. |
 | Alarme da agenda não mudou | O HA não mexe em alarme tocando, em soneca ou entre 5 min à frente e 10 min atrás; espere a próxima sincronização (00/15/30/45). |
 
-## 7. Novidades da 0.9.2 (app e integração)
+## 7. Novidades da 0.10.0 (app e integração)
+
+- **Modo diagnóstico** (seção 4.1): chave no app, desligada por padrão; registro técnico dos últimos 500 eventos no HA, fora do histórico, lido pela ação `alarmeha.diagnostico` ou pelos diagnósticos da integração.
+- Distribuição só pela release do GitHub e pelo painel; o canal de teste pelo Firebase foi removido.
+
+## 7.0.1 Novidades da 0.9.2 (app e integração)
 
 - **Um cartão por compromisso**, agrupado pelo título do evento (não por dia): "Teste Alarme" na quarta e na quinta = um cartão. O cartão mostra o total de alarmes, sem chave.
 - **Linhas por horário:** alarmes do mesmo horário e rótulo viram uma linha com D S T Q Q S S; as vagas por dia continuam e a chave age só no próximo toque.

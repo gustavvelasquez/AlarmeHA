@@ -7,19 +7,21 @@
 **Objetivo:** ser o mesmo app de relógio do Fossify, controlado pelo Home Assistant (HA) da casa:
 
 - **HA → app:** comandos (criar, editar, ligar, desligar, apagar, listar) pelo app Home Assistant (Companion), com `command_broadcast_intent`, protegidos por token;
-- **app → HA:** eventos por webhook (`lista`, `criado`, `alterado`, `apagado`, `tocou`, `soneca`, `desligado`, `pulado`, `religado`, `erro`), enviados em segundo plano (WorkManager);
+- **app → HA:** eventos por webhook (`lista`, `criado`, `alterado`, `apagado`, `tocou`, `soneca`, `desligado`, `pulado`, `religado`, `erro` e, com o Modo diagnóstico ligado, `diagnostico`), enviados em segundo plano (WorkManager);
 - **agenda:** a integração lê a agenda (ex.: iCal secreto do Google pela Remote Calendar) e mantém no celular alarmes fixos `ag_<tipo>_<n>` (marcados com 📅), agrupados por compromisso.
 
-**Status:** em uso na casa. Versão publicada: **0.9.2**. Regra: o app e a integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`), mesmo quando um lado não muda.
+**Status:** em uso na casa. Versão publicada: **0.10.0**. Regra: o app e a integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`), mesmo quando um lado não muda.
 
 **No app (0.9.2, visual do Relógio da Samsung):** um cartão por compromisso, agrupado pelo título (não por dia), mostrando o total de alarmes e sem chave; alarmes do mesmo horário numa linha com D S T Q Q S S; grupos do HA não se editam, renomeiam nem recebem alarmes no app; "Ativar tudo"/"Desativar tudo" pulam só o próximo toque.
+
+**Modo diagnóstico (0.10.0):** chave em Configurações, desligada por padrão. Ligada, o app manda ao HA um registro técnico (comando recebido, agendado, apagado, tocou, soneca, pulou, dispensou, erro), sem dados pessoais. O HA guarda os últimos 500 eventos fora do histórico; leitura pela ação `alarmeha.diagnostico` ou pelos diagnósticos da integração.
 
 **Pendente (não implementado):** dispensar um alarme de um conjunto (ex.: o 1/4) ainda não desliga os outros do dia. Aguarda a decisão sobre qual opção adotar: (1) dispensar um desliga o resto do dia (nunca no Remédio); (2) botão separado "Dispensar todos de hoje" na tela do alarme tocando; (3) escolha por tipo no painel. Diferenças visuais abertas: espaço vazio grande na tela do grupo e cabeçalho expandido em vez de recolhido.
 
 **Integração com o Home Assistant (HACS):** este repositório também contém a integração `custom_components/alarmeha`. O fluxo é:
 1. o admin instala pelo HACS (Repositórios personalizados → `https://github.com/gustavvelasquez/AlarmeHA`, tipo Integração), reinicia o HA e adiciona a integração **AlarmeHA** uma única vez;
 2. cada pessoa abre o painel **Despertador** (`/despertador`) no app Home Assistant do próprio celular;
-3. toca em **Baixar e instalar** (o próprio HA entrega o APK da última release; não use o build do Firebase, que é o pacote de debug);
+3. toca em **Baixar e instalar** (o próprio HA entrega o APK da última release);
 4. abre o app AlarmeHA, toca em **Ativar**, confirma no painel (**Confirmar ativação**) e depois no app. Não há token para copiar.
 
 Guia completo (instalação, pareamento, agenda, protocolo, solução de problemas): [docs/integracao-home-assistant.md](docs/integracao-home-assistant.md). Histórico: [CHANGELOG.md](CHANGELOG.md). Escopo oficial (feito/pendente/futuro): [docs/ESCOPO.md](docs/ESCOPO.md).
@@ -28,7 +30,7 @@ Guia completo (instalação, pareamento, agenda, protocolo, solução de problem
 
 **Atualizações do upstream:** as mudanças do Fossify Clock só são trazidas para cá por decisão deliberada, nunca de forma automática.
 
-**Instalação:** pelo painel Despertador ou baixando `AlarmeHA.apk` da [última release](https://github.com/gustavvelasquez/AlarmeHA/releases/latest). A release (`br.casa.alarmeha`) é assinada com a chave própria do AlarmeHA. O Firebase App Distribution recebe só os builds de teste `br.casa.alarmeha.debug`.
+**Instalação:** pelo painel Despertador ou baixando `AlarmeHA.apk` da [última release](https://github.com/gustavvelasquez/AlarmeHA/releases/latest). A release (`br.casa.alarmeha`) é assinada com a chave própria do AlarmeHA. A distribuição é só pela release do GitHub e pelo painel (não há canal de teste separado).
 
 **Créditos e licença:** todo o mérito do app original é do projeto [Fossify](https://github.com/FossifyOrg). Este fork mantém a licença GPL-3.0 (veja `LICENSE`). O texto original do Fossify Clock segue abaixo.
 

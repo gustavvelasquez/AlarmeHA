@@ -9,7 +9,7 @@ Status: **feito**, **pendente** (pedido e ainda não feito ou aguardando decisã
 | Item | Status | Versão | Observação |
 |---|---|---|---|
 | Mesmo número de versão no app e na integração | feito | 0.7.0 (regra reforçada na 0.9.1) | `gradle.properties`, `manifest.json` e `const.py`; toda versão sai nos dois |
-| Documentação atualizada antes de publicar | feito | 0.9.2 | Especificação, CHANGELOG, README, guia e este arquivo |
+| Documentação atualizada antes de publicar | feito | 0.10.0 | Especificação, CHANGELOG, README, guia e este arquivo |
 | Não disparar nada no celular de uma segunda pessoa da casa sem consentimento | feito | — | Outras pessoas só recebem algo com consentimento |
 
 ## Comunicação e pareamento
@@ -101,19 +101,19 @@ Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" 
 
 | Item | Status | Observação |
 |---|---|---|
-| Chave "Modo diagnóstico" em Configurações do app | aprovado | Desligada por padrão e sem desligamento automático |
-| Eventos técnicos do Modo diagnóstico | aprovado | Comando recebido, alarme agendado, alarme apagado, tocou, soneca, pulou, dispensou e erro (com mensagem técnica), sempre com versão do app e horário; pelo mesmo webhook e pela mesma fila de envio. Sem dados pessoais: só vaga (`ref`), id, horário e dias; nunca o rótulo |
-| Registro no HA com os últimos 500 eventos | aprovado | Em armazenamento próprio da integração, fora do histórico (recorder); preservado ao reiniciar o HA; os mais antigos saem primeiro |
-| Leitura do registro | aprovado | Ação `alarmeha.diagnostico` com resposta (só administradores) e diagnósticos da integração |
-| Remover a distribuição pelo Firebase | aprovado | Script e menções removidos; APK só pela release do GitHub e pelo link do painel |
-| Versão 0.10.0 no app e na integração | aprovado | CHANGELOG, README, guia e este arquivo atualizados |
+| Chave "Modo diagnóstico" em Configurações do app | feito (0.10.0) | Desligada por padrão e sem desligamento automático |
+| Eventos técnicos do Modo diagnóstico | feito (0.10.0) | Comando recebido, alarme agendado, alarme apagado, tocou, soneca, pulou, dispensou e erro (com mensagem técnica), sempre com versão do app e horário; pelo mesmo webhook e pela mesma fila de envio. Sem dados pessoais: só vaga (`ref`), id, horário e dias; nunca o rótulo |
+| Registro no HA com os últimos 500 eventos | feito (0.10.0) | Em armazenamento próprio da integração, fora do histórico (recorder); preservado ao reiniciar o HA; os mais antigos saem primeiro |
+| Leitura do registro | feito (0.10.0) | Ação `alarmeha.diagnostico` com resposta (só administradores) e diagnósticos da integração |
+| Remover a distribuição pelo Firebase | feito (0.10.0) | Script e menções removidos; APK só pela release do GitHub e pelo link do painel |
+| Versão 0.10.0 no app e na integração | feito (0.10.0) | CHANGELOG, README, guia e este arquivo atualizados |
 
 ## Distribuição
 
 | Item | Status | Versão | Observação |
 |---|---|---|---|
 | APK release pela release do GitHub ou link do painel | feito | 0.5.x | `AlarmeHA.apk` |
-| Firebase só com `br.casa.alarmeha.debug` | feito | — | Outro app; obriga a parear de novo |
+| Distribuição pelo Firebase | removido | 0.10.0 | APK só pela release do GitHub e pelo painel |
 | Integração pelo HACS | feito | 0.5.x | |
 
 ## Futuro (previsto na especificação original do projeto)
