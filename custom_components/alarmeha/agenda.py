@@ -8,6 +8,7 @@ tipos que dividem a mesma agenda. Agenda que nenhum tipo usa é ignorada. No cel
 from __future__ import annotations
 
 import asyncio
+import hashlib
 
 import logging
 import re
@@ -41,7 +42,8 @@ PADRAO: dict[str, Any] = {
 }
 
 TIPO_BASE = {"agendas": [], "palavras": [], "alarmes": [{"antes": 0}], "minimo": None, "som": None}
-MAX_TODOS = 12  # alarmes fixos por tipo no celular (hoje + amanhã)
+JANELA_DIAS = 6  # 0.11.0: a sincronização olha hoje + 6 dias (7 dias; o app repete por dia da semana)
+MAX_CONJUNTOS = 10  # conjuntos (título + horário) por tipo; cada um com os N alarmes do tipo
 _OBSOLETOS = ("calendarios", "padrao", "eventos")
 
 
@@ -130,7 +132,7 @@ def _alarmes_do_evento(ev: dict[str, Any], t: dict[str, Any], dia: date) -> list
         if minimo and h < minimo:
             h = minimo
         saida.append({"n": i + 1, "total": len(t["alarmes"]), "titulo": (ev.get("titulo") or "").strip(),
-                      "tipo": t["id"], "horario": h, "agenda": ev.get("agenda_nome") or ev.get("agenda") or "",
+                      "tipo": t["id"], "horario": h, "inicio": ev["inicio"], "agenda": ev.get("agenda_nome") or ev.get("agenda") or "",
                       "grupo": grupo_do_evento(ev, t)})
     return saida
 
@@ -290,7 +292,7 @@ def tipos_congelados(cfg: dict[str, Any], falhas: set[str]) -> set[str]:
 
 def tipo_da_vaga(ref: str, cfg: dict[str, Any]) -> str | None:
     for tid in [t["id"] for t in cfg["tipos"]] + [LIVRE_ID, PADRAO_ID]:
-        if re.fullmatch(rf"ag_{re.escape(slug(tid))}_\d+", ref or ""):
+        if re.fullmatch(rf"ag_{re.escape(slug(tid))}_(?:[0-9a-f]{{8}}_)?\d+", ref or ""):
             return tid
     return None
 
@@ -308,87 +310,74 @@ async def async_previa(hass: HomeAssistant, cfg: dict[str, Any]) -> list[dict[st
     return previa_json(calcular(await async_eventos(hass, cfg), cfg, dt_util.now().date()), cfg)
 
 
-def _dias(grupo: list[dict[str, Any]], hoje: date) -> int:
-    """-1 hoje, -2 amanhã; hoje e amanhã juntos viram bits da semana como no app (seg=1 … dom=64)."""
-    datas = {a["horario"].date() for a in grupo}
-    if len(datas) == 1:
-        return -1 if hoje in datas else -2
+def dias_da_semana(datas: set[date]) -> int:
+    """Bits da semana como no app (seg=1 … dom=64). Na janela de 7 dias cada dia da semana aparece uma vez."""
     return sum(1 << d.weekday() for d in datas)
 
 
+def chave_titulo(titulo: str | None) -> str:
+    return " ".join(sem_acento(titulo or "").split())
+
+
+def ref_do_conjunto(tipo_id: str, titulo: str, hhmm: str, n: int) -> str:
+    """Ref estável do alarme n de um conjunto (tipo + título + horário do evento): não muda entre
+    sincronizações nem com a ordem dos eventos. Formato aceito pelo app ([a-z0-9_-], até 64)."""
+    h = hashlib.sha1(f"{tipo_id}|{chave_titulo(titulo)}|{hhmm}".encode()).hexdigest()[:8]
+    return f"ag_{slug(tipo_id)}_{h}_{n}"[:64]
+
+
 def planejar(dias: list[dict[str, Any]], cfg: dict[str, Any], agora: datetime) -> dict[str, dict[str, Any]]:
-    """Para cada alarme fixo (ref) decide os disparos dentro de hoje/amanhã, ou desligado.
-    Disparo único vai como hoje (-1) ou amanhã (-2).
-    - Tipo de um alarme só (ex.: remédio) e "Sem compromisso": se hoje e amanhã têm o mesmo
-      horário e o mesmo nome, um só alarme cobre os dois, marcado nos dias da semana (bits do app).
-    - Compromisso com vários alarmes: nunca mescla dias. Cada ocorrência é (grupo, n), com o grupo
-      do seu próprio compromisso. Quem do grupo já tocou continua na vaga, desligado e com
-      "tocou" (HH:MM), até o último alarme do grupo passar; não volta a tocar."""
+    """0.11.0: para cada conjunto (tipo, título, horário do evento) e cada alarme n do tipo, um alarme
+    no celular com os dias da semana em que ele ainda vai tocar dentro da janela (hoje + 6 dias).
+    - Mesmo título no mesmo horário em vários dias = os mesmos N alarmes, com vários dias marcados.
+    - Mesmo título em outro horário = outro conjunto de N, no mesmo cartão (grupo por título).
+    - Ocorrência que já passou (inclusive a de hoje que tocou) sai dos dias; o alarme segue nos demais.
+    - Conjunto sem nenhuma ocorrência futura na janela não entra no plano (o alarme é apagado)."""
     plano: dict[str, dict[str, Any]] = {}
-    hoje = agora.date()
-    amanha = hoje + timedelta(days=1)
-    livre = {"id": LIVRE_ID, "nome": "Sem compromisso", "som": None}
+    if not cfg.get("ligado"):
+        return plano
+    livre = {"id": LIVRE_ID, "nome": "Sem compromisso", "som": None, "alarmes": [{"antes": 0}]}
     for t in cfg["tipos"] + [livre]:
-        do_tipo = sorted(
-            (a for d in dias if d["dia"] <= amanha for a in d["alarmes"] if a.get("tipo") == t["id"]),
+        futuros = sorted(
+            (a for d in dias for a in d["alarmes"] if a.get("tipo") == t["id"] and a["horario"] > agora),
             key=lambda a: a["horario"],
         )
+        conjuntos: dict[tuple[str, str], dict[int, list[dict[str, Any]]]] = {}
+        for a in futuros:
+            inicio = a.get("inicio") or a["horario"]
+            chave = ("" if t is livre else chave_titulo(a.get("titulo")), f"{inicio:%H%M}")
+            conjuntos.setdefault(chave, {}).setdefault(int(a.get("n") or 1), []).append(a)
+        if len(conjuntos) > MAX_CONJUNTOS:
+            _LOGGER.warning("AlarmeHA agenda: tipo %s tem %d conjuntos na janela; só os %d primeiros vão para o celular",
+                            t["nome"], len(conjuntos), MAX_CONJUNTOS)
         com_grupo = t is not livre and len(t.get("alarmes") or []) > 1
-        if com_grupo:
-            # Grupo vivo = algum alarme dele ainda por tocar; os que já tocaram ficam (esmaecidos).
-            vivos = {a.get("grupo") for a in do_tipo if a["horario"] > agora}
-            candidatos = [a for a in do_tipo if a["horario"] > agora or (a.get("grupo") and a.get("grupo") in vivos)]
-        else:
-            candidatos = [a for a in do_tipo if a["horario"] > agora]
-        grupos: dict[tuple, list[dict[str, Any]]] = {}
-        for a in candidatos:
-            if com_grupo:
-                chave = (a.get("grupo") or a["horario"].isoformat(), a.get("n"))
-            else:
-                # Mesmo horário e mesmo nome hoje e amanhã: um alarme só, nos dois dias da semana.
-                chave = (a["horario"].hour, a["horario"].minute, rotulo_alarme(a, t["nome"]) if t is not livre else a["horario"].date())
-            grupos.setdefault(chave, []).append(a)
-        # Os grupos ocupam os alarmes fixos 1..N, na ordem do primeiro disparo.
-        if len(grupos) > MAX_TODOS:
-            _LOGGER.warning("AlarmeHA agenda: tipo %s tem %d alarmes até amanhã; só os %d primeiros vão para o celular",
-                            t["nome"], len(grupos), MAX_TODOS)
-        usados = list(grupos.values())[:MAX_TODOS]
-        for i in range(MAX_TODOS if t is not livre else 1):
-            grupo = usados[i] if i < len(usados) else []
-            prox = grupo[0]["horario"] if grupo else None
-            ref = f'ag_{slug(t["id"])}_{i + 1}'[:64]
-            if t is livre:
-                rotulo = "📅 Sem compromisso"
-            elif prox:
-                rotulo = rotulo_alarme(grupo[0], t["nome"])
-            else:
-                rotulo = "📅 " + t["nome"]
-            if prox and cfg.get("ligado"):
-                tocou = prox <= agora
-                plano[ref] = {"hora": prox.hour, "minuto": prox.minute, "dias": _dias(grupo, hoje),
-                              "rotulo": rotulo, "ativo": not tocou}
-                if tocou:
-                    plano[ref]["tocou"] = f"{prox:%H:%M}"
-                # Compromisso com mais de um alarme: o app agrupa (desligar/religar o grupo).
-                # Com um alarme só (ex.: remédio) não vai grupo: fica sozinho e nunca é desligado junto.
-                # Cartão do app: "por_tipo" junta o tipo inteiro; "por_evento" = um por compromisso
-                # (vários alarmes: por dia) ou por remédio (um alarme). A vaga (ref) não muda com a opção.
+        for (titulo, hhmm), por_n in list(conjuntos.items())[:MAX_CONJUNTOS]:
+            for n, ocorrencias in sorted(por_n.items()):
+                a0 = ocorrencias[0]
+                # Com "mínimo", o horário do alarme pode variar entre os dias: vale o de cada dia; dias com
+                # outro horário do mesmo n viram outra linha (raro). Aqui fica o horário mais frequente.
+                por_hora: dict[tuple[int, int], set[date]] = {}
+                for a in ocorrencias:
+                    por_hora.setdefault((a["horario"].hour, a["horario"].minute), set()).add(a["horario"].date())
+                (hora, minuto), datas = max(por_hora.items(), key=lambda kv: len(kv[1]))
+                ref = ref_do_conjunto(t["id"], titulo, hhmm, n)
+                item: dict[str, Any] = {"hora": hora, "minuto": minuto, "dias": dias_da_semana(datas),
+                                        "rotulo": "📅 Sem compromisso" if t is livre else rotulo_alarme(a0, t["nome"]),
+                                        "ativo": True}
+                # Cartão do app: "por_tipo" = o tipo inteiro; "por_evento" = um por título (vários horários juntos).
                 if t is not livre and t.get("agrupar") == "por_tipo":
                     gid, gnome = grupo_do_tipo(t)
-                    plano[ref] |= {"grupo": gid, "grupo_nome": gnome}
-                elif com_grupo and int(grupo[0].get("total") or 1) > 1 and grupo[0].get("grupo"):
-                    # 0.9.2: o cartão é o compromisso (tipo + título), não o dia: "Teste Alarme" de
-                    # qua e qui = um cartão. A vaga (ref) e a chave interna (grupo do dia, n) não mudam.
-                    gid, gnome = grupo_do_compromisso(grupo[0], t)
-                    plano[ref] |= {"grupo": gid, "grupo_nome": gnome}
-                elif t is not livre and not com_grupo:
-                    gid, gnome = grupo_um_alarme(grupo[0], t)
-                    plano[ref] |= {"grupo": gid, "grupo_nome": gnome}
+                    item |= {"grupo": gid, "grupo_nome": gnome}
+                elif com_grupo and a0.get("titulo") is not None:
+                    gid, gnome = grupo_do_compromisso(a0, t)
+                    item |= {"grupo": gid, "grupo_nome": gnome}
+                elif t is not livre:
+                    gid, gnome = grupo_um_alarme(a0, t)
+                    item |= {"grupo": gid, "grupo_nome": gnome}
                 som = t.get("som") or cfg.get("som_padrao") or {}
                 if som.get("uri"):
-                    plano[ref] |= {"som_uri": str(som["uri"])[:512], "som_titulo": str(som.get("titulo") or "")[:64]}
-            else:
-                plano[ref] = {"ativo": False, "rotulo": rotulo}
+                    item |= {"som_uri": str(som["uri"])[:512], "som_titulo": str(som.get("titulo") or "")[:64]}
+                plano[ref] = item
     return plano
 
 
@@ -555,15 +544,17 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
     def congelado(ref: str) -> bool:
         return bool(congelados) and tipo_da_vaga(ref, cfg) in congelados
 
-    dias = calcular(eventos, cfg, agora.date(), dias=1, desde=0)
-    plano = {r: v for r, v in planejar(dias, cfg, agora).items() if not congelado(r)}
+    dias = calcular(eventos, cfg, agora.date(), dias=JANELA_DIAS, desde=0)
+    novos = {r: v for r, v in planejar(dias, cfg, agora).items() if not congelado(r)}
     no_celular = {a.get("ref"): a for a in (phone.alarms or []) if isinstance(a, dict) and a.get("ref")}
-    for ref in list(enviados):  # tipos/alarmes removidos: desliga o alarme antigo
-        if ref not in plano and enviados[ref].get("ativo") and not congelado(ref):
+    # Fora do plano (conjunto sem evento na janela, tipo removido, refs antigas ag_<tipo>_<n> de
+    # antes da 0.11.0, sobras de outro pareamento): apaga. Os apagamentos vão antes das criações,
+    # para a troca de refs antigas por novas não deixar alarmes em dobro.
+    plano: dict[str, dict[str, Any]] = {}
+    for ref in list(enviados) + list(no_celular):
+        if ref.startswith("ag_") and ref not in novos and ref not in plano and not congelado(ref):
             plano[ref] = {"ativo": False}
-    for ref, atual in no_celular.items():  # ligado no celular sem registro de envio (ex.: pareado de novo)
-        if ref.startswith("ag_") and ref not in plano and atual.get("ativo") and not congelado(ref):
-            plano[ref] = {"ativo": False}
+    plano |= novos
     # Quem manda é a agenda: se o alarme foi mexido no celular, reenvia o planejado.
     adiar: datetime | None = None
 
@@ -599,9 +590,8 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
     for ref, alvo in plano.items():
         if sem_resposta:
             break  # celular não confirmou: não empilha mais comandos; tenta no próximo ciclo
-        if not alvo["ativo"] and not alvo.get("tocou") and ref.startswith("ag_") and ref in no_celular:
-            # Vaga sem uso que ainda existe no celular (ex.: duplicado de outro pareamento ou de um
-            # grupo que acabou): apaga, para não acumular alarmes desligados repetidos na lista.
+        if not alvo["ativo"] and ref.startswith("ag_") and (ref in no_celular or ref in enviados):
+            # Fora do plano: apaga ("apagar" de algo que já não existe conta como sucesso).
             if phone.ocupado(ref) or guarda(ref):
                 continue
             try:
@@ -630,8 +620,7 @@ async def _sincronizar(hass: HomeAssistant, phone: AlarmeHaPhone) -> None:
             _LOGGER.debug("AlarmeHA agenda: %s perto do disparo, ajuste adiado", ref)
             continue
         try:
-            if alvo["ativo"] or alvo.get("tocou"):
-                # "tocou": desligado, mas fica no grupo do app (esmaecido) até o grupo acabar.
+            if alvo["ativo"]:
                 await phone.async_command("criar", {"ref": ref, "vibrar": True, **alvo}, 30)
             else:
                 await phone.async_command("desligar", {"ref": ref}, 30)
