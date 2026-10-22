@@ -9,7 +9,7 @@ Status: **feito**, **pendente** (pedido e ainda não feito ou aguardando decisã
 | Item | Status | Versão | Observação |
 |---|---|---|---|
 | Mesmo número de versão no app e na integração | feito | 0.7.0 (regra reforçada na 0.9.1) | `gradle.properties`, `manifest.json` e `const.py`; toda versão sai nos dois |
-| Documentação atualizada antes de publicar | feito | 0.11.0 | Especificação, CHANGELOG, README, guia e este arquivo |
+| Documentação atualizada antes de publicar | feito | 0.12.0 | Especificação, CHANGELOG, README, guia e este arquivo |
 | Não disparar nada no celular de uma segunda pessoa da casa sem consentimento | feito | — | Outras pessoas só recebem algo com consentimento |
 
 ## Comunicação e pareamento
@@ -49,7 +49,7 @@ Status: **feito**, **pendente** (pedido e ainda não feito ou aguardando decisã
 |---|---|---|---|
 | Desligar grupo/linha pula só o próximo toque | feito | 0.6.0 / app 0.4.0 | Eventos `pulado` e `religado` |
 | Soneca de 5 min | feito | 0.6.0 / app 0.4.0 | |
-| Visual igual ao Relógio da Samsung | feito | 0.9.0 | Cabeçalho "Alarme em X horas e Y minutos" |
+| Visual igual ao Relógio da Samsung | feito | 0.9.0 | Cabeçalho "Alarme em X horas e Y minutos"; desde a 0.12.0 com as cores do tema do Fossify |
 | Um cartão por compromisso, agrupado pelo título | feito | 0.9.2 | Antes era por dia |
 | Cartão mostra o total de alarmes, sem chave | feito | 0.9.0 | |
 | Linhas do mesmo horário juntas com D S T Q Q S S | feito | 0.9.2 | Vagas por dia continuam; chave age no próximo toque |
@@ -128,9 +128,9 @@ Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" 
 
 | Item | Status | Observação |
 |---|---|---|
-| Cores do tema do Fossify em todo o app | aprovado | Sai a paleta fixa da 0.9.0 (roxo, cinzas e preto fixos). Cartões de grupo, linhas de alarme, chaves, selos, divisórias, tela do grupo e cabeçalho usam texto, cor principal e fundo do tema; respeita "Personalizar aparência" e tema claro/escuro. Esmaecido = transparência sobre a cor do texto. Formato dos cartões e da tela do grupo não muda |
-| Cartão de grupo em 3 colunas fixas | aprovado | Ícone com largura fixa à esquerda; título centralizado no espaço restante, até 2 linhas; contagem + ícone com largura fixa à direita. Os ícones não se movem com o tamanho do título |
-| Versão 0.12.0 no app e na integração | aprovado | Integração sem mudança funcional |
+| Cores do tema do Fossify em todo o app | feito (0.12.0) | Sai a paleta fixa da 0.9.0 (roxo, cinzas e preto fixos). Cartões de grupo, linhas de alarme, chaves, selos, divisórias, tela do grupo e cabeçalho usam texto, cor principal e fundo do tema; respeita "Personalizar aparência" e tema claro/escuro. Esmaecido = transparência sobre a cor do texto. Formato dos cartões e da tela do grupo não muda |
+| Cartão de grupo em 3 colunas fixas | feito (0.12.0) | Ícone com largura fixa à esquerda; título centralizado no espaço restante, até 2 linhas; contagem + ícone com largura fixa à direita. Os ícones não se movem com o tamanho do título |
+| Versão 0.12.0 no app e na integração | feito (0.12.0) | Integração sem mudança funcional |
 
 ## Distribuição
 

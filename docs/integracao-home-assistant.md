@@ -4,7 +4,7 @@ O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app
 
 - **Ida:** o HA pede para criar, editar, ligar, desligar, apagar ou listar alarmes.
 - **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca, foi desligado, pulado ou religado, confirma as mudanças e manda a lista de alarmes.
-- **Versão:** este guia descreve a **0.11.0**. App e integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`). O que mudou nas últimas versões está resumido na seção 7.
+- **Versão:** este guia descreve a **0.12.0**. App e integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`). O que mudou nas últimas versões está resumido na seção 7.
 - **Segurança:** todo comando leva um **token** (gerado pelo HA na ativação pelo painel, ou pelo app no modo manual). Comando sem o token certo é ignorado em silêncio.
 - **Regra:** o HA só edita ou apaga alarmes que ele mesmo criou (com `ref`). Alarmes criados à mão no celular aparecem só na lista.
 - **Som:** o padrão do app, a não ser que o comando traga `som_uri` (toque por tipo de evento na agenda).
@@ -349,7 +349,14 @@ Pela API REST: `POST /api/services/alarmeha/diagnostico?return_response` com um 
 | Alarmes duplicados desligados (`ag_<tipo>_<n>` com os mesmos horários) | Sobra de re-pareamento na 0.7.0. Na 0.8.0 o HA apaga as vagas `ag_*` sem uso na sincronização seguinte (00/15/30/45), fora da janela de 5/10 min. |
 | Alarme da agenda não mudou | O HA não mexe em alarme tocando, em soneca ou entre 5 min à frente e 10 min atrás; espere a próxima sincronização (00/15/30/45). |
 
-## 7. Novidades da 0.11.0 (app e integração)
+## 7. Novidades da 0.12.0 (só visual do app)
+
+- App: cores do tema do Fossify em todo o app (cartões, linhas, chaves, selos, divisórias, tela do grupo, cabeçalho); esmaecido com transparência sobre a cor do texto. Respeita "Personalizar aparência" e tema claro/escuro.
+- App: cartão de grupo em 3 colunas fixas: ícone à esquerda, título centralizado (até 2 linhas), contagem à direita; os ícones ficam alinhados entre os cartões.
+- Integração: só o número (0.12.0); sem mudança funcional.
+- Ainda não incluído: dispensar do conjunto; tela cheia com confirmação; confirmação de remédio.
+
+## 7.0.1 Novidades da 0.11.0 (app e integração)
 
 - Integração: janela de 7 dias, conjuntos por título e horário com dias da semana, alarme que tocou só perde o dia de hoje, título fora da janela apagado, refs estáveis (migração automática das antigas), limite por conjunto.
 - App: diagnóstico com horário e dias também no comando recebido; tela do grupo sem o espaço vazio; cabeçalho da lista recolhe ao rolar e deixa fixa a linha com título curto, + e ⋮; barra de abas e cores do Fossify original (cartões de grupo e tela do grupo como estavam).

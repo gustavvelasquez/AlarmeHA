@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarmeha`). Até a 0.6.0 o app e a integração tinham números próprios; desde a 0.7.0 usam o mesmo número. As versões do Fossify Clock (upstream) seguem abaixo.
 
+### 0.12.0 - 2026-10-22 (app; integração só o número)
+
+**O que mudou**
+- App: sai a paleta fixa da 0.9.0 (roxo `#8C88F3`, chaves roxas/cinzas, fundo preto `#010101`, cartões `#17171A`, textos e divisórias cinza fixos). Tudo passa a usar as cores do tema do Fossify: cor do texto, cor principal e cor de fundo de "Personalizar aparência" (tema claro/escuro incluídos). Cartões e selos são o fundo do tema levemente puxado para a cor do texto; divisórias e esmaecido (desligado/pulado) são a cor do texto com transparência; chaves com as cores do tema, como no Fossify original.
+- App: cartão de grupo em 3 colunas fixas: ícone com largura fixa à esquerda, título centralizado no espaço restante (até 2 linhas, depois reticências) e contagem + ícone com largura fixa à direita. Os ícones ficam alinhados entre os cartões, qualquer que seja o título.
+- Formato dos cartões e da tela do grupo continua o mesmo.
+- Integração: só o número (0.12.0), sem mudança funcional.
+
+**Ainda não incluído:** dispensar um alarme do conjunto desligando os outros do dia; aviso em tela cheia com confirmação; confirmação de remédio.
+
 ### 0.11.0 - 2026-10-22 (app e integração)
 - Integração: a sincronização olha hoje + 6 dias (7 dias).
 - Integração: conjunto = (título, horário do evento). O mesmo título no mesmo horário reaproveita os mesmos N alarmes do tipo, com os dias da semana marcados (não mais N alarmes por dia). O mesmo título em outro horário vira outro conjunto de N no mesmo cartão.
