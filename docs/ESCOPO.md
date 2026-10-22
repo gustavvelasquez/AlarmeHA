@@ -81,6 +81,22 @@ Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" 
 | Vagas (refs) estáveis por cartão, por título e horário | aprovado | Os alarmes não trocam de cartão entre uma sincronização e outra |
 | Dispensar um alarme do conjunto | pendente | Em discussão; risco de dispensar os demais meio dormindo |
 
+## Decisões aprovadas — roadmap
+
+| Decisão | Status | Observação |
+|---|---|---|
+| Ordem das fases: 0 Processo de teste; 1 Estabilizar; 2 Completar a visão; 3 Comunidade; 4 Depois | aprovado | Nenhuma fase começa sem aprovação; cada item passa por entender, desenhar e aprovar antes do código |
+| Fase 1 — Estabilizar | aprovado | Regras de cartões e janela de 7 dias (seção acima); espaço vazio na tela do grupo; cabeçalho recolhido; refs estáveis |
+| Teste antes de cada versão no celular do usuário | aprovado | Roteiro de teste rodado antes de liberar a versão |
+| Chave "Modo diagnóstico" no app | aprovado | Desligada por padrão. Ligada, envia ao HA pelo webhook um registro técnico detalhado (recebido, agendado, tocou, soneca, pulou, erro), lido pelo mantenedor no HA; sem dados pessoais |
+| Distribuição de testes pelo Firebase | descontinuado | O APK sai só pela release do GitHub (e pelo link do painel) |
+| README completo em inglês e em português | aprovado | Fase 3 |
+| Publicação no HACS padrão | aprovado | Fase 3. Preparar para a validação: `hacs.json`, hassfest, HACS Action, releases e brand |
+| F-Droid | fora por enquanto | — |
+| Aviso em tela cheia com confirmação; confirmação de remédio | desejado | Fase 2, a discutir depois |
+| Escalonamento para outra pessoa; regras por pessoa; pausa/férias; aviso de mudança de horário; várias fontes com prioridade; blueprints; iOS | fora do escopo | — |
+| Dispensar um alarme do conjunto | pendente | Em análise; risco de dispensar os demais meio dormindo |
+
 ## Distribuição
 
 | Item | Status | Versão | Observação |
