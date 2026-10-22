@@ -23,6 +23,7 @@ from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util, slugify
 
+from .diagnostico import DiagLog
 from .const import (
     RELEASES_URL,
     CODE_TTL_SECONDS,
@@ -69,6 +70,7 @@ class AlarmeHaHub:
         self._codes: dict[str, PendingCode] = {}
         self._failures: deque[float] = deque()
         self._webhooks: set[str] = set()  # ids registrados por este hub
+        self.diag = DiagLog(hass)
 
     @property
     def external_url(self) -> str:
@@ -77,6 +79,7 @@ class AlarmeHaHub:
     # ---- persistência --------------------------------------------------------------
 
     async def async_load(self) -> None:
+        await self.diag.async_load()
         data = await self._store.async_load() or {}
         for phone_id, pdata in (data.get("phones") or {}).items():
             try:

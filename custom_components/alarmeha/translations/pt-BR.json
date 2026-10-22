@@ -212,6 +212,20 @@
           "description": "Segundos esperando a confirmação antes de reenviar (até 3 tentativas)."
         }
       }
+    },
+    "diagnostico": {
+      "name": "Registro de diagnóstico",
+      "description": "Retorna os últimos eventos técnicos enviados pelos celulares com o Modo diagnóstico ligado (até 500, do mais antigo ao mais novo). Só administradores.",
+      "fields": {
+        "device_id": {
+          "name": "Celular",
+          "description": "Só deste celular (opcional)."
+        },
+        "limite": {
+          "name": "Limite",
+          "description": "Só os últimos N eventos."
+        }
+      }
     }
   }
 }

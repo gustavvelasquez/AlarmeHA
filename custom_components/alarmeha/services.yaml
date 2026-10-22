@@ -189,3 +189,17 @@ listar:
           min: 10
           max: 300
           unit_of_measurement: s
+diagnostico:
+  fields:
+    device_id:
+      required: false
+      selector:
+        device:
+          integration: alarmeha
+    limite:
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 500
+          mode: box

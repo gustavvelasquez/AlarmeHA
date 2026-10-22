@@ -124,6 +124,30 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         hass.services.async_register(
             DOMAIN, op, handle, schema=SERVICE_SCHEMAS[op], supports_response=SupportsResponse.OPTIONAL
         )
+
+    async def diagnostico(call: ServiceCall) -> ServiceResponse:
+        hub = _get_hub(hass)
+        if call.context.user_id:
+            user = await hass.auth.async_get_user(call.context.user_id)
+            if user is None or not user.is_admin:
+                raise Unauthorized(context=call.context)
+        celular = None
+        if device_id := call.data.get("device_id"):
+            phone = hub.phone_for_device(device_id)
+            if phone is None:
+                raise ServiceValidationError("Celular AlarmeHA não encontrado (device_id)")
+            celular = phone.phone_id
+        eventos = hub.diag.listar(call.data.get("limite"), celular)
+        return {"versao": VERSION, "total": len(eventos), "eventos": eventos}
+
+    hass.services.async_register(
+        DOMAIN, "diagnostico", diagnostico,
+        schema=vol.Schema({
+            vol.Optional("device_id"): cv.string,
+            vol.Optional("limite"): vol.All(vol.Coerce(int), vol.Range(min=1, max=500)),
+        }),
+        supports_response=SupportsResponse.ONLY,
+    )
     async_register_websocket(hass)
     return True
 
@@ -257,6 +281,7 @@ async def _async_reload(hass: HomeAssistant, entry: AlarmeHaConfigEntry) -> None
 
 async def async_unload_entry(hass: HomeAssistant, entry: AlarmeHaConfigEntry) -> bool:
     ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    await entry.runtime_data.diag.async_flush()
     if ok:
         hass.data.pop(DOMAIN, None)
     return ok

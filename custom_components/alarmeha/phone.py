@@ -14,6 +14,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
 
+from .diagnostico import EVENTO as DIAG_EVENTO
 from .const import (
     ACTION_COMANDO,
     CONNECTED_MAX_AGE_HOURS,
@@ -256,6 +257,11 @@ class AlarmeHaPhone:
         if self.alerta_silencio:
             self.alerta_silencio = False
             _alerta(self.hass, self, None)
+        if event == DIAG_EVENTO:
+            # Modo diagnóstico: só vai para o registro em disco (nem barramento, nem histórico).
+            self.hub.diag.add(self.phone_id, payload)
+            self.hub.async_save()
+            return
 
         if event in ("tocou", "soneca", "desligado"):
             self._marcar_toque(event, payload)

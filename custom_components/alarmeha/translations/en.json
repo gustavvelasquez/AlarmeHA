@@ -212,6 +212,20 @@
           "description": "Seconds to wait for confirmation before resending (up to 3 attempts)."
         }
       }
+    },
+    "diagnostico": {
+      "name": "Diagnostic log",
+      "description": "Returns the latest technical events sent by phones with Diagnostic mode on (up to 500, oldest first). Admins only.",
+      "fields": {
+        "device_id": {
+          "name": "Phone",
+          "description": "Only this phone (optional)."
+        },
+        "limite": {
+          "name": "Limit",
+          "description": "Only the latest N events."
+        }
+      }
     }
   }
 }
