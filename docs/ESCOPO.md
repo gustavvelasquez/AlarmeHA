@@ -124,6 +124,14 @@ Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" 
 | Barra de abas e cores do Fossify original | feito (0.11.0) | Cartões de grupo e tela do grupo ficam no formato atual |
 | Versão 0.11.0 no app e na integração | feito (0.11.0) | README em inglês fica para a fase 3 |
 
+## Decisão aprovada — versão 0.12.0 (visual do app)
+
+| Item | Status | Observação |
+|---|---|---|
+| Cores do tema do Fossify em todo o app | aprovado | Sai a paleta fixa da 0.9.0 (roxo, cinzas e preto fixos). Cartões de grupo, linhas de alarme, chaves, selos, divisórias, tela do grupo e cabeçalho usam texto, cor principal e fundo do tema; respeita "Personalizar aparência" e tema claro/escuro. Esmaecido = transparência sobre a cor do texto. Formato dos cartões e da tela do grupo não muda |
+| Cartão de grupo em 3 colunas fixas | aprovado | Ícone com largura fixa à esquerda; título centralizado no espaço restante, até 2 linhas; contagem + ícone com largura fixa à direita. Os ícones não se movem com o tamanho do título |
+| Versão 0.12.0 no app e na integração | aprovado | Integração sem mudança funcional |
+
 ## Distribuição
 
 | Item | Status | Versão | Observação |
