@@ -169,7 +169,7 @@ class AlarmsAdapter(
         ItemAlarmBinding.bind(view).apply {
             alarmHolder.isSelected = isSelected
             alarmDragHandle.beVisibleIf(selectedKeys.isNotEmpty())
-            alarmDragHandle.applyColorFilter(HaStyle.TEXT)
+            alarmDragHandle.applyColorFilter(HaStyle.text(ctx))
             alarmDragHandle.setOnTouchListener { _, event ->
                 if (event.action == MotionEvent.ACTION_DOWN) {
                     startReorderDragListener.requestDrag(holder)
@@ -185,16 +185,17 @@ class AlarmsAdapter(
                 // Cartão do grupo (pílula da Samsung): ícone roxo, nome do tipo e o total de alarmes. Sem chave.
                 val members = allAlarms.filter { haInfo[it.id]?.group == group }
                 val (name, _) = cardTitles[group] ?: (HaUi.baseName(info?.groupName, group) to null)
-                haGroupPill.background = HaStyle.rounded(ctx, HaStyle.CARD, 32f)
-                haGroupAvatar.background = HaStyle.rounded(ctx, 0xFF7F7CF0.toInt(), 20f)
+                haGroupPill.background = HaStyle.rounded(ctx, HaStyle.card(ctx), 32f)
+                haGroupAvatar.background = HaStyle.rounded(ctx, HaStyle.primary(ctx), 20f)
                 haGroupName.text = name
-                haGroupName.setTextColor(HaStyle.ACCENT)
+                haGroupName.setTextColor(HaStyle.primary(ctx))
                 // 0.9.2: como na Samsung, só nome e contador numa linha (sem data embaixo).
                 haGroupHint.beGone()
-                haGroupHint.setTextColor(HaStyle.TEXT_2)
+                haGroupHint.setTextColor(HaStyle.text2(ctx))
                 haGroupCount.text = members.size.toString()
-                haGroupCount.setTextColor(HaStyle.ACCENT)
-                haGroupCountIcon.applyColorFilter(HaStyle.ACCENT)
+                haGroupCount.setTextColor(HaStyle.primary(ctx))
+                haGroupCountIcon.applyColorFilter(HaStyle.primary(ctx))
+                haGroupAvatarIcon.applyColorFilter(HaStyle.onPrimary(ctx))
                 haGroupPill.contentDescription = "$name, ${HaUi.countDescription(members.size)}"
                 return@apply
             }
@@ -203,9 +204,9 @@ class AlarmsAdapter(
             val pos = alarms.indexOf(alarm)
             val prevSolo = pos > 0 && haGroupOf(alarms[pos - 1]) == null
             val nextSolo = pos >= 0 && pos < alarms.size - 1 && haGroupOf(alarms[pos + 1]) == null
-            alarmSolo.background = HaStyle.segment(ctx, if (isSelected) HaStyle.BUTTON else HaStyle.CARD, !prevSolo, !nextSolo)
+            alarmSolo.background = HaStyle.segment(ctx, if (isSelected) HaStyle.button(ctx) else HaStyle.card(ctx), !prevSolo, !nextSolo)
             alarmDivider.beVisibleIf(prevSolo)
-            alarmDivider.setBackgroundColor(HaStyle.DIVIDER)
+            alarmDivider.setBackgroundColor(HaStyle.divider(ctx))
             (alarmSolo.layoutParams as? ViewGroup.MarginLayoutParams)?.let {
                 it.topMargin = if (prevSolo || pos == 0) 0 else (8 * ctx.resources.displayMetrics.density).toInt()
                 alarmSolo.layoutParams = it
@@ -215,13 +216,13 @@ class AlarmsAdapter(
             val on = alarm.isEnabled && skippedAt == null
             alarmTime.text = HaUi.hhmm(alarm.timeInMinutes)
             alarmTime.typeface = HaStyle.boldTime()
-            alarmTime.setTextColor(if (on) HaStyle.TEXT else HaStyle.DIM)
+            alarmTime.setTextColor(if (on) HaStyle.text(ctx) else HaStyle.dim(ctx))
             alarmLabel.text = alarm.label
-            alarmLabel.setTextColor(if (on) HaStyle.TEXT else HaStyle.DIM)
+            alarmLabel.setTextColor(if (on) HaStyle.text(ctx) else HaStyle.dim(ctx))
             alarmLabel.beVisibleIf(alarm.label.isNotEmpty())
             alarmChip.beVisibleIf(skippedAt != null)
-            alarmChip.background = HaStyle.rounded(ctx, 0xFF2C2C30.toInt(), 9f)
-            alarmChip.setTextColor(HaStyle.TEXT_2)
+            alarmChip.background = HaStyle.rounded(ctx, HaStyle.chip(ctx), 9f)
+            alarmChip.setTextColor(HaStyle.text2(ctx))
             alarmLabelRow.beVisibleIf(alarm.label.isNotEmpty() || skippedAt != null)
 
             val recurring = alarm.days > 0 && skippedAt == null
@@ -233,12 +234,12 @@ class AlarmsAdapter(
                 skippedAt != null -> HaUi.skippedLine(haItem(alarm), now)
                 else -> oneTimeDate(alarm, now)
             }
-            alarmDate.setTextColor(if (on) HaStyle.ACCENT else HaStyle.DIM)
+            alarmDate.setTextColor(if (on) HaStyle.primary(ctx) else HaStyle.dim(ctx))
 
             alarmSwitch.alpha = 1f
             alarmSwitch.isEnabled = true
             alarmSwitch.isChecked = on
-            HaStyle.paintSwitch(alarmSwitch)
+            HaStyle.paintSwitch(alarmSwitch, ctx)
             alarmSwitch.setOnClickListener {
                 if (info != null && (alarm.isEnabled || skippedAt != null)) {
                     // Alarme da agenda: desligar = pular só o próximo toque; ligar = desfazer o pulo.

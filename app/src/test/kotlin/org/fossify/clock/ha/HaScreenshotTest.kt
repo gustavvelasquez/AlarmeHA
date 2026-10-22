@@ -92,7 +92,7 @@ class HaScreenshotTest {
         view.layout(0, 0, 1080, 2340)
         val bmp = Bitmap.createBitmap(1080, 2340, Bitmap.Config.ARGB_8888)
         Canvas(bmp).apply {
-            drawColor(HaStyle.BG); view.draw(this)
+            drawColor(HaStyle.bg(ctx)); view.draw(this)
             // Barra de navegação de 3 botões simulada (48dp), como no aparelho.
             val p = android.graphics.Paint().apply { color = 0x33FFFFFF }
             drawRect(0f, 2340 - 48 * d, 1080f, 2340f, p)

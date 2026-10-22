@@ -91,8 +91,7 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/ha_new_alarm"
                     android:padding="10dp"
-                    android:src="@drawable/ic_plus_vector"
-                    app:tint="#FAFAFA" />
+                    android:src="@drawable/ic_plus_vector" />
 
                 <ImageView
                     android:id="@+id/alarms_more"
@@ -102,8 +101,7 @@
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="@string/ha_more_options"
                     android:padding="12dp"
-                    android:src="@drawable/ic_three_dots_vector"
-                    app:tint="#FAFAFA" />
+                    android:src="@drawable/ic_three_dots_vector" />
             </LinearLayout>
     </com.google.android.material.appbar.AppBarLayout>
 

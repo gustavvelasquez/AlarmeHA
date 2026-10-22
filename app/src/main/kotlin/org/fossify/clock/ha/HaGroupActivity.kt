@@ -48,7 +48,7 @@ class HaGroupActivity : SimpleActivity() {
             setPadding(dp(12), 0, dp(12), dp(24))
         }
         val scroll = ScrollView(this).apply {
-            setBackgroundColor(HaStyle.BG)
+            setBackgroundColor(HaStyle.bg(this@HaGroupActivity))
             addView(column)
         }
         ViewCompat.setOnApplyWindowInsetsListener(scroll) { view, insets ->
@@ -102,7 +102,7 @@ class HaGroupActivity : SimpleActivity() {
             textSize = 30f
             typeface = HaStyle.boldTime()
             gravity = Gravity.CENTER
-            setTextColor(HaStyle.TEXT)
+            setTextColor(HaStyle.text(this@HaGroupActivity))
             setPadding(dp(24), dp(32), dp(24), 0)
         }.also { column.addView(it, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)) }
 
@@ -113,8 +113,8 @@ class HaGroupActivity : SimpleActivity() {
             setText(label)
             textSize = 15f
             typeface = HaStyle.medium()
-            setTextColor(HaStyle.TEXT)
-            background = HaStyle.rounded(this@HaGroupActivity, HaStyle.BUTTON, 22f)
+            setTextColor(HaStyle.text(this@HaGroupActivity))
+            background = HaStyle.rounded(this@HaGroupActivity, HaStyle.button(this@HaGroupActivity), 22f)
             setPadding(dp(20), dp(11), dp(20), dp(11))
             isClickable = true
             setOnClickListener { HaSkip.setGroup(this@HaGroupActivity, group, on) }
@@ -127,7 +127,7 @@ class HaGroupActivity : SimpleActivity() {
         val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         fun icon(res: Int, desc: Int, click: (View) -> Unit) = ImageView(this).apply {
             setImageResource(res)
-            setColorFilter(HaStyle.TEXT)
+            setColorFilter(HaStyle.text(this@HaGroupActivity))
             contentDescription = getString(desc)
             setPadding(dp(12), dp(12), dp(12), dp(12))
             setBackgroundResource(android.R.drawable.list_selector_background)
@@ -146,7 +146,7 @@ class HaGroupActivity : SimpleActivity() {
         // Cartão com os alarmes do grupo, rótulo acima da hora, divisórias.
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            background = HaStyle.rounded(this@HaGroupActivity, HaStyle.CARD, 26f)
+            background = HaStyle.rounded(this@HaGroupActivity, HaStyle.card(this@HaGroupActivity), 26f)
         }
         // 0.9.2: vagas com o mesmo horário e rótulo (ex.: qua e qui) viram uma linha com os dias.
         val ordered = order.mapNotNull { byId[it] }
@@ -157,7 +157,7 @@ class HaGroupActivity : SimpleActivity() {
                 HaSkipLogic.skipTarget(a.timeInMinutes, a.days, now) ?: HaSkipLogic.nextOccurrence(a.timeInMinutes, a.days, now))
         })
         lines.forEachIndexed { i, line ->
-            if (i > 0) card.addView(View(this).apply { setBackgroundColor(HaStyle.DIVIDER) },
+            if (i > 0) card.addView(View(this).apply { setBackgroundColor(HaStyle.divider(this@HaGroupActivity)) },
                 LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply { marginStart = dp(20); marginEnd = dp(20) })
             val (info, alarm) = byId.getValue(line.ids.first())
             card.addView(if (line.states == null) row(info, alarm, now) else mergedRow(line, alarm))
@@ -172,7 +172,7 @@ class HaGroupActivity : SimpleActivity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(30), dp(18), dp(14), dp(18))
         }
-        val color = if (line.faded) HaStyle.DIM else HaStyle.TEXT
+        val color = if (line.faded) HaStyle.dim(this@HaGroupActivity) else HaStyle.text(this@HaGroupActivity)
         val texts = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         if (first.label.isNotEmpty()) {
             TextView(this).apply { text = first.label; textSize = 15f; setTextColor(color); maxLines = 1 }.also { texts.addView(it) }
@@ -189,7 +189,7 @@ class HaGroupActivity : SimpleActivity() {
         row.addView(texts, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         com.google.android.material.materialswitch.MaterialSwitch(this).apply {
             isChecked = line.checked
-            HaStyle.paintSwitch(this)
+            HaStyle.paintSwitch(this, this@HaGroupActivity)
             isEnabled = line.target != null
             alpha = if (line.target != null) 1f else 0.5f
             setOnClickListener { _ -> line.target?.let { id -> HaSkip.toggle(this@HaGroupActivity, id, isChecked) } }
@@ -210,7 +210,7 @@ class HaGroupActivity : SimpleActivity() {
         val texts = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val labelRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         if (alarm.label.isNotEmpty()) {
-            TextView(this).apply { text = alarm.label; textSize = 15f; setTextColor(if (on) HaStyle.TEXT else HaStyle.DIM); maxLines = 1 }
+            TextView(this).apply { text = alarm.label; textSize = 15f; setTextColor(if (on) HaStyle.text(this@HaGroupActivity) else HaStyle.dim(this@HaGroupActivity)); maxLines = 1 }
                 .also { labelRow.addView(it) }
         }
         if (skipping || ended == HaListOrder.Ended.SKIPPED) {
@@ -218,8 +218,8 @@ class HaGroupActivity : SimpleActivity() {
                 setText(R.string.ha_skipped_past)
                 textSize = 12f
                 typeface = HaStyle.medium()
-                setTextColor(HaStyle.TEXT_2)
-                background = HaStyle.rounded(this@HaGroupActivity, 0xFF2C2C30.toInt(), 9f)
+                setTextColor(HaStyle.text2(this@HaGroupActivity))
+                background = HaStyle.rounded(this@HaGroupActivity, HaStyle.chip(this@HaGroupActivity), 9f)
                 setPadding(dp(8), dp(2), dp(8), dp(2))
             }.also { labelRow.addView(it, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(8) }) }
         }
@@ -229,7 +229,7 @@ class HaGroupActivity : SimpleActivity() {
             textSize = 44f
             typeface = HaStyle.boldTime()
             includeFontPadding = false
-            setTextColor(if (on) HaStyle.TEXT else HaStyle.DIM)
+            setTextColor(if (on) HaStyle.text(this@HaGroupActivity) else HaStyle.dim(this@HaGroupActivity))
         }.also { texts.addView(it) }
         val recurring = alarm.days > 0 && !skipping && ended == null
         if (recurring) {
@@ -245,13 +245,13 @@ class HaGroupActivity : SimpleActivity() {
                 }
                 textSize = 14f
                 typeface = HaStyle.boldTime()
-                setTextColor(if (on) HaStyle.ACCENT else HaStyle.DIM)
+                setTextColor(if (on) HaStyle.primary(this@HaGroupActivity) else HaStyle.dim(this@HaGroupActivity))
             }.also { texts.addView(it, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) }) }
         }
         row.addView(texts, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         com.google.android.material.materialswitch.MaterialSwitch(this).apply {
             isChecked = on
-            HaStyle.paintSwitch(this)
+            HaStyle.paintSwitch(this, this@HaGroupActivity)
             // Já tocou (o HA manteve no grupo desligado): não volta a tocar.
             isEnabled = ended == null
             alpha = if (ended == null) 1f else 0.5f

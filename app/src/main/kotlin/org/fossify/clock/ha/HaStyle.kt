@@ -9,22 +9,33 @@ import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.view.View
 import androidx.appcompat.widget.SwitchCompat
+import androidx.core.graphics.ColorUtils
+import org.fossify.commons.extensions.adjustAlpha
+import org.fossify.commons.extensions.getContrastColor
+import org.fossify.commons.extensions.getProperBackgroundColor
+import org.fossify.commons.extensions.getProperPrimaryColor
+import org.fossify.commons.extensions.getProperTextColor
+import org.fossify.commons.views.MyMaterialSwitch
 
-/** Paleta e peças do visual 0.9.0, copiadas do Relógio da Samsung (One UI, tema escuro). */
+/**
+ * Formas do visual dos cartões (0.9.0) com as cores do TEMA do Fossify (0.12.0): texto, cor principal
+ * e fundo vêm de "Personalizar aparência" (claro/escuro incluídos). Esmaecido = alpha sobre o texto.
+ */
 object HaStyle {
-    const val BG = 0xFF010101.toInt()
-    const val CARD = 0xFF17171A.toInt()
-    const val ACCENT = 0xFF8C88F3.toInt()
-    const val SWITCH_ON = 0xFF7C78EA.toInt()
-    const val SWITCH_OFF = 0xFF616166.toInt()
-    const val TEXT = 0xFFFAFAFA.toInt()
-    const val TEXT_2 = 0xFFBDBDC2.toInt()
-    const val DIM = 0xFF6F6F73.toInt()
-    const val DAY_NONE = 0xFF8E8E93.toInt()
-    const val DIVIDER = 0xFF2E2E31.toInt()
-    const val BUTTON = 0xFF3A3A3C.toInt()
-    const val PILL = 0xFF2A2B30.toInt()
-    const val PILL_ON = 0xFF45464C.toInt()
+    const val FADED_ALPHA = 0.45f
+
+    fun text(c: Context) = c.getProperTextColor()
+    fun primary(c: Context) = c.getProperPrimaryColor()
+    fun bg(c: Context) = c.getProperBackgroundColor()
+    /** Texto secundário e desligado/pulado. */
+    fun text2(c: Context) = text(c).adjustAlpha(0.7f)
+    fun dim(c: Context) = text(c).adjustAlpha(FADED_ALPHA)
+    /** Superfície do cartão: o fundo do tema levemente puxado para a cor do texto. */
+    fun card(c: Context) = ColorUtils.blendARGB(bg(c), text(c), 0.07f)
+    fun button(c: Context) = ColorUtils.blendARGB(bg(c), text(c), 0.16f)
+    fun chip(c: Context) = ColorUtils.blendARGB(bg(c), text(c), 0.12f)
+    fun divider(c: Context) = text(c).adjustAlpha(0.12f)
+    fun onPrimary(c: Context) = primary(c).getContrastColor()
 
     fun dp(context: Context, v: Float) = v * context.resources.displayMetrics.density
 
@@ -45,17 +56,22 @@ object HaStyle {
     fun boldTime(): Typeface = Typeface.create("sans-serif", Typeface.BOLD)
     fun medium(): Typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
 
-    /** Chave roxa da Samsung (polegar branco; desligada cinza). */
-    fun paintSwitch(sw: SwitchCompat) {
+    /** Chave com as cores do tema, como no Fossify original (setColors). */
+    fun paintSwitch(sw: SwitchCompat, c: Context) {
+        if (sw is MyMaterialSwitch) {
+            sw.setColors(text(c), primary(c), bg(c))
+            return
+        }
+        // Chave criada no código (tela do grupo): mesmas cores que o setColors do Fossify aplicaria.
         val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
-        sw.thumbTintList = ColorStateList(states, intArrayOf(0xFFFFFFFF.toInt(), 0xFFE6E6E6.toInt()))
-        sw.trackTintList = ColorStateList(states, intArrayOf(SWITCH_ON, SWITCH_OFF))
-        sw.trackTintMode = android.graphics.PorterDuff.Mode.SRC_IN
-        (sw as? com.google.android.material.materialswitch.MaterialSwitch)?.trackDecorationTintList = ColorStateList.valueOf(0)
+        sw.thumbTintList = ColorStateList(states, intArrayOf(onPrimary(c), text(c).adjustAlpha(0.6f)))
+        sw.trackTintList = ColorStateList(states, intArrayOf(primary(c), chip(c)))
+        (sw as? com.google.android.material.materialswitch.MaterialSwitch)?.trackDecorationTintList =
+            ColorStateList(states, intArrayOf(primary(c), text(c).adjustAlpha(0.3f)))
     }
 }
 
-/** D S T Q Q S S com os dias ativos em roxo, negrito e um ponto em cima (alarme que repete). */
+/** D S T Q Q S S com os dias ativos na cor principal do tema, negrito e um ponto em cima. */
 class HaDaysView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
     private var days = 0
     private var states: List<Int>? = null
@@ -66,7 +82,7 @@ class HaDaysView @JvmOverloads constructor(context: Context, attrs: AttributeSet
 
     fun setDays(value: Int) { days = value; states = null; invalidate() }
 
-    /** Linha da tela do grupo: HaUi.DAY_ON roxo com ponto, DAY_OFF apagado (pulado/desligado), DAY_NONE cinza. */
+    /** Linha da tela do grupo: HaUi.DAY_ON cor principal com ponto, DAY_OFF apagado (pulado/desligado), DAY_NONE texto esmaecido. */
     fun setStates(value: List<Int>) { states = value; invalidate() }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -76,15 +92,16 @@ class HaDaysView @JvmOverloads constructor(context: Context, attrs: AttributeSet
     override fun onDraw(canvas: Canvas) {
         val step = HaStyle.dp(context, 15f)
         val base = height - HaStyle.dp(context, 4f)
+        val primary = HaStyle.primary(context)
         HaUi.weekLetters(days).forEachIndexed { i, (letter, marked) ->
             val st = states?.get(i) ?: if (marked) HaUi.DAY_ON else HaUi.DAY_NONE
             val on = st == HaUi.DAY_ON
             paint.typeface = if (st != HaUi.DAY_NONE) HaStyle.boldTime() else Typeface.DEFAULT
             paint.color = when {
-                faded -> HaStyle.DIM
-                on -> HaStyle.ACCENT
-                st == HaUi.DAY_OFF -> 0x668C88F3
-                else -> HaStyle.DAY_NONE
+                faded -> HaStyle.dim(context)
+                on -> primary
+                st == HaUi.DAY_OFF -> primary.adjustAlpha(0.4f)
+                else -> HaStyle.text2(context)
             }
             val x = i * step + HaStyle.dp(context, 2f)
             canvas.drawText(letter, x, base, paint)
