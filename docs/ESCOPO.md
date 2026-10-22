@@ -108,6 +108,22 @@ Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" 
 | Remover a distribuição pelo Firebase | feito (0.10.0) | Script e menções removidos; APK só pela release do GitHub e pelo link do painel |
 | Versão 0.10.0 no app e na integração | feito (0.10.0) | CHANGELOG, README, guia e este arquivo atualizados |
 
+## Decisão aprovada — versão 0.11.0 (fase 1)
+
+| Item | Status | Observação |
+|---|---|---|
+| Janela de sincronização hoje + 6 dias | aprovado | Regras da seção "Decisões aprovadas — sincronização e cards" |
+| Conjunto = (título, horário) com dias da semana marcados | aprovado | Mesmo título em outro horário = outro conjunto de N alarmes no mesmo cartão |
+| Cada sincronização marca os dias novos e desmarca os que passaram | aprovado | Alarme que tocou hoje só perde o dia de hoje; os demais dias seguem |
+| Título sem evento nos 7 dias | aprovado | Alarmes apagados do celular; o cartão some |
+| Refs estáveis por cartão e horário | aprovado | Derivadas de tipo + título + horário + n; as vagas antigas `ag_<tipo>_<n>` são apagadas e trocadas pelas novas na primeira sincronização |
+| Agrupamento `por_tipo` | aprovado | Um cartão; um alarme por evento/horário com os dias da semana marcados |
+| Limite de alarmes por conjunto | aprovado | Em vez de um limite fixo por tipo |
+| Diagnóstico com horário e dias de cada alarme | aprovado | Também no comando recebido |
+| Tela do grupo sem o espaço vazio; cabeçalho da lista recolhe ao rolar | aprovado | Estilo Samsung |
+| Barra de abas e cores do Fossify original | aprovado | Cartões de grupo e tela do grupo ficam no formato atual |
+| Versão 0.11.0 no app e na integração | aprovado | README em inglês fica para a fase 3 |
+
 ## Distribuição
 
 | Item | Status | Versão | Observação |
