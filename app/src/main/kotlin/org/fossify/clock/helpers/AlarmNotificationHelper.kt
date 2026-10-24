@@ -62,7 +62,17 @@ class AlarmNotificationHelper(private val context: Context) {
         val dismissIntent = context.getStopAlarmPendingIntent(alarm)
         val snoozeIntent = context.getSnoozePendingIntent(alarm)
 
-        return NotificationCompat.Builder(context, channelId)
+        val builder = NotificationCompat.Builder(context, channelId)
+        // AlarmeHA 0.13.0: celular em uso (tela ligada e desbloqueada) = aviso grande e fixo.
+        if (org.fossify.clock.ha.HaHeadsUp.inUse(context)) {
+            val big = org.fossify.clock.ha.HaHeadsUp.views(context, contentTitle, contentText.toString(), snoozeIntent, dismissIntent)
+            builder.setCustomHeadsUpContentView(big)
+                .setCustomContentView(big)
+                .setCustomBigContentView(big)
+                .setOngoing(true)
+        }
+
+        return builder
             .setContentTitle(contentTitle)
             .setContentText(contentText)
             .setSmallIcon(R.drawable.ic_alarm_vector)
@@ -106,28 +116,8 @@ class AlarmNotificationHelper(private val context: Context) {
      */
     fun postMissedAlarmNotification(missedAlarm: Alarm) {
         createMissedAlarmNotificationChannel()
-        val replacedTime = context.getFormattedTime(
-            passedSeconds = missedAlarm.timeInMinutes * 60,
-            showSeconds = false,
-            makeAmPmSmaller = false
-        )
-        val contentIntent = context.getOpenAlarmTabIntent()
-        val notification = NotificationCompat.Builder(context, MISSED_ALARM_NOTIFICATION_CHANNEL_ID)
-            .setContentTitle(context.getString(R.string.missed_alarm))
-            .setContentText(context.getString(R.string.alarm_timed_out))
-            .setContentIntent(contentIntent)
-            .setSubText(replacedTime)
-            .setSmallIcon(R.drawable.ic_alarm_off_vector)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setShowWhen(false)
-            .setAutoCancel(true)
-            .build()
-
-        context.notificationManager.notify(
-            MISSED_ALARM_NOTIFICATION_TAG,
-            missedAlarm.id,
-            notification
-        )
+        // AlarmeHA 0.13.0: uma notificação só, acumulando os perdidos até abrir o app ou limpar.
+        org.fossify.clock.ha.HaMissed.add(context, missedAlarm)
     }
 
     /**

@@ -221,6 +221,8 @@
 
         <receiver android:name=".receivers.SkipUpcomingAlarmReceiver" />
 
+        <receiver android:name=".ha.HaMissed$ClearReceiver" android:exported="false" />
+
         <receiver android:name=".receivers.UpcomingAlarmReceiver" />
 
         <receiver

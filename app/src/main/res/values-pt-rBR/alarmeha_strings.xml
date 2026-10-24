@@ -2,4 +2,9 @@
 <resources>
     <string name="alarmeha_diagnostic_mode">Modo diagnóstico</string>
     <string name="ha_alarms_title">Alarmes</string>
+    <string name="ha_missed_one">Alarme perdido: %1$s</string>
+    <string name="ha_missed_many">%1$d alarmes perdidos: %2$s</string>
+    <string name="ha_missed_and">" e "</string>
+    <string name="ha_headsup_dismiss">Desligar</string>
+    <string name="ha_headsup_snooze">Adiar</string>
 </resources>

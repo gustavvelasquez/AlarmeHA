@@ -174,7 +174,9 @@ class AlarmService : Service() {
             val missedAlarm = activeAlarm
             if (missedAlarm?.id == alarmId) {
                 notificationHelper.postMissedAlarmNotification(missedAlarm)
-                alarmController.stopAlarm(alarmId)
+                // AlarmeHA 0.13.0: o HA recebe "perdido" (e não "desligado") quando acaba o tempo.
+                org.fossify.clock.ha.HaEvents.onRingEvent(this, "perdido", alarmId)
+                alarmController.stopAlarm(alarmId, notifyHa = false)
             }
         }, durationSecs.seconds.inWholeMilliseconds)
     }

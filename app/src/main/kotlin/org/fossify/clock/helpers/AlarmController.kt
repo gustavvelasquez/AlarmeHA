@@ -130,11 +130,11 @@ class AlarmController(
      *
      * @param alarmId The ID of the alarm to dismiss.
      */
-    fun stopAlarm(alarmId: Int) {
+    fun stopAlarm(alarmId: Int, notifyHa: Boolean = true) {
         sendIntentToService(AlarmService.ACTION_STOP_ALARM, alarmId)
         bus.post(AlarmEvent.Stopped(alarmId))
         org.fossify.clock.ha.HaSkip.markSnoozed(context, alarmId, false)
-        HaEvents.onRingEvent(context, "desligado", alarmId) // AlarmeHA
+        if (notifyHa) HaEvents.onRingEvent(context, "desligado", alarmId) // AlarmeHA
 
         ensureBackgroundThread {
             val alarm = db.getAlarmWithId(alarmId)

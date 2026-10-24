@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 0.13.0: aviso grande quando o alarme toca com a tela ligada e o celular em uso: nome, hora
+     grande e os botões Adiar e Desligar. Fica até uma ação. Cores do tema do Fossify. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/ha_hu_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/ha_hu_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:maxLines="1"
+                android:textSize="16sp"
+                tools:text="Lembrete" />
+
+            <TextView
+                android:id="@+id/ha_hu_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textSize="36sp"
+                android:textStyle="bold"
+                tools:text="17:30" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/ha_hu_icon"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_alarm_vector" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/ha_hu_snooze"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/ha_headsup_button"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:text="@string/ha_headsup_snooze"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/ha_hu_dismiss"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/ha_headsup_button"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:text="@string/ha_headsup_dismiss"
+            android:textSize="15sp" />
+    </LinearLayout>
+</LinearLayout>

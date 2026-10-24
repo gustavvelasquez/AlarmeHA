@@ -101,6 +101,7 @@ class MainActivity : SimpleActivity() {
 
     override fun onResume() {
         super.onResume()
+        org.fossify.clock.ha.HaMissed.clear(this) // AlarmeHA 0.13.0: abriu o app, viu os perdidos
         setupTopAppBar(binding.mainAppbar, topBarColor = getProperBackgroundColor())
         val configTextColor = getProperTextColor()
         if (storedTextColor != configTextColor) {
