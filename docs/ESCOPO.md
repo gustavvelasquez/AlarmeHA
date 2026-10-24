@@ -9,7 +9,7 @@ Status: **feito**, **pendente** (pedido e ainda não feito ou aguardando decisã
 | Item | Status | Versão | Observação |
 |---|---|---|---|
 | Mesmo número de versão no app e na integração | feito | 0.7.0 (regra reforçada na 0.9.1) | `gradle.properties`, `manifest.json` e `const.py`; toda versão sai nos dois |
-| Documentação atualizada antes de publicar | feito | 0.12.0 | Especificação, CHANGELOG, README, guia e este arquivo |
+| Documentação atualizada antes de publicar | feito | 0.13.0 | Especificação, CHANGELOG, README, guia e este arquivo |
 | Não disparar nada no celular de uma segunda pessoa da casa sem consentimento | feito | — | Outras pessoas só recebem algo com consentimento |
 
 ## Comunicação e pareamento
@@ -131,6 +131,25 @@ Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" 
 | Cores do tema do Fossify em todo o app | feito (0.12.0) | Sai a paleta fixa da 0.9.0 (roxo, cinzas e preto fixos). Cartões de grupo, linhas de alarme, chaves, selos, divisórias, tela do grupo e cabeçalho usam texto, cor principal e fundo do tema; respeita "Personalizar aparência" e tema claro/escuro. Esmaecido = transparência sobre a cor do texto. Formato dos cartões e da tela do grupo não muda |
 | Cartão de grupo em 3 colunas fixas | feito (0.12.0) | Ícone com largura fixa à esquerda; título centralizado no espaço restante, até 2 linhas; contagem + ícone com largura fixa à direita. Os ícones não se movem com o tamanho do título |
 | Versão 0.12.0 no app e na integração | feito (0.12.0) | Integração sem mudança funcional |
+
+## Decisão aprovada — versão 0.13.0 (avisos e registro)
+
+| Item | Status | Observação |
+|---|---|---|
+| Aviso de alarmes perdidos | feito (0.13.0) | Alarme que toca até acabar o tempo sem desligar nem adiar entra numa notificação única que acumula os perdidos ("2 alarmes perdidos: 03:33 e 03:43"); some ao abrir o app ou limpar. O HA recebe o evento `perdido` (no lugar de `desligado`), que também entra no registro do Modo diagnóstico. Alarme pulado não conta: ele não toca |
+| Aviso grande com a tela ligada | feito (0.13.0) | Tela ligada e desbloqueada (celular em uso): o alarme aparece como aviso grande no topo, com nome, hora grande e os botões Adiar e Desligar, e fica até uma ação; tamanho e comportamento como o do Relógio da Samsung, cores do tema do Fossify. Tela desligada ou bloqueada: tela cheia de sempre, sem mudança |
+| Margem lateral maior no cartão de grupo | feito (0.13.0) | Só a margem interna lateral (16dp para 24dp): ícones da esquerda e da direita um pouco mais para o centro |
+| Origem do pulo no registro | feito (0.13.0) | `pulou` e `religado` levam `origem_pulo` (`switch_lista`, `switch_cartao`, `desativar_tudo`, `notificacao`) e `grupo`. O nome é `origem_pulo` porque `origem` já é o campo fixo de todo envio. O "Pular" da notificação de alarme próximo, em alarme da agenda, passa a usar o mesmo caminho do interruptor |
+| Versão 0.13.0 no app e na integração | feito (0.13.0) | Integração: aceita `perdido` (libera o alarme como `desligado`) e grava os campos novos no diagnóstico |
+
+## Pendências (aguardando testes ou decisão)
+
+| Item | Status | Observação |
+|---|---|---|
+| Pulo travando a atualização dos dias | pendente | Com um pulo ativo a integração não reenvia o conjunto, nem com dias novos (e reenvia à toa depois do toque). Opção A: mandar os dias mesmo com pulo (só HA). Opção B: comando novo só para os dias (app e HA). Aguardando testes |
+| Interruptor de alarme que já tocou hoje | pendente | Hoje ele pula o de amanhã. Opções: A perguntar antes; B mostrar qual dia pula; C pulo individual só até 12 h à frente. Aguardando testes |
+| Dispensar do conjunto | pendente | Se desligar um alarme do conjunto já pula os outros do dia, ou se ficam os dois passos de hoje. Em aberto |
+| Tela cheia com confirmação e "Tomei" do remédio | pendente | Para discutir mais à frente |
 
 ## Distribuição
 

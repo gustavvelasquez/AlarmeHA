@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarmeha`). Até a 0.6.0 o app e a integração tinham números próprios; desde a 0.7.0 usam o mesmo número. As versões do Fossify Clock (upstream) seguem abaixo.
 
+### 0.13.0 - 2026-10-24 (app e integração)
+
+**O que mudou**
+- App: aviso de alarmes perdidos. Alarme que toca até acabar o tempo sem desligar nem adiar entra numa notificação única que acumula os perdidos ("2 alarmes perdidos: 03:33 e 03:43", com a lista dos nomes ao expandir). Some ao abrir o app ou limpar a notificação. Alarme pulado não conta.
+- App: com a tela ligada e desbloqueada (celular em uso), o alarme aparece como aviso grande no topo, com nome, hora grande e os botões Adiar e Desligar, e fica até uma ação. Cores do tema do Fossify. Tela desligada ou bloqueada: tela cheia de sempre.
+- App: cartão de grupo com margem lateral maior (ícones um pouco mais para o centro).
+- App: no Modo diagnóstico, `pulou` e o novo `religado` levam `origem_pulo` (`switch_lista`, `switch_cartao`, `desativar_tudo`, `notificacao`) e `grupo`; os eventos `pulado`/`religado` também levam `origem_pulo`. O "Pular" da notificação de alarme próximo, em alarme da agenda, usa o mesmo caminho do interruptor.
+- App e integração: evento novo `perdido` (no lugar de `desligado` quando acaba o tempo). A integração o trata como `desligado` (libera o alarme e pede a lista) e o grava no diagnóstico.
+
+**Ainda não mudou:** pulo travando a atualização dos dias (opção A ou B, aguardando testes); interruptor de alarme que já tocou hoje (aguardando testes); dispensar do conjunto (em aberto); tela cheia com confirmação e "Tomei" do remédio (mais à frente).
+
 ### 0.12.0 - 2026-10-22 (app; integração só o número)
 
 **O que mudou**

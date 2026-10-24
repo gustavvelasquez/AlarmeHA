@@ -3,8 +3,8 @@
 O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app Companion → AlarmeHA**, pelo comando `command_broadcast_intent`. O AlarmeHA responde por um **webhook** do HA.
 
 - **Ida:** o HA pede para criar, editar, ligar, desligar, apagar ou listar alarmes.
-- **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca, foi desligado, pulado ou religado, confirma as mudanças e manda a lista de alarmes.
-- **Versão:** este guia descreve a **0.12.0**. App e integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`). O que mudou nas últimas versões está resumido na seção 7.
+- **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca, foi desligado, perdido (tocou até acabar o tempo), pulado ou religado, confirma as mudanças e manda a lista de alarmes.
+- **Versão:** este guia descreve a **0.13.0**. App e integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`). O que mudou nas últimas versões está resumido na seção 7.
 - **Segurança:** todo comando leva um **token** (gerado pelo HA na ativação pelo painel, ou pelo app no modo manual). Comando sem o token certo é ignorado em silêncio.
 - **Regra:** o HA só edita ou apaga alarmes que ele mesmo criou (com `ref`). Alarmes criados à mão no celular aparecem só na lista.
 - **Som:** o padrão do app, a não ser que o comando traga `som_uri` (toque por tipo de evento na agenda).
@@ -295,7 +295,8 @@ Todos os eventos têm: `origem` (`"alarmeha"`), `evento`, `dispositivo`, `pessoa
 | `desligado` | idem |
 | `criado` / `alterado` | `pedido`, `ref`, `id`, `origem_mudanca` (`"ha"`), `alarme` (objeto completo) |
 | `apagado` | `pedido`, `ref`, `id`, `origem_mudanca` |
-| `pulado` / `religado` | `ref`, `id`, `origem_mudanca` (`"app"`), `ocorrencia` (toque pulado, ou null), `alarme` |
+| `perdido` | idem (0.13.0: tocou até acabar o tempo sem desligar nem adiar; vem no lugar de `desligado`) |
+| `pulado` / `religado` | `ref`, `id`, `origem_mudanca` (`"app"`), `origem_pulo` (0.13.0: `switch_lista`, `switch_cartao`, `desativar_tudo` ou `notificacao`), `ocorrencia` (toque pulado, ou null), `alarme` |
 | `lista` | `pedido`, `alarmes`: lista de `{ref, id, hora, minuto, dias, rotulo, ativo, vibrar, som_titulo, unico, criado_pelo_ha, proximo_disparo}`; alarmes do HA também têm `pulado` (toque pulado, ISO 8601, ou null), `grupo` e `grupo_nome` |
 | `toques` | `pedido`, `toques`: lista de `{uri, titulo}` |
 | `erro` | `pedido`, `op`, `ref`, `motivo` (`ref_inexistente`, `ref_invalida`, `ref_ausente`, `horario_invalido`, `dias_invalido`, `hora_ausente`, `op_invalida`, `erro_interno`...) |
@@ -316,7 +317,7 @@ Exemplo:
 
 No app: **Configurações → Home Assistant → Modo diagnóstico**. Vem desligado e só desliga quando a pessoa desligar.
 
-Ligado, o app manda o evento `diagnostico` pelo mesmo webhook e pela mesma fila (se o HA estiver fora do ar, espera na fila e vai depois, até 24 h). Campos: `tipo` (`recebido`, `agendado`, `desagendado`, `apagado`, `tocou`, `soneca`, `pulou`, `dispensou`, `erro`), `ref`, `id`, `hora`, `minuto`, `dias`, `ativo` e, conforme o tipo, `op`, `pedido`, `motivo`, `mensagem`, `minutos`, `ocorrencia`. Sempre com `versao` e `quando`. Nunca vai o rótulo do alarme.
+Ligado, o app manda o evento `diagnostico` pelo mesmo webhook e pela mesma fila (se o HA estiver fora do ar, espera na fila e vai depois, até 24 h). Campos: `tipo` (`recebido`, `agendado`, `desagendado`, `apagado`, `tocou`, `soneca`, `pulou`, `religado`, `dispensou`, `perdido`, `erro`), `ref`, `id`, `hora`, `minuto`, `dias`, `ativo` e, conforme o tipo, `op`, `pedido`, `motivo`, `mensagem`, `minutos`, `ocorrencia` e, em `pulou`/`religado` (0.13.0), `origem_pulo` e `grupo`. Sempre com `versao` e `quando`. Nunca vai o rótulo do alarme.
 
 No HA, esses eventos não vão para o barramento nem para o histórico: ficam num armazenamento próprio (`.storage/alarmeha.diagnostico`) com os **últimos 500** (os mais antigos saem), preservado ao reiniciar. Nome da pessoa e do aparelho não são gravados.
 
@@ -349,7 +350,15 @@ Pela API REST: `POST /api/services/alarmeha/diagnostico?return_response` com um 
 | Alarmes duplicados desligados (`ag_<tipo>_<n>` com os mesmos horários) | Sobra de re-pareamento na 0.7.0. Na 0.8.0 o HA apaga as vagas `ag_*` sem uso na sincronização seguinte (00/15/30/45), fora da janela de 5/10 min. |
 | Alarme da agenda não mudou | O HA não mexe em alarme tocando, em soneca ou entre 5 min à frente e 10 min atrás; espere a próxima sincronização (00/15/30/45). |
 
-## 7. Novidades da 0.12.0 (só visual do app)
+## 7. Novidades da 0.13.0 (app e integração)
+
+- App: notificação única de alarmes perdidos, acumulando até abrir o app ou limpar; alarme pulado não conta.
+- App: com a tela ligada e desbloqueada, aviso grande e fixo no topo (nome, hora, Adiar e Desligar); tela desligada ou bloqueada continua com a tela cheia.
+- App: cartão de grupo com margem lateral maior.
+- App e integração: evento `perdido`; `origem_pulo` e `grupo` no registro do Modo diagnóstico.
+- Ainda não incluído: correção do pulo que trava os dias (A/B); interruptor de alarme que já tocou; dispensar do conjunto; tela cheia com confirmação e "Tomei".
+
+## 7.0.0 Novidades da 0.12.0 (só visual do app)
 
 - App: cores do tema do Fossify em todo o app (cartões, linhas, chaves, selos, divisórias, tela do grupo, cabeçalho); esmaecido com transparência sobre a cor do texto. Respeita "Personalizar aparência" e tema claro/escuro.
 - App: cartão de grupo em 3 colunas fixas: ícone à esquerda, título centralizado (até 2 linhas), contagem à direita; os ícones ficam alinhados entre os cartões.
