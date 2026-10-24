@@ -237,6 +237,7 @@ class AlarmehaPanel extends HTMLElement {
       <div class="${compacto ? "" : "card"}">
         <h2>Baixar e instalar o AlarmeHA</h2>
         <p class="muted">Toque abaixo no celular que vai despertar. Se o Android pedir, permita instalar apps desta fonte; se o Play Protect avisar, toque em <i>Instalar mesmo assim</i>.</p>
+        ${s.apk_aviso ? `<div class="erro">Não consegui baixar a versão ${esc(s.apk_aviso.nova || "mais nova")} do GitHub; este é o APK da ${esc(s.apk_aviso.servida)}. Para a versão nova, baixe pela <a href="${esc(s.apk_aviso.release_url)}" target="_blank" rel="noopener">página da release</a>.<br><span class="muted">Erro: ${esc(s.apk_aviso.erro)}</span></div>` : ""}
         <a class="btn" href="${esc(s.apk_url)}" download="AlarmeHA.apk">Baixar e instalar</a>
         <p class="muted">Quando o download terminar, toque em <b>Abrir</b> (ou na notificação do download) para instalar.</p>
         <p><b>Depois, abra o app AlarmeHA</b> e toque em <b>Ativar</b>. Ele traz você de volta aqui para confirmar.</p>

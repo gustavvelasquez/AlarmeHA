@@ -4,7 +4,7 @@ O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app
 
 - **Ida:** o HA pede para criar, editar, ligar, desligar, apagar ou listar alarmes.
 - **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca, foi desligado, perdido (tocou até acabar o tempo), pulado ou religado, confirma as mudanças e manda a lista de alarmes.
-- **Versão:** este guia descreve a **0.14.0**. App e integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`). O que mudou nas últimas versões está resumido na seção 7.
+- **Versão:** este guia descreve a **0.14.1** (integração; app 0.14.0). App e integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`). Exceção: na 0.14.1 só a integração mudou; o app continua 0.14.0 e a release 0.14.1 traz o mesmo APK da 0.14.0. O que mudou nas últimas versões está resumido na seção 7.
 - **Segurança:** todo comando leva um **token** (gerado pelo HA na ativação pelo painel, ou pelo app no modo manual). Comando sem o token certo é ignorado em silêncio.
 - **Regra:** o HA só edita ou apaga alarmes que ele mesmo criou (com `ref`). Alarmes criados à mão no celular aparecem só na lista.
 - **Som:** o padrão do app, a não ser que o comando traga `som_uri` (toque por tipo de evento na agenda).
@@ -350,7 +350,13 @@ Pela API REST: `POST /api/services/alarmeha/diagnostico?return_response` com um 
 | Alarmes duplicados desligados (`ag_<tipo>_<n>` com os mesmos horários) | Sobra de re-pareamento na 0.7.0. Na 0.8.0 o HA apaga as vagas `ag_*` sem uso na sincronização seguinte (00/15/30/45), fora da janela de 5/10 min. |
 | Alarme da agenda não mudou | O HA não mexe em alarme tocando, em soneca ou entre 5 min à frente e 10 min atrás; espere a próxima sincronização (00/15/30/45). |
 
-## 7. Novidades da 0.14.0 (app; integração só o número)
+## 7. Novidades da 0.14.1 (só integração)
+
+- Integração: o HA baixa o APK pela API de assets do GitHub e aceita cabeçalhos maiores. Antes, o redirecionamento do GitHub vinha com um cabeçalho grande demais, o download falhava e o painel entregava, sem avisar, a cópia antiga guardada no HA.
+- Integração: se o download da versão nova falhar, o painel mostra "não consegui baixar a versão X; este é o APK da Y", com o erro e o link da release. O download pelo painel também traz o cabeçalho `X-AlarmeHA-Aviso`.
+- App: sem mudança (0.14.0). A release 0.14.1 traz o mesmo `AlarmeHA.apk` da 0.14.0.
+
+## 7.0.0 Novidades da 0.14.0 (app; integração só o número)
 
 - App: com a tela ligada e desbloqueada, cartão grande do próprio app no topo, por cima de qualquer app (nome, hora, Adiar e Desligar), em vez do aviso do sistema (que em alguns aparelhos vira uma pílula pequena). Fica até uma ação ou até acabar o tempo (`perdido`).
 - App: permissão "Sobrepor a outros apps", pedida uma vez e opcional (Configurações > "Aviso por cima dos apps"); sem ela, o aviso do sistema da 0.13.0.

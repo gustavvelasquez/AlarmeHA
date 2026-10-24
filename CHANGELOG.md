@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarmeha`). Até a 0.6.0 o app e a integração tinham números próprios; desde a 0.7.0 usam o mesmo número. As versões do Fossify Clock (upstream) seguem abaixo.
 
+### 0.14.1 - 2026-10-24 (só integração; app continua 0.14.0)
+
+Exceção aprovada à regra do mesmo número: só a integração muda. O app continua 0.14.0 e a release 0.14.1 traz o mesmo `AlarmeHA.apk` da 0.14.0 (mesmo SHA-256), para o painel e o link do GitHub continuarem entregando o app 0.14.0.
+
+**O que mudou**
+- Integração: o download do APK pelo HA falhava. O redirecionamento do GitHub vem com um cabeçalho CSP maior que o limite do aiohttp (8190 bytes), e o HA servia sem avisar a cópia antiga em cache. Agora o HA baixa pela API de assets (`Accept: application/octet-stream`), com uma sessão de limite de cabeçalho maior. Tamanho e assinatura `PK` continuam conferidos.
+- Integração: se o download da versão nova falhar e o HA servir a cópia em cache, o painel avisa: "não consegui baixar a versão X; este é o APK da Y", com o erro e o link da release. O download traz o cabeçalho `X-AlarmeHA-Aviso`.
+- Testes: download novo pela API de assets e caminho de cópia em cache com aviso.
+
+**Ainda não mudou:** o mesmo da 0.14.0.
+
 ### 0.14.0 - 2026-10-24 (app; integração só o número)
 
 **O que mudou**

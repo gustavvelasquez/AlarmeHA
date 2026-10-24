@@ -34,12 +34,25 @@ def _hub(hass: HomeAssistant, connection, msg) -> Any:
     return hub
 
 
+async def _warm(cache) -> None:
+    try:
+        await cache.async_get()
+    except Exception:  # noqa: BLE001
+        pass
+
+
 @websocket_api.websocket_command({vol.Required("type"): "alarmeha/status"})
 @callback
 def ws_status(hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]) -> None:
     if (hub := _hub(hass, connection, msg)) is None:
         return
     user = connection.user
+    from .apk import CACHE_KEY  # noqa: PLC0415
+
+    cache = hass.data.get(CACHE_KEY)
+    if cache is not None and not cache.fresh():
+        # Confere o GitHub em segundo plano; o aviso aparece no painel se o download falhar.
+        hass.async_create_background_task(_warm(cache), "alarmeha_apk_check")
     connection.send_result(
         msg["id"],
         {
@@ -49,6 +62,8 @@ def ws_status(hass: HomeAssistant, connection: websocket_api.ActiveConnection, m
             ),
             "apk_github_url": APK_URL,
             "releases_url": RELEASES_URL,
+            # 0.14.1: download da versão nova falhou e o HA está servindo uma cópia antiga.
+            "apk_aviso": cache.aviso() if cache is not None else None,
             "admin": user.is_admin,
             "url": hub.external_url,
             "celulares": [p.summary(user.id) for p in hub.phones_for(user)],

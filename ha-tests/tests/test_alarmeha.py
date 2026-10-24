@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -243,14 +244,15 @@ async def test_migration_from_v1(hass: HomeAssistant, notify_calls, hass_client_
 APK_BYTES = b"PK\x03\x04" + b"0" * 2000
 LATEST = "https://api.github.com/repos/gustavvelasquez/AlarmeHA/releases/latest"
 ASSET = "https://github.com/gustavvelasquez/AlarmeHA/releases/download/v0.3.1/AlarmeHA.apk"
+ASSET_API = "https://api.github.com/repos/gustavvelasquez/AlarmeHA/releases/assets/1"
 
 
 async def test_apk_served_by_ha(hass, setup, hass_ws_client, hass_access_token, hass_client_no_auth, aioclient_mock):
     import shutil
     shutil.rmtree(hass.config.path(".storage", "alarmeha_apk"), ignore_errors=True)
     aioclient_mock.get(LATEST, json={"tag_name": "v0.3.1", "assets": [
-        {"name": "AlarmeHA.apk", "size": len(APK_BYTES), "browser_download_url": ASSET}]})
-    aioclient_mock.get(ASSET, content=APK_BYTES)
+        {"name": "AlarmeHA.apk", "size": len(APK_BYTES), "url": ASSET_API, "browser_download_url": ASSET}]})
+    aioclient_mock.get(ASSET_API, content=APK_BYTES)
     ws = await _ws(hass, hass_ws_client, hass_access_token)
     await ws.send_json_auto_id({"type": "alarmeha/status"})
     st = (await ws.receive_json())["result"]
@@ -270,6 +272,37 @@ async def test_apk_served_by_ha(hass, setup, hass_ws_client, hass_access_token, 
     calls = aioclient_mock.call_count
     assert (await http.get(st["apk_url"])).status == 200
     assert aioclient_mock.call_count == calls
+    # 0.14.1: baixa pela API de assets, pedindo o binário; sem aviso no painel.
+    dl = [c for c in aioclient_mock.mock_calls if str(c[1]) == ASSET_API]
+    assert dl and dl[0][3]["Accept"] == "application/octet-stream"
+    await ws.send_json_auto_id({"type": "alarmeha/status"})
+    assert (await ws.receive_json())["result"]["apk_aviso"] is None
+
+
+async def test_apk_fallback_shows_warning(hass, setup, hass_ws_client, hass_access_token, hass_client_no_auth, aioclient_mock):
+    """Download da versão nova falha: serve a cópia antiga e avisa o painel."""
+    import shutil
+    d = Path(hass.config.path(".storage", "alarmeha_apk"))
+    shutil.rmtree(d, ignore_errors=True)
+    d.mkdir(parents=True)
+    (d / "AlarmeHA-v0.3.0.apk").write_bytes(APK_BYTES)
+    asset = "https://api.github.com/repos/gustavvelasquez/AlarmeHA/releases/assets/2"
+    aioclient_mock.get(LATEST, json={"tag_name": "v0.3.1", "assets": [
+        {"name": "AlarmeHA.apk", "size": len(APK_BYTES) + 1, "url": asset, "browser_download_url": ASSET}]})
+    aioclient_mock.get(asset, status=400)
+    ws = await _ws(hass, hass_ws_client, hass_access_token)
+    await ws.send_json_auto_id({"type": "alarmeha/status"})
+    url = (await ws.receive_json())["result"]["apk_url"]
+    http = await hass_client_no_auth()
+    r = await http.get(url)
+    assert r.status == 200
+    assert r.headers["Content-Disposition"] == 'attachment; filename="AlarmeHA-v0.3.0.apk"'
+    assert r.headers["X-AlarmeHA-Aviso"] == "servida=v0.3.0; nova=v0.3.1"
+    await ws.send_json_auto_id({"type": "alarmeha/status"})
+    aviso = (await ws.receive_json())["result"]["apk_aviso"]
+    assert aviso["servida"] == "v0.3.0" and aviso["nova"] == "v0.3.1"
+    assert aviso["erro"] and aviso["release_url"].endswith("/releases/latest")
+    shutil.rmtree(d, ignore_errors=True)
 
 
 async def test_apk_github_down(hass, setup, hass_ws_client, hass_access_token, hass_client_no_auth, aioclient_mock):

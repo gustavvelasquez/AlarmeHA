@@ -9,7 +9,7 @@ Status: **feito**, **pendente** (pedido e ainda não feito ou aguardando decisã
 | Item | Status | Versão | Observação |
 |---|---|---|---|
 | Mesmo número de versão no app e na integração | feito | 0.7.0 (regra reforçada na 0.9.1) | `gradle.properties`, `manifest.json` e `const.py`; toda versão sai nos dois |
-| Documentação atualizada antes de publicar | feito | 0.14.0 | Especificação, CHANGELOG, README, guia e este arquivo |
+| Documentação atualizada antes de publicar | feito | 0.14.1 | Especificação, CHANGELOG, README, guia e este arquivo |
 | Não disparar nada no celular de uma segunda pessoa da casa sem consentimento | feito | — | Outras pessoas só recebem algo com consentimento |
 
 ## Comunicação e pareamento
@@ -150,6 +150,23 @@ Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" 
 | Permissão "Sobrepor a outros apps" | feito (0.14.0) | Opcional e sem bloquear o app: pedida uma vez com explicação e disponível em Configurações > "Aviso por cima dos apps". Sem ela, fica o aviso do sistema da 0.13.0 |
 | Tela desligada ou bloqueada | sem mudança | Tela cheia de sempre |
 | Versão 0.14.0 no app e na integração | feito (0.14.0) | Integração só o número |
+
+## Decisão aprovada — versão 0.14.1 (só integração)
+
+| Item | Status | Observação |
+|---|---|---|
+| Exceção à regra do mesmo número | aprovada (0.14.1) | Só a integração vai para 0.14.1; o app fica 0.14.0, sem APK novo. A release 0.14.1 traz o mesmo `AlarmeHA.apk` da 0.14.0 (mesmo SHA-256), porque o painel e o link `/releases/latest` pegam o APK da última release |
+| Download do APK pelo HA | feito (0.14.1) | Baixa pela API de assets com limite de cabeçalho maior (o CSP do redirecionamento do GitHub passava de 8190 bytes e o HA servia a cópia antiga sem avisar) |
+| Aviso de cópia antiga no painel | feito (0.14.1) | Se o download falhar e o HA servir o cache: "não consegui baixar a versão X; este é o APK da Y", com o erro e o link da release |
+
+## Checklist de release
+
+1. Versões: `gradle.properties` (app), `manifest.json` e `const.py` (integração), com o mesmo número, salvo exceção aprovada e registrada aqui.
+2. Testes do app e da integração passando.
+3. APK: SHA-256 e certificado de assinatura conferidos; a release sempre com `AlarmeHA.apk`, e as notas com o SHA-256.
+4. Baixar o APK de volta da release e conferir o SHA-256.
+5. Instalar a integração no HA e reiniciar; conferir a versão instalada e que não houve reenvio nem alarme duplicado.
+6. Baixar o APK pelo link do painel (`/api/alarmeha/apk`, link assinado) e conferir que o SHA-256 é o da versão nova.
 
 ## Pendências (aguardando testes ou decisão)
 
