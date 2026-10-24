@@ -243,7 +243,7 @@ class AlarmsAdapter(
             alarmSwitch.setOnClickListener {
                 if (info != null && (alarm.isEnabled || skippedAt != null)) {
                     // Alarme da agenda: desligar = pular só o próximo toque; ligar = desfazer o pulo.
-                    org.fossify.clock.ha.HaSkip.toggle(activity, alarm.id, alarmSwitch.isChecked)
+                    org.fossify.clock.ha.HaSkip.toggle(activity, alarm.id, alarmSwitch.isChecked, org.fossify.clock.ha.HaSkip.ORIGEM_SWITCH_LISTA)
                 } else {
                     toggleAlarm(binding = this, alarm = alarm)
                 }

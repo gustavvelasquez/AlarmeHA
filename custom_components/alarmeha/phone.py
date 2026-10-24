@@ -193,7 +193,7 @@ class AlarmeHaPhone:
                 minutos = 0
             minutos = minutos or OCUPADO_TOCANDO_MIN
             self.ocupados[ref] = agora + timedelta(minutes=minutos + OCUPADO_SONECA_FOLGA_MIN)
-        elif event == "desligado" and self.ocupados.pop(ref, None) is not None:
+        elif event in ("desligado", "perdido") and self.ocupados.pop(ref, None) is not None:
             self.sincronizar_depois(SINCRONIZAR_APOS_DESLIGAR_S)
 
     def sincronizar_depois(self, segundos: float) -> None:
@@ -263,7 +263,7 @@ class AlarmeHaPhone:
             self.hub.async_save()
             return
 
-        if event in ("tocou", "soneca", "desligado"):
+        if event in ("tocou", "soneca", "desligado", "perdido"):  # 0.13.0: "perdido" = acabou o tempo
             self._marcar_toque(event, payload)
         quando = payload.get("quando")
         if event == "pulado":
@@ -301,7 +301,7 @@ class AlarmeHaPhone:
         async_dispatcher_send(self.hass, self.signal)
         self.hub.async_save()
 
-        if event in ("desligado", "pareado"):
+        if event in ("desligado", "perdido", "pareado"):
             self.hass.async_create_task(self.async_request_list_silently())
         if event == "pareado":
             # Celular pareado (de novo): reenvia o plano completo sem esperar o próximo tick.

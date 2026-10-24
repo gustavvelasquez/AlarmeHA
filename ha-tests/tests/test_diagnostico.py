@@ -68,3 +68,28 @@ async def test_webhook_servico_e_diagnostics(hass, setup, hass_ws_client, hass_a
     diag = await async_get_config_entry_diagnostics(hass, setup)
     assert len(diag["eventos"]) == 7 and diag["versao"]
     assert body["token"] not in str(diag) and body["webhook"] not in str(diag)
+
+
+def test_limpar_mantem_origem_do_pulo_e_grupo():
+    """0.13.0: pulou/religado trazem de onde veio o pulo e o grupo; perdido entra no registro."""
+    out = limpar(_diag("pulou", ref="ag_x_1", origem_pulo="desativar_tudo", grupo="ag_x", grupo_nome="Nome"))
+    assert out["origem_pulo"] == "desativar_tudo" and out["grupo"] == "ag_x" and "grupo_nome" not in out
+    assert limpar(_diag("perdido", ref="ag_x_1"))["tipo"] == "perdido"
+
+
+async def test_evento_perdido(hass, setup, hass_ws_client, hass_access_token, hass_client_no_auth):
+    """0.13.0: "perdido" (tocou até acabar o tempo) vai para o barramento e libera o alarme como "desligado"."""
+    ws = await _ws(hass, hass_ws_client, hass_access_token)
+    http = await hass_client_no_auth()
+    _, body = await _activate(hass, ws, http)
+    eventos_bus = async_capture_events(hass, "alarmeha_evento")
+    url = f"/api/webhook/{body['webhook']}"
+    base = {"origem": "alarmeha", "ref": "ag_x_1", "id": 5, "quando": "2026-01-01T07:00:00-03:00"}
+    assert (await http.post(url, json={**base, "evento": "tocou"})).status == 200
+    await hass.async_block_till_done()
+    phone = next(iter(hass.data[DOMAIN].phones.values()))
+    assert phone.ocupado("ag_x_1")
+    assert (await http.post(url, json={**base, "evento": "perdido"})).status == 200
+    await hass.async_block_till_done()
+    assert [e.data["evento"] for e in eventos_bus] == ["tocou", "perdido"]
+    assert not phone.ocupado("ag_x_1")

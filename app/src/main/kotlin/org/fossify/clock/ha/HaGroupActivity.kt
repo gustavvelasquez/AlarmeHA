@@ -192,7 +192,7 @@ class HaGroupActivity : SimpleActivity() {
             HaStyle.paintSwitch(this, this@HaGroupActivity)
             isEnabled = line.target != null
             alpha = if (line.target != null) 1f else 0.5f
-            setOnClickListener { _ -> line.target?.let { id -> HaSkip.toggle(this@HaGroupActivity, id, isChecked) } }
+            setOnClickListener { _ -> line.target?.let { id -> HaSkip.toggle(this@HaGroupActivity, id, isChecked, HaSkip.ORIGEM_SWITCH_CARTAO) } }
         }.also { row.addView(it) }
         return row
     }
@@ -255,7 +255,7 @@ class HaGroupActivity : SimpleActivity() {
             // Já tocou (o HA manteve no grupo desligado): não volta a tocar.
             isEnabled = ended == null
             alpha = if (ended == null) 1f else 0.5f
-            setOnClickListener { _ -> HaSkip.toggle(this@HaGroupActivity, alarm.id, isChecked) }
+            setOnClickListener { _ -> HaSkip.toggle(this@HaGroupActivity, alarm.id, isChecked, HaSkip.ORIGEM_SWITCH_CARTAO) }
         }.also { row.addView(it) }
         return row
     }
