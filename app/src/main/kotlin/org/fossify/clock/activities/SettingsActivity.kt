@@ -121,6 +121,9 @@ class SettingsActivity : SimpleActivity() {
             binding.settingsDiagnosticMode.toggle()
             haConfig.diagnosticMode = binding.settingsDiagnosticMode.isChecked
         }
+        // 0.14.0: "Aviso por cima dos apps" reflete a permissão; tocar abre a tela do Android.
+        binding.settingsOverlay.isChecked = org.fossify.clock.ha.HaOverlay.canDraw(this)
+        binding.settingsOverlayHolder.setOnClickListener { org.fossify.clock.ha.HaOverlay.openPermission(this) }
     }
 
     private fun setupCustomizeColors() {

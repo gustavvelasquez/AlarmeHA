@@ -77,6 +77,22 @@
 
             </RelativeLayout>
 
+            <RelativeLayout
+                android:id="@+id/settings_overlay_holder"
+                style="@style/SettingsHolderSwitchStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <org.fossify.commons.views.MyMaterialSwitch
+                    android:id="@+id/settings_overlay"
+                    style="@style/SettingsSwitchStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clickable="false"
+                    android:text="@string/ha_overlay_title" />
+
+            </RelativeLayout>
+
             <TextView
                 android:id="@+id/settings_color_customization_section_label"
                 style="@style/SettingsSectionLabelStyle"

@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarmeha`). Até a 0.6.0 o app e a integração tinham números próprios; desde a 0.7.0 usam o mesmo número. As versões do Fossify Clock (upstream) seguem abaixo.
 
+### 0.14.0 - 2026-10-24 (app; integração só o número)
+
+**O que mudou**
+- App: com a tela ligada e desbloqueada, o alarme aparece num cartão grande desenhado pelo próprio app no topo da tela, por cima de qualquer app (nome, hora grande, Adiar e Desligar, cores do tema do Fossify). Não depende do estilo de aviso do sistema, que em alguns aparelhos vira uma pílula pequena ("Pop-up breve"). Fica até uma ação ou até acabar o tempo (aí conta como `perdido`, como na 0.13.0).
+- App: precisa da permissão "Sobrepor a outros apps". O app pede uma vez, com explicação, e dá para ligar depois em Configurações > "Aviso por cima dos apps". Não é obrigatória e não bloqueia o app; sem ela fica o aviso do sistema da 0.13.0.
+- App: com o cartão na tela, a notificação do alarme fica só na gaveta (com Adiar e Desligar), sem aviso do sistema junto. O cartão sai ao desligar, adiar, acabar o tempo ou o alarme ser substituído.
+- Tela desligada ou bloqueada: tela cheia de sempre, sem mudança.
+- Integração: só o número (0.14.0), sem mudança funcional.
+
+**Ainda não mudou:** pulo travando a atualização dos dias (opção A ou B, aguardando testes); interruptor de alarme que já tocou hoje (aguardando testes); dispensar do conjunto (em aberto); tela cheia com confirmação e "Tomei" do remédio (mais à frente).
+
 ### 0.13.0 - 2026-10-24 (app e integração)
 
 **O que mudou**

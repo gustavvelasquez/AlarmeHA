@@ -10,7 +10,7 @@
 - **app → HA:** eventos por webhook (`lista`, `criado`, `alterado`, `apagado`, `tocou`, `soneca`, `desligado`, `perdido`, `pulado`, `religado`, `erro` e, com o Modo diagnóstico ligado, `diagnostico`), enviados em segundo plano (WorkManager);
 - **agenda:** a integração lê a agenda (ex.: iCal secreto do Google pela Remote Calendar) e mantém no celular os alarmes dos próximos 7 dias (marcados com 📅): um conjunto por título e horário do evento, com os dias da semana marcados, num cartão por título (ou um cartão para o tipo inteiro).
 
-**Status:** em uso na casa. Versão publicada: **0.13.0**. Regra: o app e a integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`), mesmo quando um lado não muda.
+**Status:** em uso na casa. Versão publicada: **0.14.0**. Regra: o app e a integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`), mesmo quando um lado não muda.
 
 **No app (0.9.2, visual do Relógio da Samsung):** um cartão por compromisso, agrupado pelo título (não por dia), mostrando o total de alarmes e sem chave; alarmes do mesmo horário numa linha com D S T Q Q S S; grupos do HA não se editam, renomeiam nem recebem alarmes no app; "Ativar tudo"/"Desativar tudo" pulam só o próximo toque.
 
@@ -19,6 +19,8 @@
 **Novidades da 0.11.0:** janela de 7 dias; mesmo título no mesmo horário reaproveita os mesmos alarmes com vários dias marcados; o alarme que tocou só perde o dia de hoje; título sem evento na janela some do celular; refs estáveis. No app: tela do grupo sem o espaço vazio, cabeçalho da lista que recolhe ao rolar e barra de abas e cores do Fossify original.
 
 **Novidades da 0.12.0 (visual):** o app usa as cores do tema do Fossify em tudo (respeita "Personalizar aparência" e tema claro/escuro), no lugar da paleta fixa roxa/preta; cartão de grupo em 3 colunas fixas (ícone, título centralizado em até 2 linhas, contagem).
+
+**Novidades da 0.14.0:** com o celular em uso, o alarme aparece num cartão grande do próprio app no topo, por cima de qualquer app, com Adiar e Desligar (precisa da permissão "Sobrepor a outros apps", pedida uma vez e opcional; sem ela fica o aviso do sistema). Tela desligada continua com a tela cheia.
 
 **Novidades da 0.13.0:** aviso único de alarmes perdidos (acumula até abrir o app ou limpar; evento `perdido` no HA); com o celular em uso, o alarme aparece como aviso grande no topo com Adiar e Desligar (tela desligada continua com a tela cheia); cartão de grupo com mais margem lateral; o registro do Modo diagnóstico diz de onde veio cada pulo.
 

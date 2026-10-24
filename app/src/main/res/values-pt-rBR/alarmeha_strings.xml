@@ -7,4 +7,8 @@
     <string name="ha_missed_and">" e "</string>
     <string name="ha_headsup_dismiss">Desligar</string>
     <string name="ha_headsup_snooze">Adiar</string>
+    <string name="ha_overlay_title">Aviso por cima dos apps</string>
+    <string name="ha_overlay_why">Quando um alarme tocar com você usando o celular, mostrar um cartão grande no topo com Adiar e Desligar, por cima de qualquer app. Sem isso, fica o aviso do sistema (em alguns celulares, só uma pílula pequena).</string>
+    <string name="ha_overlay_allow">Permitir</string>
+    <string name="ha_overlay_later">Agora não</string>
 </resources>

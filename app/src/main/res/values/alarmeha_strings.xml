@@ -7,4 +7,8 @@
     <string name="ha_missed_and">" and "</string>
     <string name="ha_headsup_dismiss">Dismiss</string>
     <string name="ha_headsup_snooze">Snooze</string>
+    <string name="ha_overlay_title">Alarm card over other apps</string>
+    <string name="ha_overlay_why">When an alarm rings while you are using the phone, show a large card at the top with Snooze and Dismiss, over any app. Without it, the system notification is used (on some phones it is just a small pop-up).</string>
+    <string name="ha_overlay_allow">Allow</string>
+    <string name="ha_overlay_later">Not now</string>
 </resources>

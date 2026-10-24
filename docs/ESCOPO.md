@@ -9,7 +9,7 @@ Status: **feito**, **pendente** (pedido e ainda não feito ou aguardando decisã
 | Item | Status | Versão | Observação |
 |---|---|---|---|
 | Mesmo número de versão no app e na integração | feito | 0.7.0 (regra reforçada na 0.9.1) | `gradle.properties`, `manifest.json` e `const.py`; toda versão sai nos dois |
-| Documentação atualizada antes de publicar | feito | 0.13.0 | Especificação, CHANGELOG, README, guia e este arquivo |
+| Documentação atualizada antes de publicar | feito | 0.14.0 | Especificação, CHANGELOG, README, guia e este arquivo |
 | Não disparar nada no celular de uma segunda pessoa da casa sem consentimento | feito | — | Outras pessoas só recebem algo com consentimento |
 
 ## Comunicação e pareamento
@@ -141,6 +141,15 @@ Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" 
 | Margem lateral maior no cartão de grupo | feito (0.13.0) | Só a margem interna lateral (16dp para 24dp): ícones da esquerda e da direita um pouco mais para o centro |
 | Origem do pulo no registro | feito (0.13.0) | `pulou` e `religado` levam `origem_pulo` (`switch_lista`, `switch_cartao`, `desativar_tudo`, `notificacao`) e `grupo`. O nome é `origem_pulo` porque `origem` já é o campo fixo de todo envio. O "Pular" da notificação de alarme próximo, em alarme da agenda, passa a usar o mesmo caminho do interruptor |
 | Versão 0.13.0 no app e na integração | feito (0.13.0) | Integração: aceita `perdido` (libera o alarme como `desligado`) e grava os campos novos no diagnóstico |
+
+## Decisão aprovada — versão 0.14.0 (cartão por cima dos apps)
+
+| Item | Status | Observação |
+|---|---|---|
+| Cartão próprio com a tela ligada | feito (0.14.0) | Em alguns aparelhos o aviso do sistema da 0.13.0 vira uma pílula pequena. Com a tela ligada e desbloqueada, o app desenha o próprio cartão grande no topo (janela de sobreposição): nome, hora grande, Adiar e Desligar, cores do tema. Fica até uma ação ou até acabar o tempo (`perdido`). Sai ao desligar, adiar, acabar o tempo, trocar de alarme ou o serviço parar; nunca junto com o aviso do sistema |
+| Permissão "Sobrepor a outros apps" | feito (0.14.0) | Opcional e sem bloquear o app: pedida uma vez com explicação e disponível em Configurações > "Aviso por cima dos apps". Sem ela, fica o aviso do sistema da 0.13.0 |
+| Tela desligada ou bloqueada | sem mudança | Tela cheia de sempre |
+| Versão 0.14.0 no app e na integração | feito (0.14.0) | Integração só o número |
 
 ## Pendências (aguardando testes ou decisão)
 

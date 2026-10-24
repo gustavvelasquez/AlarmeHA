@@ -76,9 +76,12 @@ class AlarmService : Service() {
     }
 
     private fun startNewAlarm(newAlarm: Alarm) {
+        // AlarmeHA 0.14.0: tela em uso + permissão = cartão próprio por cima (sem aviso do sistema junto).
+        val overlay = if (activeAlarm?.id == newAlarm.id && org.fossify.clock.ha.HaOverlay.isShowing) true
+        else notificationHelper.showOverlay(newAlarm)
         startForeground(
             ALARM_NOTIFICATION_ID,
-            notificationHelper.buildActiveAlarmNotification(newAlarm)
+            notificationHelper.buildActiveAlarmNotification(newAlarm, overlay)
         )
 
         val currentAlarm = activeAlarm
@@ -94,6 +97,7 @@ class AlarmService : Service() {
             stopPlayerAndCleanup()
             notificationHelper.postReplacedAlarmNotification(currentAlarm!!)
             alarmController.stopAlarm(currentAlarm.id)
+            if (overlay) notificationHelper.showOverlay(newAlarm) // AlarmeHA: o cartão agora é do alarme novo
         }
 
         startAlarmEffects(newAlarm)
@@ -192,6 +196,7 @@ class AlarmService : Service() {
         increaseVolumeHandler.removeCallbacksAndMessages(null)
         autoDismissHandler.removeCallbacksAndMessages(null)
         resetVolumeToInitialValue()
+        org.fossify.clock.ha.HaOverlay.hide(this) // AlarmeHA 0.14.0
     }
 
     private fun stopSelfIfIdle() {

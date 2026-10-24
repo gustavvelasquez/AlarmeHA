@@ -22,11 +22,24 @@ import org.fossify.commons.extensions.notificationManager
  * and posting notifications for missed or replaced alarms.
  */
 class AlarmNotificationHelper(private val context: Context) {
+    companion object {
+        const val OVERLAY_CHANNEL_ID = "alarmeha_alarm_overlay"
+    }
+
 
     /**
      * Builds and returns the active alarm notification to be shown in the foreground service.
      */
-    fun buildActiveAlarmNotification(alarm: Alarm): Notification {
+    /** AlarmeHA 0.14.0: cartão próprio por cima da tela. true = está na tela. */
+    fun showOverlay(alarm: Alarm): Boolean {
+        val title = alarm.label.ifEmpty { context.getString(org.fossify.commons.R.string.alarm) }
+        val time = context.getFormattedTime(passedSeconds = alarm.timeInMinutes * 60, showSeconds = false, makeAmPmSmaller = false).toString()
+        return org.fossify.clock.ha.HaOverlay.show(
+            context, alarm.id, title, time, context.getSnoozePendingIntent(alarm), context.getStopAlarmPendingIntent(alarm)
+        )
+    }
+
+    fun buildActiveAlarmNotification(alarm: Alarm, overlay: Boolean = false): Notification {
         val channelId = ALARM_NOTIFICATION_CHANNEL_ID
         val channel = NotificationChannel(
             channelId,
@@ -38,6 +51,15 @@ class AlarmNotificationHelper(private val context: Context) {
         }
 
         context.notificationManager.createNotificationChannel(channel)
+        // AlarmeHA 0.14.0: com o cartão próprio na tela, a notificação vai por um canal discreto
+        // (sem aviso do sistema por cima, sem duplicar). Continua com Adiar/Desligar na gaveta.
+        val usedChannel = if (overlay) {
+            context.notificationManager.createNotificationChannel(
+                NotificationChannel(OVERLAY_CHANNEL_ID, context.getString(org.fossify.commons.R.string.alarm), NotificationManager.IMPORTANCE_LOW)
+                    .apply { setSound(null, null); enableVibration(false) }
+            )
+            OVERLAY_CHANNEL_ID
+        } else channelId
 
         val contentTitle = alarm.label.ifEmpty {
             context.getString(org.fossify.commons.R.string.alarm)
@@ -62,9 +84,9 @@ class AlarmNotificationHelper(private val context: Context) {
         val dismissIntent = context.getStopAlarmPendingIntent(alarm)
         val snoozeIntent = context.getSnoozePendingIntent(alarm)
 
-        val builder = NotificationCompat.Builder(context, channelId)
+        val builder = NotificationCompat.Builder(context, usedChannel)
         // AlarmeHA 0.13.0: celular em uso (tela ligada e desbloqueada) = aviso grande e fixo.
-        if (org.fossify.clock.ha.HaHeadsUp.inUse(context)) {
+        if (!overlay && org.fossify.clock.ha.HaHeadsUp.inUse(context)) {
             val big = org.fossify.clock.ha.HaHeadsUp.views(context, contentTitle, contentText.toString(), snoozeIntent, dismissIntent)
             builder.setCustomHeadsUpContentView(big)
                 .setCustomContentView(big)
@@ -92,7 +114,7 @@ class AlarmNotificationHelper(private val context: Context) {
             )
             .setDeleteIntent(dismissIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setFullScreenIntent(pendingIntent, true)
+            .apply { if (!overlay) setFullScreenIntent(pendingIntent, true) else setOngoing(true) }
             .build()
     }
 
