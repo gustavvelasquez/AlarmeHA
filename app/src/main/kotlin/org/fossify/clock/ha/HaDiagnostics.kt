@@ -21,7 +21,7 @@ object HaDiagnostics {
                 append("\n• Último erro: ").append(fmt(c.lastErrorAt)).append("\n").append(c.lastError)
             }
             append("\n• Na fila: ").append(HaWebhook.pending(context))
-            if (c.droppedEvents > 0) append("\n• Descartados (mais de 24 h ou pareamento antigo): ").append(c.droppedEvents)
+            if (c.droppedEvents > 0) append("\n• Descartados (mais de 7 dias ou pareamento antigo): ").append(c.droppedEvents)
             batteryProblem(context)?.let { append("\n• ").append(it) }
         }
     }

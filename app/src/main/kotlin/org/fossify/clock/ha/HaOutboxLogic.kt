@@ -6,12 +6,12 @@ package org.fossify.clock.ha
  * Nome do arquivo: "<epoch ms, 13 dígitos>_<seq 6 dígitos>_<evento>_<hash do webhook>.json".
  * Arquivos antigos (0.7.0 e antes): "<epoch ms>-<uuid>.json" (sem evento/hash: valem para o webhook atual).
  * - Ordem de envio = ordem do nome (horário de criação), um de cada vez; parou no erro, espera.
- * - Mais de 24 h na fila: descarta (o HA já não teria o que fazer com ele).
+ * - Mais de 7 dias na fila: descarta (0.15.0; antes 24 h). O HA registra os atrasados sem agir neles.
  * - De outro webhook (pareamento antigo): descarta.
  * - Uma "lista" nova substitui as "lista" ainda não enviadas (só a mais recente importa).
  */
 object HaOutboxLogic {
-    const val MAX_AGE_MS = 24 * 60 * 60 * 1000L
+    const val MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000L
 
     data class Entry(val name: String, val createdAt: Long?, val event: String?, val webhookHash: String?)
 

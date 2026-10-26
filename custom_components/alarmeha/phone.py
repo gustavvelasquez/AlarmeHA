@@ -28,6 +28,8 @@ if TYPE_CHECKING:
     from .hub import AlarmeHaHub
 
 _LOGGER = logging.getLogger(__name__)
+# 0.15.0: eventos mais velhos que isto (fila offline do celular, até 7 dias) só vão para o registro.
+ATRASO_MAX_H = 24
 
 # Alarme tocando ou em soneca: a agenda não mexe nele (editar no app cancela a soneca).
 OCUPADO_TOCANDO_MIN = 10  # o app desliga sozinho após alarm_max_reminder_secs (padrão 5 min)
@@ -243,6 +245,17 @@ class AlarmeHaPhone:
 
     # ---- eventos vindos do celular -------------------------------------------------
 
+    @staticmethod
+    def _atrasado(payload: dict[str, Any]) -> bool:
+        """Evento cujo "quando" (horário no celular) passou de ATRASO_MAX_H horas. Sem "quando" válido: não é."""
+        q = payload.get("quando")
+        quando = dt_util.parse_datetime(q) if isinstance(q, str) else None
+        if quando is None:
+            return False
+        if quando.tzinfo is None:
+            quando = quando.replace(tzinfo=dt_util.UTC)
+        return dt_util.utcnow() - quando > timedelta(hours=ATRASO_MAX_H)
+
     @callback
     def handle_event(self, payload: dict[str, Any]) -> None:
         event = payload.get("evento")
@@ -251,7 +264,7 @@ class AlarmeHaPhone:
         pedido = payload.get("pedido")
         # "apagar" de algo que já não existe é sucesso: não vira "erro" no último evento.
         benigno = event == "erro" and payload.get("motivo") == "ref_inexistente" and self._ops.get(pedido) == "apagar"
-        if not benigno:
+        if not benigno and not self._atrasado(payload):
             self.last_event = payload
         self.last_seen = dt_util.utcnow()
         if self.alerta_silencio:
@@ -260,6 +273,13 @@ class AlarmeHaPhone:
         if event == DIAG_EVENTO:
             # Modo diagnóstico: só vai para o registro em disco (nem barramento, nem histórico).
             self.hub.diag.add(self.phone_id, payload)
+            self.hub.async_save()
+            return
+        if self._atrasado(payload):
+            # 0.15.0: a fila do celular guarda até 7 dias. Evento com mais de ATRASO_MAX_H horas só
+            # vai para o registro (diagnóstico): não age (toque, pulo, lista, pedido) nem vai ao barramento,
+            # para não disparar automações por um "tocou" de dias atrás.
+            self.hub.diag.add(self.phone_id, {**payload, "tipo": f"atrasado_{event}"[:40]})
             self.hub.async_save()
             return
 

@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * Envia eventos ao webhook do Home Assistant.
  * Cada evento vai para uma fila em disco e o envio começa NA HORA (thread de fundo); o WorkManager
  * (expedited, com rede) é só a reserva para quando não deu (sem rede, HA fora, processo morto).
- * Regras da fila em [HaOutboxLogic]: ordem de criação, 24 h, "lista" colapsa, webhook antigo sai.
+ * Regras da fila em [HaOutboxLogic]: ordem de criação, 7 dias, "lista" colapsa, webhook antigo sai.
  */
 object HaWebhook {
     private const val OUTBOX = "ha_outbox"

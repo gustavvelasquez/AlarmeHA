@@ -18,12 +18,23 @@ class HaOutboxLogicTest {
     }
 
     @Test
-    fun guarda_ate_24h_e_descarta_depois() {
+    fun guarda_ate_o_limite_e_descarta_depois() {
         val keep = n(now - HaOutboxLogic.MAX_AGE_MS + 60_000, 1, "tocou")
         val old = n(now - HaOutboxLogic.MAX_AGE_MS - 60_000, 2, "tocou")
         val plan = HaOutboxLogic.plan(listOf(keep, old), now, h)
         assertEquals(listOf(keep), plan.send)
         assertEquals(listOf(old), plan.drop)
+    }
+
+    @Test
+    fun guarda_7_dias_e_descarta_8_dias() {
+        val dia = 24 * 60 * 60 * 1000L
+        assertEquals(7 * dia, HaOutboxLogic.MAX_AGE_MS)
+        val d2 = n(now - 2 * dia, 1, "tocou"); val d6 = n(now - 6 * dia, 2, "desligado")
+        val d8 = n(now - 8 * dia, 3, "tocou"); val legado8 = "${now - 8 * dia}-6f1c2a8e-uuid.json"
+        val plan = HaOutboxLogic.plan(listOf(d2, d6, d8, legado8), now, h)
+        assertEquals(setOf(d2, d6), plan.send.toSet())
+        assertEquals(setOf(d8, legado8), plan.drop.toSet())
     }
 
     @Test
