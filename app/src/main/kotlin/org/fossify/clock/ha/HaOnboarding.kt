@@ -12,8 +12,6 @@ import java.util.Date
 
 /** Ativação obrigatória na primeira vez, abertura do painel e dica do despertador antigo. */
 object HaOnboarding {
-    private const val COMPANION_PLAY_URL = "https://play.google.com/store/apps/details?id=io.homeassistant.companion.android"
-
     /** Enquanto o app nunca foi ativado, troca a tela atual pela ativação obrigatória. Retorna true se trocou. */
     fun redirectIfNeverActivated(activity: Activity): Boolean {
         if (HaConfig(activity).everActivated) return false
@@ -42,23 +40,31 @@ object HaOnboarding {
         null
     }
 
+    const val COMPANION_MISSING_TITLE = "App Home Assistant não encontrado"
+    const val COMPANION_MISSING_TEXT =
+        "O AlarmeHA precisa do app Home Assistant (Companion), que não está instalado neste celular. " +
+            "É por ele que o HA envia os comandos a este celular e que a ativação abre o painel Despertador.\n\n" +
+            "Instale-o pela Play Store, entre com a sua conta da casa e toque de novo em Ativar."
+
+    fun showCompanionMissing(activity: Activity) {
+        AlertDialog.Builder(activity)
+            .setTitle(COMPANION_MISSING_TITLE)
+            .setMessage(COMPANION_MISSING_TEXT)
+            .setPositiveButton("Abrir a Play Store") { _, _ -> HaCompanion.openStore(activity) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     fun openPanel(activity: Activity) {
+        if (!HaCompanion.isInstalled(activity)) {
+            showCompanionMissing(activity)
+            return
+        }
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("homeassistant://navigate/${HaActivation.PANEL_ACTIVATE_PATH}"))
         try {
             activity.startActivity(intent)
         } catch (e: ActivityNotFoundException) {
-            AlertDialog.Builder(activity)
-                .setTitle("App Home Assistant não encontrado")
-                .setMessage(
-                    "A ativação é feita pelo app Home Assistant (Companion), que não está instalado neste celular. " +
-                        "Instale-o, entre com a sua conta da casa e toque de novo em Ativar.\n\nSem o Companion o HA não consegue " +
-                        "enviar comandos a este celular."
-                )
-                .setPositiveButton("Abrir a Play Store") { _, _ ->
-                    runCatching { activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(COMPANION_PLAY_URL))) }
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
+            showCompanionMissing(activity)
         }
     }
 }

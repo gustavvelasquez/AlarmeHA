@@ -5,6 +5,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -21,6 +22,8 @@ import org.fossify.commons.extensions.getProperTextColor
 /** Tela obrigatória enquanto o app nunca foi ativado: sem ela não há acesso aos alarmes.
  * Depois da primeira ativação ela nunca mais aparece (nem sem internet, HA ou token válido). */
 class HaActivationRequiredActivity : SimpleActivity() {
+    private var companionWarning: LinearLayout? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         HaCrashLog.install(this)
         super.onCreate(savedInstanceState)
@@ -35,7 +38,10 @@ class HaActivationRequiredActivity : SimpleActivity() {
         if (HaConfig(this).everActivated) {
             startActivity(Intent(this, MainActivity::class.java))
             finish()
+            return
         }
+        // Reconfere ao voltar (por exemplo, da Play Store depois de instalar o Companion).
+        companionWarning?.visibility = if (HaCompanion.isInstalled(this)) View.GONE else View.VISIBLE
     }
 
     private fun buildLayout(): ScrollView {
@@ -66,6 +72,32 @@ class HaActivationRequiredActivity : SimpleActivity() {
                 "normalmente mesmo sem internet.",
             16f
         )
+        companionWarning = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(padding / 2, padding / 2, padding / 2, padding / 2)
+            setBackgroundColor(0x33F44336)
+            addView(TextView(this@HaActivationRequiredActivity).apply {
+                text = HaOnboarding.COMPANION_MISSING_TITLE
+                textSize = 18f
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(textColor)
+                gravity = Gravity.CENTER
+            })
+            addView(TextView(this@HaActivationRequiredActivity).apply {
+                text = HaOnboarding.COMPANION_MISSING_TEXT
+                textSize = 15f
+                setTextColor(textColor)
+                gravity = Gravity.CENTER
+                setPadding(0, padding / 3, 0, padding / 3)
+            })
+            addView(Button(this@HaActivationRequiredActivity).apply {
+                text = "Abrir a Play Store"
+                isAllCaps = false
+                setOnClickListener { HaCompanion.openStore(this@HaActivationRequiredActivity) }
+            })
+            visibility = if (HaCompanion.isInstalled(this@HaActivationRequiredActivity)) View.GONE else View.VISIBLE
+        }.also { column.addView(it, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = padding / 2 }) }
         column.addView(Button(this).apply {
             text = "Ativar"
             textSize = 20f

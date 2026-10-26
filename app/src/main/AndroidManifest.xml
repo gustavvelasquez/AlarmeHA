@@ -23,6 +23,12 @@
     <!-- AlarmeHA: o WorkManager precisa disto para a fila de envio ao HA (o Fossify removia). -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- AlarmeHA: saber se o app Home Assistant (Companion) está instalado (Android 11+). -->
+    <queries>
+        <package android:name="io.homeassistant.companion.android" />
+        <package android:name="io.homeassistant.companion.android.minimal" />
+    </queries>
+
     <uses-permission
         android:name="android.permission.USE_FINGERPRINT"
         tools:node="remove" />
