@@ -4,7 +4,7 @@ O Home Assistant (HA) controla os alarmes do AlarmeHA. O caminho é **HA → app
 
 - **Ida:** o HA pede para criar, editar, ligar, desligar, apagar ou listar alarmes.
 - **Volta:** o AlarmeHA avisa quando um alarme tocou, entrou em soneca, foi desligado, perdido (tocou até acabar o tempo), pulado ou religado, confirma as mudanças e manda a lista de alarmes.
-- **Versão:** este guia descreve a **0.14.1** (integração; app 0.14.0). App e integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`). Exceção: na 0.14.1 só a integração mudou; o app continua 0.14.0 e a release 0.14.1 traz o mesmo APK da 0.14.0. O que mudou nas últimas versões está resumido na seção 7.
+- **Versão:** este guia descreve a **0.15.0** (app e integração). App e integração saem sempre com o mesmo número (`gradle.properties`, `manifest.json` e `const.py`). Exceção: na 0.14.1 só a integração mudou; o app continua 0.14.0 e a release 0.14.1 traz o mesmo APK da 0.14.0. O que mudou nas últimas versões está resumido na seção 7.
 - **Segurança:** todo comando leva um **token** (gerado pelo HA na ativação pelo painel, ou pelo app no modo manual). Comando sem o token certo é ignorado em silêncio.
 - **Regra:** o HA só edita ou apaga alarmes que ele mesmo criou (com `ref`). Alarmes criados à mão no celular aparecem só na lista.
 - **Som:** o padrão do app, a não ser que o comando traga `som_uri` (toque por tipo de evento na agenda).
@@ -28,7 +28,7 @@ Este repositório também traz uma integração para o Home Assistant (`custom_c
    - **Ativar com o Home Assistant** também fica no menu ⋮ do app e em Configurações → Home Assistant. Sem o app Home Assistant instalado, o AlarmeHA avisa e oferece a Play Store.
 6. Pronto: o painel lista os alarmes desse celular e permite criar, editar, ligar/desligar e apagar.
 
-Enquanto o celular nunca foi ativado, o AlarmeHA mostra só a tela **Ativar o AlarmeHA**, sem acesso aos alarmes. O botão **Ativar** abre o painel no Companion; **Não abriu? Ativar manualmente** leva ao QR / Colar configuração; Voltar fecha o app. Depois da primeira ativação essa tela nunca mais aparece: o app e os alarmes funcionam normalmente mesmo sem HA, internet ou token válido. O app também mostra o próximo alarme do sistema, para você recriá-lo no AlarmeHA e **desativar os alarmes do relógio antigo**.
+Enquanto o celular nunca foi ativado, o AlarmeHA mostra só a tela **Ativar o AlarmeHA**, sem acesso aos alarmes. O botão **Ativar** abre o painel no Companion; **Não abriu? Ativar manualmente** leva ao QR / Colar configuração; Voltar fecha o app. Sem o app Home Assistant (Companion) instalado (`io.homeassistant.companion.android` ou `.minimal`), a tela mostra o aviso de que ele é obrigatório, com o botão **Abrir a Play Store**; tocar em Ativar mostra o mesmo aviso (0.15.0). Depois da primeira ativação essa tela nunca mais aparece: o app e os alarmes funcionam normalmente mesmo sem HA, internet ou token válido. O app também mostra o próximo alarme do sistema, para você recriá-lo no AlarmeHA e **desativar os alarmes do relógio antigo**.
 
 **Quem vê o quê:** usuários comuns só veem e controlam o próprio celular, no painel e nas ações. Admins veem todos. Automações (sem usuário) podem mirar qualquer celular.
 
@@ -317,7 +317,7 @@ Exemplo:
 
 No app: **Configurações → Home Assistant → Modo diagnóstico**. Vem desligado e só desliga quando a pessoa desligar.
 
-Ligado, o app manda o evento `diagnostico` pelo mesmo webhook e pela mesma fila (se o HA estiver fora do ar, espera na fila e vai depois, até 24 h). Campos: `tipo` (`recebido`, `agendado`, `desagendado`, `apagado`, `tocou`, `soneca`, `pulou`, `religado`, `dispensou`, `perdido`, `erro`), `ref`, `id`, `hora`, `minuto`, `dias`, `ativo` e, conforme o tipo, `op`, `pedido`, `motivo`, `mensagem`, `minutos`, `ocorrencia` e, em `pulou`/`religado` (0.13.0), `origem_pulo` e `grupo`. Sempre com `versao` e `quando`. Nunca vai o rótulo do alarme.
+Ligado, o app manda o evento `diagnostico` pelo mesmo webhook e pela mesma fila (se o HA estiver fora do ar, espera na fila e vai depois, até 7 dias; o que chega com mais de 24 h de atraso fica só no registro). Campos: `tipo` (`recebido`, `agendado`, `desagendado`, `apagado`, `tocou`, `soneca`, `pulou`, `religado`, `dispensou`, `perdido`, `erro`), `ref`, `id`, `hora`, `minuto`, `dias`, `ativo` e, conforme o tipo, `op`, `pedido`, `motivo`, `mensagem`, `minutos`, `ocorrencia` e, em `pulou`/`religado` (0.13.0), `origem_pulo` e `grupo`. Sempre com `versao` e `quando`. Nunca vai o rótulo do alarme.
 
 No HA, esses eventos não vão para o barramento nem para o histórico: ficam num armazenamento próprio (`.storage/alarmeha.diagnostico`) com os **últimos 500** (os mais antigos saem), preservado ao reiniciar. Nome da pessoa e do aparelho não são gravados.
 
@@ -350,7 +350,13 @@ Pela API REST: `POST /api/services/alarmeha/diagnostico?return_response` com um 
 | Alarmes duplicados desligados (`ag_<tipo>_<n>` com os mesmos horários) | Sobra de re-pareamento na 0.7.0. Na 0.8.0 o HA apaga as vagas `ag_*` sem uso na sincronização seguinte (00/15/30/45), fora da janela de 5/10 min. |
 | Alarme da agenda não mudou | O HA não mexe em alarme tocando, em soneca ou entre 5 min à frente e 10 min atrás; espere a próxima sincronização (00/15/30/45). |
 
-## 7. Novidades da 0.14.1 (só integração)
+## 7. Novidades da 0.15.0 (app e integração)
+
+- App: a fila de eventos para o HA (quando o HA não responde, por exemplo sem acesso externo fora de casa) agora guarda os eventos por até 7 dias, em vez de 24 horas. Os de mais de 7 dias são descartados.
+- Integração: um evento que chega com mais de 24 horas de atraso (campo `quando`) só vai para o registro do diagnóstico, como `atrasado_<evento>` (ex.: `atrasado_tocou`). Ele não vai para o barramento (não dispara automações), não marca o alarme como tocando, não muda pulos nem a lista do celular e não muda o "último evento". Atrasos de até 24 horas continuam valendo como antes.
+- App: se o app Home Assistant (Companion) não estiver instalado (versão completa ou `minimal`), a tela "Ative o AlarmeHA" mostra um aviso de que ele é obrigatório, com o botão "Abrir a Play Store" (abre o app da Play Store ou, sem ele, o site). Tocar em Ativar sem o Companion mostra o mesmo aviso. "Não abriu? Ativar manualmente" continua.
+
+## 7.0.1 Novidades da 0.14.1 (só integração)
 
 - Integração: o HA baixa o APK pela API de assets do GitHub e aceita cabeçalhos maiores. Antes, o redirecionamento do GitHub vinha com um cabeçalho grande demais, o download falhava e o painel entregava, sem avisar, a cópia antiga guardada no HA.
 - Integração: se o download da versão nova falhar, o painel mostra "não consegui baixar a versão X; este é o APK da Y", com o erro e o link da release. O download pelo painel também traz o cabeçalho `X-AlarmeHA-Aviso`.
@@ -418,6 +424,6 @@ Pela API REST: `POST /api/services/alarmeha/diagnostico?return_response` com um 
 - **Tela do grupo** (tocar no cartão): "Desativar tudo" / "Ativar tudo" (os dois quando misto) e a chave de cada alarme. Desativar pula só aquele toque e cancela soneca em andamento; Ativar desfaz. Horário e nome vêm da agenda e não se editam no app.
 - **Datas por extenso** ("qua., 21 de out."; recorrente "Toda ter, qua · …"), desligados bem esmaecidos, e **"Pulado"** no lugar de "Tocou às" quando o toque tinha sido pulado.
 - **Agrupar no app** (opção de cada tipo, no editor do tipo): "Um cartão por evento" (um cartão por compromisso, juntando os dias; padrão do Trabalho e de tipos novos) ou "Um cartão para o tipo inteiro" (padrão de Remédio/Remédios). Tipos salvos antes recebem o padrão. Trocar só reagrupa: as vagas `ag_<tipo>_<n>` e os horários ficam, e alarmes tocando, em soneca ou na janela de 5/10 min são ajustados depois. A chave de cada alarme continua dentro do grupo.
-- **Envio celular → HA:** envio na hora, WorkManager só de reserva, fila de até 24 h em ordem (`quando` original), `lista` repetida colapsa na mais recente. A tela Home Assistant do app mostra último envio ok, último erro e a fila; um aviso fixo na lista aparece com bateria restrita, app em espera ou envio falhando.
+- **Envio celular → HA:** envio na hora, WorkManager só de reserva, fila de até 7 dias em ordem (até a 0.14: 24 h) (`quando` original), `lista` repetida colapsa na mais recente. A tela Home Assistant do app mostra último envio ok, último erro e a fila; um aviso fixo na lista aparece com bateria restrita, app em espera ou envio falhando.
 - **No HA:** sensor `ultimo_evento_recebido` e alerta (notificação persistente + evento `alarmeha_silencio`) após 30 min de silêncio com comando sem resposta ou alarme que deveria ter tocado.
 - **Re-pareamento:** mesmo objeto do celular (sensores e pendências seguem), webhooks antigos desregistrados e vagas `ag_*` órfãs apagadas.

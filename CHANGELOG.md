@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Versões do fork (app `br.casa.alarmeha` e integração `custom_components/alarmeha`). Até a 0.6.0 o app e a integração tinham números próprios; desde a 0.7.0 usam o mesmo número. As versões do Fossify Clock (upstream) seguem abaixo.
 
+### 0.15.0 - 2026-10-26 (app e integração)
+
+**O que mudou**
+- App: a fila de eventos para o HA (quando o HA não responde, por exemplo sem acesso externo fora de casa) agora guarda os eventos por até 7 dias, em vez de 24 horas. Os de mais de 7 dias são descartados.
+- Integração: um evento que chega com mais de 24 horas de atraso (campo `quando`) só vai para o registro do diagnóstico, como `atrasado_<evento>` (ex.: `atrasado_tocou`). Ele não vai para o barramento (não dispara automações), não marca o alarme como tocando, não muda pulos nem a lista do celular e não muda o "último evento". Atrasos de até 24 horas continuam valendo como antes.
+- App: se o app Home Assistant (Companion) não estiver instalado (versão completa ou `minimal`), a tela "Ative o AlarmeHA" mostra um aviso de que ele é obrigatório, com o botão "Abrir a Play Store" (abre o app da Play Store ou, sem ele, o site). Tocar em Ativar sem o Companion mostra o mesmo aviso. "Não abriu? Ativar manualmente" continua.
+- App: o manifest declara os pacotes do Companion em `<queries>` (necessário no Android 11+ para saber se ele está instalado).
+- Testes: fila de 7 dias (8 dias descartado), Companion ausente/completo/minimal e evento atrasado na integração.
+
+**Ainda não mudou:** pulo travando a atualização dos dias (opção A ou B); interruptor de alarme que já tocou hoje; dispensar do conjunto (lembrete na segunda que vem); tela cheia com confirmação e "Tomei" do remédio.
+
 ### 0.14.1 - 2026-10-24 (só integração; app continua 0.14.0)
 
 Exceção aprovada à regra do mesmo número: só a integração muda. O app continua 0.14.0 e a release 0.14.1 traz o mesmo `AlarmeHA.apk` da 0.14.0 (mesmo SHA-256), para o painel e o link do GitHub continuarem entregando o app 0.14.0.

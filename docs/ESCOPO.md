@@ -9,7 +9,7 @@ Status: **feito**, **pendente** (pedido e ainda não feito ou aguardando decisã
 | Item | Status | Versão | Observação |
 |---|---|---|---|
 | Mesmo número de versão no app e na integração | feito | 0.7.0 (regra reforçada na 0.9.1) | `gradle.properties`, `manifest.json` e `const.py`; toda versão sai nos dois |
-| Documentação atualizada antes de publicar | feito | 0.14.1 | Especificação, CHANGELOG, README, guia e este arquivo |
+| Documentação atualizada antes de publicar | feito | 0.15.0 | Especificação, CHANGELOG, README, guia e este arquivo |
 | Não disparar nada no celular de uma segunda pessoa da casa sem consentimento | feito | — | Outras pessoas só recebem algo com consentimento |
 
 ## Comunicação e pareamento
@@ -20,7 +20,7 @@ Status: **feito**, **pendente** (pedido e ainda não feito ou aguardando decisã
 | Eventos app → HA por webhook | feito | 0.5.x | `lista`, `alterado`, `tocou`, `soneca`, `desligado`, `pulado`, `religado`, `erro`... |
 | Pareamento pelo painel (QR code / código de uso único) | feito | 0.5.x | Sem copiar token |
 | Re-pareamento no mesmo celular sem entidades presas | feito | 0.8.0 | Webhooks antigos desregistrados |
-| Envio imediato com fila de 24 h | feito | 0.8.0 | WorkManager só de reserva |
+| Envio imediato com fila (24 h até a 0.14; 7 dias desde a 0.15.0) | feito | 0.8.0 / 0.15.0 | WorkManager só de reserva |
 | Sensor `ultimo_evento_recebido` e alerta após 30 min sem eventos | feito | 0.8.0 | Evento `alarmeha_silencio` |
 | Comandos no log em INFO, sem token | feito | 0.8.1 | |
 
@@ -158,6 +158,14 @@ Regras combinadas para a próxima versão. Exemplos fictícios: tipo "Trabalho" 
 | Exceção à regra do mesmo número | aprovada (0.14.1) | Só a integração vai para 0.14.1; o app fica 0.14.0, sem APK novo. A release 0.14.1 traz o mesmo `AlarmeHA.apk` da 0.14.0 (mesmo SHA-256), porque o painel e o link `/releases/latest` pegam o APK da última release |
 | Download do APK pelo HA | feito (0.14.1) | Baixa pela API de assets com limite de cabeçalho maior (o CSP do redirecionamento do GitHub passava de 8190 bytes e o HA servia a cópia antiga sem avisar) |
 | Aviso de cópia antiga no painel | feito (0.14.1) | Se o download falhar e o HA servir o cache: "não consegui baixar a versão X; este é o APK da Y", com o erro e o link da release |
+
+## Decisão aprovada — versão 0.15.0 (2026-10-26)
+
+| Item | Status | Observação |
+|---|---|---|
+| Fila de eventos do celular por 7 dias | feito (0.15.0) | Decidido em 2026-10-26: antes 24 h. Cobre falta de energia ou viagem sem acesso externo. Mais de 7 dias: descartado no celular. Na integração, evento com mais de 24 h de atraso (`quando`) só vai para o registro do diagnóstico como `atrasado_<evento>`: sem barramento, sem marcar toque, sem mudar pulos, lista ou último evento |
+| Aviso de Companion ausente | feito (0.15.0) | Aprovado em 2026-10-26: a tela "Ative o AlarmeHA" e o botão Ativar avisam que o app Home Assistant (Companion) é obrigatório, com botão para a Play Store (`market://`, com o site como reserva). Conta a versão completa e a `minimal`; pacotes em `<queries>` no manifest. "Ativar manualmente" continua |
+| Versão 0.15.0 no app e na integração | feito (0.15.0) | versionCode 1500 |
 
 ## Checklist de release
 
